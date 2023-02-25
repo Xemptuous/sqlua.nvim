@@ -1,33 +1,30 @@
-local Json = require("json")
 local DB = {}
+local utils = require('sqlua.utils')
 
-connections_file = vim.fn.stdpath("data") .. '/connections.json'
+DB.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' }
 
 function DB.connect()
 
 end
 
-DB.writeConnectionConfig = function(data)
-  local file = io.open(connections_file, "w")
-  if file then
-    local contents = Json.encode(data)
-    file:write(contents)
-    io.close(file)
-    return true
-  end
-  return false
-
+DB.writeConnection = function(data)
+  local json = vim.fn.json_encode(data)
+  vim.fn.writefile({json}, DB.connections_file)
 end
 
-DB.readConnectionConfig = function()
-  local file = io.open(connections_file, "r")
-  if file then
-    local contents = file:read("*a")
-    local config = Json.decode(contents)
-    io.close(file)
-    return config
+DB.readConnection = function()
+  local content = vim.fn.readfile(DB.connections_file)
+  if not content then
+    return nil
   end
-  return nil
+  content = vim.fn.json_decode(vim.fn.join(content, "\n"))
+  return content
+end
+
+DB.addConnection = function(url, name)
+  local file = DB.readConnection()
+  table.insert(file, {url = url, name = name})
+  DB.writeConnection(file)
 end
 
 return DB

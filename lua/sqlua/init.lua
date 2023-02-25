@@ -1,35 +1,43 @@
-Utils = require('sqlua.utils')
+local utils = require('sqlua.utils')
+DB = require('sqlua-connections.db')
 
 local M = {}
 
-RootDir = Utils.concat { vim.fn.stdpath("data"), "sqlua" }
 
--- create main directory if not exists
-
+local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 local DEFAULT_SETTINGS = {
-  db_save_location = Utils.concat {RootDir, "dbs"},
+  db_save_location = utils.concat { RootDir, "dbs" },
+  connections_save_location = utils.concat { RootDir, 'connections.json' }
 }
 
-vim.api.nvim_add_user_command('SQLua', function()
-  local db = require('sqlua-connections.db')
-  local tbl = db.readConnectionConfig()
-  if not tbl then
-    db.writeConnectionConfig({})
-    tbl = db.readConnectionConfig()
-  end
-  -- TODO: fix this call
-  -- if not Utils.isDir(RootDir) then
-    -- TODO: add windows and mac functionality
-    -- os.execute("mkdir" .. RootDir)
-  -- end
+vim.api.nvim_create_user_command('SQLua', function()
+  local tbl = DB.readConnection()
   P(tbl)
-end)
+end, {})
+
+vim.api.nvim_create_user_command('SQLuaAddConnection', function()
+  url = vim.fn.input("Enter the connection details: ")
+  -- verify url string
+  name = vim.fn.input("Enter the display name for the connection: ")
+  DB.addConnection(url, name)
+end, {})
+
 
 M.setup = function(opts)
   if opts == nil then
     M.setup = DEFAULT_SETTINGS
   else
     M.setup = opts
+  end
+
+  -- creating root directory
+  if vim.fn.isdirectory(RootDir) == 0 then
+    vim.fn.mkdir(RootDir)
+  end
+
+  -- creating config json
+  if vim.fn.filereadable(DB.connections_file) == 0 then
+    DB.writeConnection({})
   end
   P(M.setup)
 end
