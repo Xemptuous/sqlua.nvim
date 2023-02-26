@@ -10,15 +10,15 @@ local DEFAULT_SETTINGS = {
   connections_save_location = utils.concat { RootDir, 'connections.json' }
 }
 
-
-vim.api.nvim_create_user_command('SQLua', function(name)
-  local connection
-  if name.fargs then
-    connection = DB.connect(name.fargs[1])
-  else
-    connection = DB.connect()
-  end
-  print(connection)
+-- psql -U <username> -d <dbname> -c "<QUERY>"
+vim.api.nvim_create_user_command('SQLua', function(args)
+  DB.connect(DB, args.args)
+  print(DB.name)
+  print(DB.url)
+  print(DB.db)
+  print(DB.username)
+  print(DB.password)
+  print(DB.server)
 end, {nargs = 1})
 
 

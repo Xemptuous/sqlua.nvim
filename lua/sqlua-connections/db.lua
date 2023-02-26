@@ -1,23 +1,60 @@
-local DB = {}
 local utils = require('sqlua.utils')
+local DB = {
+  name = "",
+  url = "",
+  username = "",
+}
 
 
 DB.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' }
 
+DB.runjob = function()
 
-DB.connect = function(name)
+end
+
+
+local parseUrl = function(url)
+  local db = string.gsub(
+    string.sub(url, string.find(url, "%w+:")),
+    "[:]", ""
+  )
+  local username = string.gsub(
+    string.sub(url, string.find(url, "//%w+:")),
+    "[/:]", ""
+  )
+  local password = string.gsub(
+    string.sub(url, string.find(url, ":[%w!@#%$%%%^&%*%(%)%-_=%+]+@")),
+    "[:@]", ""
+  )
+  local server = string.gsub(
+    string.sub(url, string.find(url, "@.+/")),
+    "[@/]", ""
+  )
+  return {
+    db = db,
+    username = username,
+    password = password,
+    server = server
+  }
+end
+
+-- DB.connect = function(name)
+function DB:connect(name)
   local connections = DB.readConnection()
   for _, connection in pairs(connections) do
-    if not name then
-      return connection['url']
-    elseif connection['name'] == name then
-      P(connection)
-      print(connection['name'])
-      print(connection['url'])
-      return connection['url']
+    if connection['name'] == name then
+      self.name = connection['name']
+      self.url = connection['url']
+      local params = parseUrl(self.url)
+      self.db = params['db']
+      self.username = params['username']
+      self.password = params['password']
+      self.server = params['server']
     end
   end
 end
+
+
 
 
 DB.writeConnection = function(data)
