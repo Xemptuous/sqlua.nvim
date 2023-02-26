@@ -19,13 +19,15 @@ vim.api.nvim_create_user_command('SQLua', function(args)
   print(DB.username)
   print(DB.password)
   print(DB.server)
+  print(DB.ip)
+  print(DB.port)
 end, {nargs = 1})
 
 
 vim.api.nvim_create_user_command('SQLuaAddConnection', function()
-  url = vim.fn.input("Enter the connection details: ")
+  local url = vim.fn.input("Enter the connection details: ")
   -- verify url string
-  name = vim.fn.input("Enter the display name for the connection: ")
+  local name = vim.fn.input("Enter the display name for the connection: ")
   DB.addConnection(url, name)
 end, {})
 

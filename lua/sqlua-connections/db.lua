@@ -30,11 +30,22 @@ local parseUrl = function(url)
     string.sub(url, string.find(url, "@.+/")),
     "[@/]", ""
   )
+  local ip = ""
+  local port = ""
+  if server == "localhost" then
+    ip = "127.0.0.1"
+    port = "5432"
+  else
+    ip = string.sub(server, string.find(server, "+[:/]"))
+    port = string.sub(server, string.find(server, ":+"))
+  end
   return {
     db = db,
     username = username,
     password = password,
-    server = server
+    server = server,
+    ip = ip,
+    port = port
   }
 end
 
@@ -50,6 +61,8 @@ function DB:connect(name)
       self.username = params['username']
       self.password = params['password']
       self.server = params['server']
+      self.ip = params['ip']
+      self.port = params['port']
     end
   end
 end
