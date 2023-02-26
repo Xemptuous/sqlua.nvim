@@ -1,19 +1,26 @@
 local utils = require('sqlua.utils')
-DB = require('sqlua-connections.db')
+local DB = require('sqlua-connections.db')
+local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 
 local M = {}
 
 
-local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 local DEFAULT_SETTINGS = {
   db_save_location = utils.concat { RootDir, "dbs" },
   connections_save_location = utils.concat { RootDir, 'connections.json' }
 }
 
-vim.api.nvim_create_user_command('SQLua', function()
-  local tbl = DB.readConnection()
-  P(tbl)
-end, {})
+
+vim.api.nvim_create_user_command('SQLua', function(name)
+  local connection
+  if name.fargs then
+    connection = DB.connect(name.fargs[1])
+  else
+    connection = DB.connect()
+  end
+  print(connection)
+end, {nargs = 1})
+
 
 vim.api.nvim_create_user_command('SQLuaAddConnection', function()
   url = vim.fn.input("Enter the connection details: ")
@@ -39,14 +46,8 @@ M.setup = function(opts)
   if vim.fn.filereadable(DB.connections_file) == 0 then
     DB.writeConnection({})
   end
-  P(M.setup)
 end
 
--- M.setup({
---   first = "one",
---   second = "two",
---   non = "no"
--- })
 
 return M
 
