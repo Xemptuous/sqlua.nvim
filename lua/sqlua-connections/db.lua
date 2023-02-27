@@ -1,6 +1,8 @@
 local utils = require('sqlua.utils')
 local DB = {}
-local queries = {}
+local queries = {
+  init = 0
+}
 
 schemaQuery = [[
 "SELECT table_name
@@ -47,9 +49,13 @@ DB.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connecti
 -- end
 
 
-function onStdout(job_id, data, event)
-  table.insert(queries, data)
-  P(data)
+local function onStdout(job_id, data, event)
+  vim.cmd('split')
+  local win = vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(win, buf)
+  vim.api.nvim_win_set_height(0, 10)
+  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
 end
 
 

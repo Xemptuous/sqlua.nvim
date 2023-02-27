@@ -10,7 +10,9 @@ local DEFAULT_SETTINGS = {
   connections_save_location = utils.concat { RootDir, 'connections.json' }
 }
 
+-- for postgres
 -- psql -U <username> -d <dbname> -c "<QUERY>"
+-- OR psql <full url> -c "<query>"
 vim.api.nvim_create_user_command('SQLua', function(args)
   DB.connect(DB, args.args)
 end, {nargs = 1})
