@@ -1,7 +1,7 @@
 local utils = require('sqlua.utils')
-local DB = {}
-local queries = {
-  init = 0
+local DB = {
+  schema = {},
+  last_query = {}
 }
 
 schemaQuery = [[
@@ -47,15 +47,43 @@ DB.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connecti
 --     port = port
 --   }
 -- end
-
-
-local function onStdout(job_id, data, event)
+local createResultsPane = function(data)
   vim.cmd('split')
   local win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(buf, "ResultsBuf")
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_height(0, 10)
   vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
+end
+
+
+local function onStdout(job_id, data, event)
+  if vim.fn.bufexists("ResultsBuf") == 1 then
+    print('exists')
+    -- FIXME: currently not deleting existing buffer, and recreating
+    -- after closing the buffer
+    local win = nil
+    for _, winid in pairs(vim.api.nvim_list_wins()) do
+      local buf = vim.api.nvim_win_get_buf(winid)
+      if vim.fn.bufname(buf) == 'ResultsBuf' then
+        vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
+        vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
+        win = 1
+        return
+      end
+    end
+    if not win then
+      for _, buffer in pairs(vim.api.nvim_list_bufs()) do
+        if vim.fn.bufname(buffer) == 'ResultsBuf' then
+          vim.api.nvim_buf_delete(buffer, {force = true, unload = false})
+          createResultsPane(data)
+        end
+      end
+    end
+  end
+  print("NONE")
+  createResultsPane(data)
 end
 
 
