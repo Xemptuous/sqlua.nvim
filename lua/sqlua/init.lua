@@ -13,19 +13,11 @@ local DEFAULT_SETTINGS = {
 -- psql -U <username> -d <dbname> -c "<QUERY>"
 vim.api.nvim_create_user_command('SQLua', function(args)
   DB.connect(DB, args.args)
-  print(DB.name)
-  print(DB.url)
-  print(DB.db)
-  print(DB.username)
-  print(DB.password)
-  print(DB.server)
-  print(DB.ip)
-  print(DB.port)
 end, {nargs = 1})
 
 
 vim.api.nvim_create_user_command('SQLuaAddConnection', function()
-  local url = vim.fn.input("Enter the connection details: ")
+  local url = vim.fn.input("Enter the connection url: ")
   -- verify url string
   local name = vim.fn.input("Enter the display name for the connection: ")
   DB.addConnection(url, name)
