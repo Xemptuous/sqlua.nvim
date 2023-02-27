@@ -69,7 +69,6 @@ local function onStdout(job_id, data, event)
       if vim.fn.bufname(buf) == 'ResultsBuf' then
         vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
         vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
-        win = 1
         return
       end
     end
