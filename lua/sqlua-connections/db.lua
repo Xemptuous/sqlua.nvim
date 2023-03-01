@@ -14,13 +14,27 @@ DB.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connecti
 
 
 local createResultsPane = function(data)
+  local schema = utils.shallowcopy(data)
+  for i, _ in pairs(schema) do
+    schema[i] = string.gsub(schema[i], "%s", "")
+  end
+  if schema[1] == "table_name" then
+    table.remove(schema, 1)
+    table.remove(schema, 1)
+    table.remove(schema)
+    table.remove(schema)
+    table.remove(schema)
+  end
+  DB.schema = schema
   vim.cmd('split')
   local win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(buf, "ResultsBuf")
+  P(vim.api.nvim_get_all_options_info())
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_height(0, 10)
-  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
+  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, schema)
 end
 
 
