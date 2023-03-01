@@ -1,3 +1,0 @@
-local Instance = {}
-local Connection = {}
-
