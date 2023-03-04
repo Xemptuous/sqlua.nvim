@@ -13,7 +13,6 @@ SELECT table_schema, table_name
 FROM information_schema.tables
 "]]
 
-Connection.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' }
 
 local getPostgresSchema = function(data)
   local schema = utils.shallowcopy(data)
@@ -44,10 +43,9 @@ local function createResultsPane(data)
   local win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(buf, "ResultsBuf")
-  -- vim.api.nvim_buf_set_option(buf, "modifiable", false)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_height(0, 10)
-  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, data)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, 0, data)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
   vim.cmd('goto 1')
 end
@@ -57,7 +55,10 @@ local function onEvent(job_id, data, event)
   local win = vim.api.nvim_get_current_win()
   local pos = vim.api.nvim_win_get_cursor(win)
   local buf = vim.api.nvim_win_get_buf(win)
-  if event == 'stdout' then
+  if (event == 'stdout') or (event == 'stderr') then
+    if data[1] == "" then
+      return
+    end
     if vim.fn.bufexists("ResultsBuf") == 1 then
       for _, buffer in pairs(vim.api.nvim_list_bufs()) do
         if vim.fn.bufname(buffer) == 'ResultsBuf' then
@@ -69,7 +70,6 @@ local function onEvent(job_id, data, event)
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_cursor(win, pos)
-  elseif event == 'stderr' then
   elseif event == 'exit' then
   end
 end
@@ -82,7 +82,7 @@ local function onConnect(job_id, data, event)
   elseif event == 'stderr' then
   elseif event == 'exit' then
     table.insert(Connection.dbs, Connection)
-    return Connection
+    -- return Connection
   else
   end
 end
@@ -99,8 +99,6 @@ function Connection:executeQuery()
     local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "'<"))
     local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, "'>"))
     ecol = 1024
-    print(srow, scol)
-    print(erow, ecol)
     if srow < erow or (srow == erow and scol <= ecol) then
       query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
     else
@@ -122,21 +120,22 @@ function Connection:executeQuery()
       math.max(srow, erow), 0
     )
     query = {}
-    start = math.min(scol, ecol)
-    _end = math.max(scol, ecol)
+    local start = math.min(scol, ecol)
+    local _end = math.max(scol, ecol)
     for _, line in ipairs(lines) do
       table.insert(query, string.sub(line, start, _end))
     end
   end
   local opts = {
     stdout_buffered = true,
+    stderr_buffered = true,
     on_exit = onEvent,
     on_stdout = onEvent,
     on_stderr = onEvent,
     on_data = onEvent
   }
-  cmd = self.cmd.. '"' .. table.concat(query, " ") .. '"'
-  job = vim.fn.jobstart(cmd, opts)
+  local cmd = self.cmd.. '"' .. table.concat(query, " ") .. '"'
+  local job = vim.fn.jobstart(cmd, opts)
 
   -- vim.api.nvim_set_current_win(win)
   -- vim.api.nvim_win_set_buf(win, buf)
@@ -158,12 +157,13 @@ function Connection:connect(name)
 
       local opts = {
         stdout_buffered = true,
+        stderr_buffered = true,
         on_exit = onConnect,
         on_stdout = onConnect,
         on_stderr = onConnect,
         on_data = onConnect
       }
-      job = vim.fn.jobstart(cmd, opts)
+      local job = vim.fn.jobstart(cmd, opts)
     end
   end
 end
