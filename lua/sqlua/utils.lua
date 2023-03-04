@@ -55,5 +55,35 @@ M.shallowcopy = function(orig)
     return copy
 end
 
+M.splitString = function(str, sep)
+  local sep = sep
+  if sep == nil then
+    sep = "%s"
+  end
+  local t = {}
+  for s in string.gmatch(str, "([^"..sep.."]+)") do
+    table.insert(t, s)
+  end
+  return t
+end
+
+M.inArray = function(arr, element)
+  for _, value in ipairs(arr) do
+    if value == element then
+      return true
+    end
+  end
+  return false
+end
+
+M.removeDuplicates = function(arr)
+  local newArray = {}
+  for _, element in ipairs(arr) do
+    if not M.inArray(newArray, element) then
+      table.insert(newArray, element)
+    end
+  end
+  return newArray
+end
 
 return M
