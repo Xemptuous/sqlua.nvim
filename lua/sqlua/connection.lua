@@ -1,6 +1,8 @@
 local utils = require('sqlua.utils')
 local Connection = {
-  connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' },
+  connections_file =  utils.concat { 
+    vim.fn.stdpath("data"), 'sqlua', 'connections.json' 
+  },
   last_query = {},
   dbs = {},
   schema = {},
@@ -78,11 +80,9 @@ end
 local function onConnect(job_id, data, event)
   if event == 'stdout' then
     getPostgresSchema(data)
-    -- createResultsPane(data)
   elseif event == 'stderr' then
   elseif event == 'exit' then
     table.insert(Connection.dbs, Connection)
-    -- return Connection
   else
   end
 end
@@ -95,7 +95,7 @@ function Connection:executeQuery()
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
   elseif mode == 'V' then
     -- FIXME: only captures previous selection, not the current one
-    -- might be neovim limitation (tried feeding 'gv', doesn't work)
+    -- might be neovim limitation (tried feeding esc & 'gv', doesn't work)
     local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "'<"))
     local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, "'>"))
     ecol = 1024
@@ -137,9 +137,7 @@ function Connection:executeQuery()
   local cmd = self.cmd.. '"' .. table.concat(query, " ") .. '"'
   local job = vim.fn.jobstart(cmd, opts)
 
-  -- vim.api.nvim_set_current_win(win)
-  -- vim.api.nvim_win_set_buf(win, buf)
-  -- vim.api.nvim_win_set_cursor(win, pos)
+  -- exit visual mode on run
   local keys = vim.api.nvim_replace_termcodes('<ESC>', true, false, true)
   vim.api.nvim_feedkeys(keys, 'm', false)
 end
@@ -188,41 +186,5 @@ function Connection:addConnection(url, name)
   Connection:writeConnection(file)
 end
 
-
--- local parseUrl = function(url)
---   local db = string.gsub(
---     string.sub(url, string.find(url, "%w+:")),
---     "[:]", ""
---   )
---   local username = string.gsub(
---     string.sub(url, string.find(url, "//%w+:")),
---     "[/:]", ""
---   )
---   local password = string.gsub(
---     string.sub(url, string.find(url, ":[%w!@#%$%%%^&%*%(%)%-_=%+]+@")),
---     "[:@]", ""
---   )
---   local server = string.gsub(
---     string.sub(url, string.find(url, "@.+/")),
---     "[@/]", ""
---   )
---   local ip = ""
---   local port = ""
---   if server == "localhost" then
---     ip = "127.0.0.1"
---     port = "5432"
---   else
---     ip = string.sub(server, string.find(server, "+[:/]"))
---     port = string.sub(server, string.find(server, ":+"))
---   end
---   return {
---     db = db,
---     username = username,
---     password = password,
---     server = server,
---     ip = ip,
---     port = port
---   }
--- end
 
 return Connection

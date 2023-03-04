@@ -11,23 +11,6 @@ local DEFAULT_SETTINGS = {
   connections_save_location = utils.concat { RootDir, 'connections.json' }
 }
 
--- for postgres
--- psql -U <username> -d <dbname> -c "<QUERY>"
--- OR psql <full url> -c "<query>"
-vim.api.nvim_create_user_command('SQLua', function(args)
-  UI:setup()
-  Connection:connect(args.args)
-  vim.keymap.set({"n", "v"}, "<leader>r", function() Connection:executeQuery() end, {noremap = true, silent = true})
-end, {nargs = 1})
-
-
-vim.api.nvim_create_user_command('SQLuaAddConnection', function()
-  local url = vim.fn.input("Enter the connection url: ")
-  -- verify url string
-  local name = vim.fn.input("Enter the display name for the connection: ")
-  Connection:addConnection(url, name)
-end, {})
-
 
 M.setup = function(opts)
   if opts == nil then
@@ -45,6 +28,25 @@ M.setup = function(opts)
   if vim.fn.filereadable(Connection.connections_file) == 0 then
     Connection:writeConnection({})
   end
+
+  -- main function to enter the UI
+  vim.api.nvim_create_user_command('SQLua', function(args)
+    UI:setup()
+    Connection:connect(args.args)
+
+    vim.keymap.set({"n", "v"}, "<leader>r", function() 
+      Connection:executeQuery() 
+    end, {noremap = true, silent = true})
+
+  end, {nargs = 1})
+
+  vim.api.nvim_create_user_command('SQLuaAddConnection', function()
+    -- TODO: add floating window to edit connections file on the spot
+    local url = vim.fn.input("Enter the connection url: ")
+    -- TODO: verify url string
+    local name = vim.fn.input("Enter the display name for the connection: ")
+    Connection:addConnection(url, name)
+  end, {})
 end
 
 
