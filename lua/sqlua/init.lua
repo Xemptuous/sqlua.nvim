@@ -1,5 +1,5 @@
 local utils = require('sqlua.utils')
-local Connection = require('sqlua-connections.db')
+local Connection = require('sqlua.connection')
 local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 
 local M = {}
