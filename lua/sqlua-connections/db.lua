@@ -1,7 +1,7 @@
 local utils = require('sqlua.utils')
 local M = {}
 local DB = {
-  schema = {},
+  schema = nil,
   last_query = {}
 }
 
@@ -33,14 +33,12 @@ local getPostgresSchema = function(data)
     end
     table.insert(DB.schema[schema_name], table_name)
   end
-  DB.schema = schema
-  -- P(DB)
-  return schema
 end
 
 
 local createResultsPane = function(data)
-  if M.schema ~= {} then
+  if not DB.schema then
+    DB.schema = {}
     getPostgresSchema(data)
   end
   vim.cmd('split')
@@ -92,6 +90,13 @@ function M.executeQuery()
       srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
       erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
       ecol = 1024
+      print(srow, scol)
+      print(erow, ecol)
+      if srow < erow or (srow == erow and scol <= ecol) then
+        query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
+      else
+        query = vim.api.nvim_buf_get_text(0, erow-1, ecol-1, srow-1, scol, {})
+      end
     else
       _, srow, scol, _ = unpack(vim.fn.getpos("."))
       _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
