@@ -1,8 +1,11 @@
 local utils = require('sqlua.utils')
-local M = {}
-local DB = {
-  schema = nil,
-  last_query = {}
+local Connection = {
+  connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' },
+  last_query = {},
+  dbs = {},
+  schema = {},
+  url = nil,
+  cmd = nil
 }
 
 local schemaQuery = [["
@@ -10,7 +13,7 @@ SELECT table_schema, table_name
 FROM information_schema.tables
 "]]
 
-M.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' }
+Connection.connections_file =  utils.concat { vim.fn.stdpath("data"), 'sqlua', 'connections.json' }
 
 local getPostgresSchema = function(data)
   local schema = utils.shallowcopy(data)
@@ -28,19 +31,15 @@ local getPostgresSchema = function(data)
     local schema_name = schema[i][1]
     local table_name = schema[i][2]
     if not seen[schema_name] then
-      DB.schema[schema_name] = {}
+      Connection.schema[schema_name] = {}
       seen[schema_name] = true
     end
-    table.insert(DB.schema[schema_name], table_name)
+    table.insert(Connection.schema[schema_name], table_name)
   end
 end
 
 
-local createResultsPane = function(data)
-  if not DB.schema then
-    DB.schema = {}
-    getPostgresSchema(data)
-  end
+local function createResultsPane(data)
   vim.cmd('split')
   local win = vim.api.nvim_get_current_win()
   local buf = vim.api.nvim_create_buf(true, false)
@@ -54,123 +53,139 @@ local createResultsPane = function(data)
 end
 
 
-local function onStdout(job_id, data, event)
-  if vim.fn.bufexists("ResultsBuf") == 1 then
-    for _, buffer in pairs(vim.api.nvim_list_bufs()) do
-      if vim.fn.bufname(buffer) == 'ResultsBuf' then
-        vim.api.nvim_buf_delete(buffer, {force = true, unload = false})
+local function onEvent(job_id, data, event)
+  local win = vim.api.nvim_get_current_win()
+  local pos = vim.api.nvim_win_get_cursor(win)
+  local buf = vim.api.nvim_win_get_buf(win)
+  if event == 'stdout' then
+    if vim.fn.bufexists("ResultsBuf") == 1 then
+      for _, buffer in pairs(vim.api.nvim_list_bufs()) do
+        if vim.fn.bufname(buffer) == 'ResultsBuf' then
+          vim.api.nvim_buf_delete(buffer, {force = true, unload = false})
+        end
       end
     end
+    createResultsPane(data)
+    vim.api.nvim_set_current_win(win)
+    vim.api.nvim_win_set_buf(win, buf)
+    vim.api.nvim_win_set_cursor(win, pos)
+  elseif event == 'stderr' then
+  elseif event == 'exit' then
   end
-  createResultsPane(data)
 end
 
 
-function onEvent(job_id, data, event)
-  if event == 'stderr' then
+local function onConnect(job_id, data, event)
+  if event == 'stdout' then
+    getPostgresSchema(data)
+    createResultsPane(data)
+  elseif event == 'stderr' then
   elseif event == 'exit' then
-    return DB
+    table.insert(Connection.dbs, Connection)
+    return Connection
   else
   end
 end
 
 
-function M.executeQuery()
+function Connection:executeQuery()
   local mode = vim.api.nvim_get_mode()['mode']
-  print(mode)
-  P(mode)
   local query = nil
   if mode == 'n' then
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
-  elseif (mode == 'v') or (mode == 'V') or (mode == '\22') then
-    local srow, scol = 0, 0
-    if mode == 'V' then
-      -- FIXME: only captures previous selection, not the current one
-      -- might be neovim limitation (tried sending gv, doesn't work)
-      srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
-      erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
-      ecol = 1024
-      print(srow, scol)
-      print(erow, ecol)
+  elseif mode == 'V' then
+    -- FIXME: only captures previous selection, not the current one
+    -- might be neovim limitation (tried feeding 'gv', doesn't work)
+    local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "'<"))
+    local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, "'>"))
+    ecol = 1024
+    print(srow, scol)
+    print(erow, ecol)
+    if srow < erow or (srow == erow and scol <= ecol) then
+      query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
+    else
+      query = vim.api.nvim_buf_get_text(0, erow-1, ecol-1, srow-1, scol, {})
+    end
+  elseif mode == 'v' then
+    local _, srow, scol, _ = unpack(vim.fn.getpos("."))
+    local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
       if srow < erow or (srow == erow and scol <= ecol) then
         query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
       else
         query = vim.api.nvim_buf_get_text(0, erow-1, ecol-1, srow-1, scol, {})
       end
-    else
-      _, srow, scol, _ = unpack(vim.fn.getpos("."))
-      _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
-      -- Block Visual Mode
-      if mode == '\22' then
-        local lines = vim.api.nvim_buf_get_lines( 0, 
-          math.min(srow, erow)-1, 
-          math.max(srow, erow), 0
-        )
-        query = {}
-        start = math.min(scol, ecol)
-        _end = math.max(scol, ecol)
-        for _, line in ipairs(lines) do
-          print(line)
-          print(string.sub(line, start, _end))
-          table.insert(query, string.sub(line, start, _end))
-        end
-      else 
-        if srow < erow or (srow == erow and scol <= ecol) then
-          query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
-        else
-          query = vim.api.nvim_buf_get_text(0, erow-1, ecol-1, srow-1, scol, {})
-        end
-      end
+  elseif mode == '\22' then
+    local _, srow, scol, _ = unpack(vim.fn.getpos("."))
+    local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
+    local lines = vim.api.nvim_buf_get_lines(0,
+      math.min(srow, erow) -1,
+      math.max(srow, erow), 0
+    )
+    query = {}
+    start = math.min(scol, ecol)
+    _end = math.max(scol, ecol)
+    for _, line in ipairs(lines) do
+      table.insert(query, string.sub(line, start, _end))
     end
   end
+  local opts = {
+    stdout_buffered = true,
+    on_exit = onEvent,
+    on_stdout = onEvent,
+    on_stderr = onEvent,
+    on_data = onEvent
+  }
+  cmd = self.cmd.. '"' .. table.concat(query, " ") .. '"'
+  job = vim.fn.jobstart(cmd, opts)
+
+  -- vim.api.nvim_set_current_win(win)
+  -- vim.api.nvim_win_set_buf(win, buf)
+  -- vim.api.nvim_win_set_cursor(win, pos)
   local keys = vim.api.nvim_replace_termcodes('<ESC>', true, false, true)
   vim.api.nvim_feedkeys(keys, 'm', false)
-  P(query)
 end
 
 
-function M:connect(name)
-  local connections = M.readConnection()
+function Connection:connect(name)
+  local connections = Connection:readConnection()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
-      query = string.gsub(schemaQuery, '\n', " ")
-      local cmd = 'psql ' .. connection['url'] .. ' -c ' .. query
-      table.insert(DB.last_query, query)
+      local query = string.gsub(schemaQuery, '\n', " ")
+      self.url = connection['url']
+      self.cmd = 'psql ' .. connection['url'] .. ' -c '
+      local cmd = self.cmd .. query
+      table.insert(self.last_query, query)
 
       local opts = {
         stdout_buffered = true,
-        on_exit = onEvent,
-        on_stdout = onStdout,
-        on_stderr = onEvent,
-        on_data = onEvent
+        on_exit = onConnect,
+        on_stdout = onConnect,
+        on_stderr = onConnect,
+        on_data = onConnect
       }
-      -- get current shell
-      local handle = io.popen('echo $SHELL')
-      local shell = handle:read("*a")
-
       job = vim.fn.jobstart(cmd, opts)
     end
   end
 end
 
 
-M.writeConnection = function(data)
+function Connection:writeConnection(data)
   local json = vim.fn.json_encode(data)
-  vim.fn.writefile({json}, M.connections_file)
+  vim.fn.writefile({json}, self.connections_file)
 end
 
 
-M.readConnection = function()
-  local content = vim.fn.readfile(M.connections_file)
+function Connection:readConnection()
+  local content = vim.fn.readfile(self.connections_file)
   content = vim.fn.json_decode(vim.fn.join(content, "\n"))
   return content
 end
 
 
-M.addConnection = function(url, name)
-  local file = M.readConnection()
+function Connection:addConnection(url, name)
+  local file = Connection:readConnection()
   table.insert(file, {url = url, name = name})
-  M.writeConnection(file)
+  Connection:writeConnection(file)
 end
 
 
@@ -210,4 +225,4 @@ end
 --   }
 -- end
 
-return M
+return Connection
