@@ -1,5 +1,6 @@
 local utils = require('sqlua.utils')
 local Connection = require('sqlua.connection')
+local UI = require('sqlua.ui')
 local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 
 local M = {}
@@ -14,7 +15,8 @@ local DEFAULT_SETTINGS = {
 -- psql -U <username> -d <dbname> -c "<QUERY>"
 -- OR psql <full url> -c "<query>"
 vim.api.nvim_create_user_command('SQLua', function(args)
-  Connection.connect(Connection, args.args)
+  UI:setup()
+  Connection:connect(args.args)
   vim.keymap.set({"n", "v"}, "<leader>r", function() Connection:executeQuery() end, {noremap = true, silent = true})
 end, {nargs = 1})
 
@@ -23,7 +25,7 @@ vim.api.nvim_create_user_command('SQLuaAddConnection', function()
   local url = vim.fn.input("Enter the connection url: ")
   -- verify url string
   local name = vim.fn.input("Enter the display name for the connection: ")
-  Connection.addConnection(url, name)
+  Connection:addConnection(url, name)
 end, {})
 
 
@@ -41,7 +43,7 @@ M.setup = function(opts)
 
   -- creating config json
   if vim.fn.filereadable(Connection.connections_file) == 0 then
-    Connection.writeConnection({})
+    Connection:writeConnection({})
   end
 end
 

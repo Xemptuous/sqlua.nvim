@@ -78,7 +78,7 @@ end
 local function onConnect(job_id, data, event)
   if event == 'stdout' then
     getPostgresSchema(data)
-    createResultsPane(data)
+    -- createResultsPane(data)
   elseif event == 'stderr' then
   elseif event == 'exit' then
     table.insert(Connection.dbs, Connection)
