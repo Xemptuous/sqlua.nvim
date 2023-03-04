@@ -15,6 +15,8 @@ local DEFAULT_SETTINGS = {
 -- OR psql <full url> -c "<query>"
 vim.api.nvim_create_user_command('SQLua', function(args)
   DB.connect(DB, args.args)
+  vim.keymap.set({"n", "v"}, "<leader>r", function() DB.executeQuery('buffer') end, {noremap = true, silent = true})
+  -- vim.keymap.set("v", "<leader>r", function() DB.executeQuery('selection') end, {noremap = true, silent = true})
 end, {nargs = 1})
 
 
