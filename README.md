@@ -1,28 +1,36 @@
 # sqlua.nvim
-A sql-ui for NeoVim written in Lua inspired by vim-dadbob-ui
 
-### `CURRENTLY A WIP`
-i.e., infantile stage
+A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turning NeoVim into a full-fledged SQL IDE.
 
-Main goals are to combine vim-dadbod and vim-dadbod-ui.
-
-vim-dadbod is written in vimscript, and is not the cleanest of codebases to contribute to.
-
-vim-dadbod-ui also suffers from vimscript, and can also use a lua update.
-
-## Progress
-
-currently building the barebones; will implement branches of release versions, changelog, and updated README as the project unfolds.
+## Quickstart
 
 To use, require the setup:
-`:lua require('sqlua').setup()`
+`:lua require('sqlua').setup(opts)`
 
 or include with your favorite package manager.
 
+lazy.nvim
+
+```lua
+{
+    'xemptuous/sqlua.nvim',
+    event = 'SQLua',
+    config = function() require('sqlua').setup(opts) end
+}
+```
+
+Current options include:
+```lua
+{
+    db_save_location = "~/.local/share/nvim/sqlua/dbs",
+    connections_save_location = "~/.local/share/nvim/sqlua/connections.json"
+}
+```
+
 Current commands include:
 ```
-SQLua - main testing method
-SQLuaAddConnection - adds the connection to a local file
+SQLua <dbname> - launches the SQLua UI
+SQLuaAddConnection - adds the connection to a local file (url + db name)
 ```
 
 A folder is created in the stdpath('data') to contain necessary files and dirs.
@@ -32,11 +40,27 @@ A `connections.json` file will serve as the storage location for all URL's (unen
 
 A folder for `dbs` will be present, hosting tmp files and saved queries for the specific db.
 
-Currently only working on getting postgresql working (will include all in the future), with barebones query output.
+Upon launching the `SQLua <dbname>` command, the UI will be launched, including an editor and a database navigator side-bar.
 
-## Future Goals
+Upon executing the query, a results pane will be created showing the dbout.
 
-* create a nvim-tree sidebar similar to vim-dadbod-ui
-* include a syntax-highlighted query window to color datatypes based on column dtype
-* run queries through visual selection (similar to DBeaver and other SQL-IDE's)
-* incorporate more modern vim.ui interfaces for that sleek and sexy style
+## Executing Queries
+
+By default, the keymap to execute commands is set to `<leader>r`, acting differently based on mode:
+
+> Normal Mode: the entire buffer will be executed
+
+> Visual Mode: the selection will be executed.
+
+## Roadmap
+
+- [x] Create functional connection for psql
+- [x] Be able to execute queries from buffer
+- [x] Create a minimal UI structure
+- [ ] Make a functional NvimTree-sidebar for navigating the DB
+- [ ] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
+- [ ] Add an option for "fancier" results pane output
+- [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
+- [ ] Integrate other databases
+- [ ] Implement multiple db's available in sidebar at once (easily jumping between them)
+- [ ] Include fancy ui functionality to make SQLua sexy
