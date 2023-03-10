@@ -1,14 +1,16 @@
 local utils = require('sqlua.utils')
 local Connection = {
-  connections_file =  utils.concat { 
-    vim.fn.stdpath("data"), 'sqlua', 'connections.json' 
-  },
+  name = nil,
+  url = nil,
+  cmd = nil,
   last_query = {},
   dbs = {},
   schema = {},
-  url = nil,
-  cmd = nil
+  connections_file =  utils.concat {
+    vim.fn.stdpath("data"), 'sqlua', 'connections.json'
+  }
 }
+
 
 local schemaQuery = [["
 SELECT table_schema, table_name
@@ -16,7 +18,8 @@ FROM information_schema.tables
 "]]
 
 
-local getPostgresSchema = function(data)
+-- local getPostgresSchema = function(data)
+function Connection:getPostgresSchema(data)
   local schema = utils.shallowcopy(data)
   -- cleaning data
   table.remove(schema, 1)
@@ -32,10 +35,10 @@ local getPostgresSchema = function(data)
     local schema_name = schema[i][1]
     local table_name = schema[i][2]
     if not seen[schema_name] then
-      Connection.schema[schema_name] = {}
+      self.schema[schema_name] = {}
       seen[schema_name] = true
     end
-    table.insert(Connection.schema[schema_name], table_name)
+    table.insert(self.schema[schema_name], table_name)
   end
 end
 
@@ -79,10 +82,11 @@ end
 
 local function onConnect(job_id, data, event)
   if event == 'stdout' then
-    getPostgresSchema(data)
+    Connection:getPostgresSchema(data)
   elseif event == 'stderr' then
   elseif event == 'exit' then
     table.insert(Connection.dbs, Connection)
+    require("sqlua.ui"):populateSidebar(Connection.name, Connection.schema)
   else
   end
 end
@@ -147,6 +151,7 @@ function Connection:connect(name)
   local connections = Connection:readConnection()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
+      Connection.name = name
       local query = string.gsub(schemaQuery, '\n', " ")
       self.url = connection['url']
       self.cmd = 'psql ' .. connection['url'] .. ' -c '
