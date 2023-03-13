@@ -54,26 +54,24 @@ function UI:refreshSidebar()
   local st = vim.api.nvim_buf_set_text
   setSidebarModifiable(buf, true)
   sl(buf, 1, -1, 0, {})
-  local s_start = 1
+  local s_start = 2
+  local t_start = 3
   for db, _ in pairsByKeys(UI.dbs) do
-    sl(buf, 1, 1, 0, {"  "})
-    st(buf, 1, 2, -1, 2, {db})
+    sl(buf, 1, 1, 0, {"  "..db})
     if UI.dbs[db].expanded then
       for schema, _ in pairsByKeys(UI.dbs[db].schema) do
         if type(UI.dbs[db].schema[schema]) == 'table' then
-          local t_start = UI.dbs[db].num_schema + 1
-          sl(buf, s_start + 1, s_start + 1, 0, {"    "})
-          st(buf, s_start + 1, 4, s_start + 1, 4, {schema})
+          sl(buf, s_start, s_start, 0, {"    "..schema})
           s_start = s_start + 1
           if UI.dbs[db].schema[schema].expanded then
-          -- FIXME: get proper folding to work with inner schema
             for table, _ in pairsByKeys(UI.dbs[db].schema[schema].tables) do
-              sl(buf, t_start + 1, -1, 0, {"      "})
-              st(buf, t_start + 1, 6, t_start + 1, 6, {table})
+              sl(buf, t_start, t_start, 0, {"      "..table})
+              s_start = s_start + 1
               t_start = t_start + 1
             end
           end
         end
+      t_start = t_start + 1
       end
     end
   end
