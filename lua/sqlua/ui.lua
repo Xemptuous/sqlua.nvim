@@ -109,6 +109,7 @@ local function createSidebar(win)
   vim.api.nvim_set_current_win(win)
   vim.api.nvim_win_set_width(0, 40)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
   UI.sidebar_buf = buf
