@@ -35,10 +35,17 @@ function Connection:getPostgresSchema(data)
     local schema_name = schema[i][1]
     local table_name = schema[i][2]
     if not seen[schema_name] then
-      self.schema[schema_name] = {}
+      self.schema[schema_name] = {
+        expanded = false,
+        num_tables = 0,
+        tables = {}
+      }
       seen[schema_name] = true
     end
-    table.insert(self.schema[schema_name], table_name)
+    self.schema[schema_name].num_tables = self.schema[schema_name].num_tables + 1
+    self.schema[schema_name].tables[table_name] = {
+      expanded = false
+    }
   end
 end
 

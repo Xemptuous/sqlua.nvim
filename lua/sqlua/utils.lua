@@ -86,6 +86,17 @@ M.removeDuplicates = function(arr)
   return newArray
 end
 
+M.deepReplace = function(table, search_for, replacement)
+  if not table then return end
+  for key, value in pairs(table) do
+    if type(value) == 'table' then
+      M.deep_replace(value, search_for, replacement)
+    else
+      table[key] = value:gsub(search_for, replacement)
+    end
+  end
+end
+
 -- local parseUrl = function(url)
 --   local db = string.gsub(
 --     string.sub(url, string.find(url, "%w+:")),

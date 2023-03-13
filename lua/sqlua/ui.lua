@@ -1,36 +1,69 @@
-local UI = {}
+local UI = {
+  sidebar_buf = nil,
+  dbs = {},
+}
 
-local function toggleModifiable(buf)
-  local opt = vim.api.nvim_buf_get_option(buf, 'modifiable')
-  if opt then
-    vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-    return
+local function setSidebarModifiable(buf, val)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', val)
+end
+
+local function toggleItem(table, search)
+  for key, value in pairs(table) do
+    if key == search then
+      table[search].expanded = not table[search].expanded
+      return
+    elseif type(value) == 'table' then
+      toggleItem(value, search)
+    end
   end
-  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+end
+
+function UI:refreshSidebar()
+  local buf = UI.sidebar_buf
+  local sl = vim.api.nvim_buf_set_lines
+  local st = vim.api.nvim_buf_set_text
+  setSidebarModifiable(buf, true)
+  sl(buf, 1, -1, 0, {})
+  local s_start = 1
+  -- TODO: sort values before writing to lines
+  for db, _ in pairs(UI.dbs) do
+    sl(buf, 1, 1, 0, {"  "})
+    st(buf, 1, 2, -1, 2, {db})
+    if UI.dbs[db].expanded then
+      for schema, _ in pairs(UI.dbs[db].schema) do
+        local t_start = UI.dbs[db].num_schema + 1
+        sl(buf, s_start + 1, s_start + 1, 0, {"    "})
+        st(buf, s_start + 1, 4, s_start + 1, 4, {schema})
+        s_start = s_start + 1
+        if UI.dbs[db].schema[schema].expanded then
+        -- FIXME: get proper folding to work with inner schema
+          for table, _ in pairs(UI.dbs[db].schema[schema].tables) do
+            sl(buf, t_start + 1, -1, 0, {"      "})
+            st(buf, t_start + 1, 6, t_start + 1, 6, {table})
+            t_start = t_start + 1
+          end
+        end
+      end
+    end
+  end
+  setSidebarModifiable(buf, false)
 end
 
 function UI:populateSidebar(db, data)
   local buf = UI.sidebar_buf
-  toggleModifiable(buf)
-  vim.api.nvim_buf_set_lines(buf, 1, 1, 0, {"  "})
-  vim.api.nvim_buf_set_text(buf, 1, 2, -1, 2, {db})
-  local schema = {}
-  local schema_sep = {}
-  for key, _ in pairs(data) do
-    table.insert(schema, key)
-    table.insert(schema_sep, "    ")
+  local next = next
+  if next(UI.dbs) == nil then
+    UI.dbs[db] = {
+      expanded = false,
+      num_schema = 0,
+      schema = data
+    }
+    for _ in pairs(UI.dbs[db].schema) do
+      UI.dbs[db].num_schema = UI.dbs[db].num_schema + 1
+    end
   end
-  table.sort(schema)
-  for _, k in ipairs(schema) do
-  --   print(k)
-    vim.api.nvim_buf_set_lines(buf, _ + 1, -1, 0, schema_sep)
-    vim.api.nvim_buf_set_text(buf, _ + 1, 4, _ + 1, 4, {k})
-  -- vim.api.nvim_buf_set_lines(buf, 2, 2, 0, schema)
-  end
-  toggleModifiable(buf)
-  -- end
-  -- local buf = UI.sidebar_buf
-  -- vim.api.nvim_buf_set_lines(buf, 0, -1, 0, data)
+  UI:refreshSidebar()
+  setSidebarModifiable(buf, false)
 end
 
 local function createSidebar(win)
@@ -38,11 +71,20 @@ local function createSidebar(win)
   vim.api.nvim_buf_set_name(buf, "Sidebar")
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_set_current_win(win)
-  vim.api.nvim_win_set_width(0, 30)
+  vim.api.nvim_win_set_width(0, 40)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
   UI.sidebar_buf = buf
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '<CR>', {
+    callback = function()
+      local cursorPos = vim.api.nvim_win_get_cursor(0)
+      local val = vim.api.nvim_get_current_line()
+      toggleItem(UI.dbs, val:gsub("%s+", ""))
+      UI:refreshSidebar()
+      vim.api.nvim_win_set_cursor(0, cursorPos)
+    end
+  })
 end
 
 local function createEditor(win)
