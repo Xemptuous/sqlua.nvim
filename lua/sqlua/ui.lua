@@ -7,6 +7,36 @@ local function setSidebarModifiable(buf, val)
   vim.api.nvim_buf_set_option(buf, 'modifiable', val)
 end
 
+local function sortDB()
+  dbs = {}
+  for db, _ in pairs(UI.dbs) do
+    dbs[db] = {}
+    for s, _ in pairs(UI.dbs[db].schema) do
+      dbs[db][s] = {}
+      for t, _ in pairs(UI.dbs[db].schema[s].tables) do
+        table.insert(dbs[db][s], t)
+      end
+      table.sort(dbs[db][s])
+    end
+    table.sort(dbs[db])
+  end
+  return dbs
+end
+
+local function pairsByKeys(t, f)
+  local a = {}
+  for n in pairs(t) do table.insert(a, n) end
+  table.sort(a, f)
+  local i = 0
+  local iter = function ()
+    i = i + 1
+    if a[i] == nil then return nil
+    else return a[i], t[a[i]]
+    end
+  end
+  return iter
+end
+
 local function toggleItem(table, search)
   for key, value in pairs(table) do
     if key == search then
@@ -25,22 +55,23 @@ function UI:refreshSidebar()
   setSidebarModifiable(buf, true)
   sl(buf, 1, -1, 0, {})
   local s_start = 1
-  -- TODO: sort values before writing to lines
-  for db, _ in pairs(UI.dbs) do
+  for db, _ in pairsByKeys(UI.dbs) do
     sl(buf, 1, 1, 0, {"  "})
     st(buf, 1, 2, -1, 2, {db})
     if UI.dbs[db].expanded then
-      for schema, _ in pairs(UI.dbs[db].schema) do
-        local t_start = UI.dbs[db].num_schema + 1
-        sl(buf, s_start + 1, s_start + 1, 0, {"    "})
-        st(buf, s_start + 1, 4, s_start + 1, 4, {schema})
-        s_start = s_start + 1
-        if UI.dbs[db].schema[schema].expanded then
-        -- FIXME: get proper folding to work with inner schema
-          for table, _ in pairs(UI.dbs[db].schema[schema].tables) do
-            sl(buf, t_start + 1, -1, 0, {"      "})
-            st(buf, t_start + 1, 6, t_start + 1, 6, {table})
-            t_start = t_start + 1
+      for schema, _ in pairsByKeys(UI.dbs[db].schema) do
+        if type(UI.dbs[db].schema[schema]) == 'table' then
+          local t_start = UI.dbs[db].num_schema + 1
+          sl(buf, s_start + 1, s_start + 1, 0, {"    "})
+          st(buf, s_start + 1, 4, s_start + 1, 4, {schema})
+          s_start = s_start + 1
+          if UI.dbs[db].schema[schema].expanded then
+          -- FIXME: get proper folding to work with inner schema
+            for table, _ in pairsByKeys(UI.dbs[db].schema[schema].tables) do
+              sl(buf, t_start + 1, -1, 0, {"      "})
+              st(buf, t_start + 1, 6, t_start + 1, 6, {table})
+              t_start = t_start + 1
+            end
           end
         end
       end
