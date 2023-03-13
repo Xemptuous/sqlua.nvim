@@ -48,31 +48,38 @@ local function toggleItem(table, search)
   end
 end
 
+-- ▾
+-- ▸
+
 function UI:refreshSidebar()
   local buf = UI.sidebar_buf
-  local sl = vim.api.nvim_buf_set_lines
-  local st = vim.api.nvim_buf_set_text
+  local a = vim.api
   setSidebarModifiable(buf, true)
-  sl(buf, 1, -1, 0, {})
-  local s_start = 2
-  local t_start = 3
+  a.nvim_buf_set_lines(buf, 1, -1, 0, {})
+  local srow = 2
+
   for db, _ in pairsByKeys(UI.dbs) do
-    sl(buf, 1, 1, 0, {"  "..db})
     if UI.dbs[db].expanded then
+      a.nvim_buf_set_lines(buf, 1, 1, 0, {"   "..db})
       for schema, _ in pairsByKeys(UI.dbs[db].schema) do
-        if type(UI.dbs[db].schema[schema]) == 'table' then
-          sl(buf, s_start, s_start, 0, {"    "..schema})
-          s_start = s_start + 1
-          if UI.dbs[db].schema[schema].expanded then
+        if UI.dbs[db].schema[schema].expanded then
+          if type(UI.dbs[db].schema[schema]) == 'table' then
+            a.nvim_buf_set_lines(buf, srow, srow, 0, {"     "..schema})
+            srow = srow + 1
             for table, _ in pairsByKeys(UI.dbs[db].schema[schema].tables) do
-              sl(buf, t_start, t_start, 0, {"      "..table})
-              s_start = s_start + 1
-              t_start = t_start + 1
+              a.nvim_buf_set_lines(buf, srow, srow, 0, {"        "..table})
+              srow = srow + 1
             end
           end
+        else
+          a.nvim_buf_set_lines(buf, srow, srow, 0, {"     "..schema})
+          srow = srow + 1
         end
-      t_start = t_start + 1
       end
+      srow = srow + 1
+    else
+      a.nvim_buf_set_lines(buf, 1, 1, 0, {"   "..db})
+      srow = srow + 1
     end
   end
   setSidebarModifiable(buf, false)
@@ -109,6 +116,10 @@ local function createSidebar(win)
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
       local val = vim.api.nvim_get_current_line()
+      print(val)
+      val = val:gsub("", "")
+      val = val:gsub("", "")
+      print(val)
       toggleItem(UI.dbs, val:gsub("%s+", ""))
       UI:refreshSidebar()
       vim.api.nvim_win_set_cursor(0, cursorPos)
