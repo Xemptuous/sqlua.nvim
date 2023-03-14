@@ -1,0 +1,28 @@
+*sqlua-nvim.txt*		                                           Neovim SQL IDE 
+
+SETUP                                           *sqlua-nvim-setup*
+
+>
+    require('sqlua').setup({opts})
+<
+==============================================================================
+COMMANDS                                        *sqlua-nvim-commands*
+
+                                                *:SQLua*
+:SQLua                                                   launches the SQLua UI
+
+
+
+:SQLuaExecute           in normal mode, executes the entire buffer as a query,
+                        in visual mode, executes the selected lines.
+
+
+:SQluaAddConnection                prompts the user to add a connection to the 
+                                   connections.json file. Consists of a URL 
+                                   and a user-friendly name.
+
+==============================================================================
+MAPS                                            *sqlua-nvim-maps*
+
+<leader>r            In normal mode, executes the entire buffer as a query; in 
+                     visual mode, executes the selected lines.

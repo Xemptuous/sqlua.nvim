@@ -7,22 +7,6 @@ local function setSidebarModifiable(buf, val)
   vim.api.nvim_buf_set_option(buf, 'modifiable', val)
 end
 
-local function sortDB()
-  dbs = {}
-  for db, _ in pairs(UI.dbs) do
-    dbs[db] = {}
-    for s, _ in pairs(UI.dbs[db].schema) do
-      dbs[db][s] = {}
-      for t, _ in pairs(UI.dbs[db].schema[s].tables) do
-        table.insert(dbs[db][s], t)
-      end
-      table.sort(dbs[db][s])
-    end
-    table.sort(dbs[db])
-  end
-  return dbs
-end
-
 local function pairsByKeys(t, f)
   local a = {}
   for n in pairs(t) do table.insert(a, n) end
@@ -47,9 +31,6 @@ local function toggleItem(table, search)
     end
   end
 end
-
--- ▾
--- ▸
 
 function UI:refreshSidebar()
   local buf = UI.sidebar_buf
@@ -117,10 +98,8 @@ local function createSidebar(win)
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
       local val = vim.api.nvim_get_current_line()
-      print(val)
       val = val:gsub("", "")
       val = val:gsub("", "")
-      print(val)
       toggleItem(UI.dbs, val:gsub("%s+", ""))
       UI:refreshSidebar()
       vim.api.nvim_win_set_cursor(0, cursorPos)

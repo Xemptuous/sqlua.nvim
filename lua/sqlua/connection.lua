@@ -102,6 +102,7 @@ end
 function Connection:executeQuery()
   local mode = vim.api.nvim_get_mode()['mode']
   local query = nil
+  print(mode)
   if mode == 'n' then
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
   elseif mode == 'V' then

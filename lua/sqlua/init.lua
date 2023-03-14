@@ -8,7 +8,10 @@ local M = {}
 
 local DEFAULT_SETTINGS = {
   db_save_location = utils.concat { RootDir, "dbs" },
-  connections_save_location = utils.concat { RootDir, 'connections.json' }
+  connections_save_location = utils.concat {RootDir, 'connections.json'},
+  keybinds = {
+    execute_query = "<leader>r"
+  }
 }
 
 
@@ -16,6 +19,7 @@ M.setup = function(opts)
   if opts == nil then
     M.setup = DEFAULT_SETTINGS
   else
+    -- TODO: alter only modified settings
     M.setup = opts
   end
 
@@ -39,15 +43,17 @@ M.setup = function(opts)
     Connection:executeQuery()
   end, {})
 
-  vim.keymap.set({"n", "v"}, "<leader>r", ":SQLuaExecute<CR>", {
-    noremap = true, silent = true
-  })
+  vim.keymap.set({"n", "v"},
+    opts.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
+      noremap = true, silent = true
+    }
+  )
 
   vim.api.nvim_create_user_command('SQLuaAddConnection', function()
     -- TODO: add floating window to edit connections file on the spot
     local url = vim.fn.input("Enter the connection url: ")
     -- TODO: verify url string
-    local name = vim.fn.input("Enter the display name for the connection: ")
+    local name = vim.fn.input("Enter the name for the connection: ")
     Connection:addConnection(url, name)
   end, {})
 end
