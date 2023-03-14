@@ -48,8 +48,9 @@ the `dbs` folder specific to each URL will host tmp queries and saved queries.
 
 Current commands include:
 ```
-SQLua <dbname> - launches the SQLua UI
-SQLuaAddConnection - prompts the user to add a connection to the connections file
+:SQLua <dbname> - launches the SQLua UI
+:SQLuaExecute - executes the buffer/selection (based on mode)
+:SQLuaAddConnection - prompts the user to add a connection to the connections file
 ```
 
 The sidebar navigator can be used to explore the DB and its various schema and tables, as well as creating various template queries.
@@ -60,17 +61,19 @@ The editor buffer(s) are used to run queries.
 By default, the keymap to execute commands is set to `<leader>r`, acting differently based on mode:
 
 <pre>
-    <kdb><leader>-r ('n' mode)</kbd> Runs the entire buffer as a query.
-    <kdb><leader>-r ('v', '^V', 'V' mode)</kbd> Runs the selected lines as a query.
+    <kdb>&lt;leader>r</kbd> (normal mode): Runs the entire buffer as a query.
+    <kdb>&lt;leader>r</kbd> (visual mode): Runs the selected lines as a query.
 </pre>
 
 Upon executing a query, the results will be shown in a results buffer.
+
+You can rebind the run command by using `vim.keymap.set({'n', 'v'}, 'lhs', ':SQLuaExecute<CR>', {opts}`
 
 ## Roadmap
 
 This project is actively being developed, and will hopefully serve as NeoVim's full-fledged SQL IDE moving forward, eliminating the need for long load times and vim extensions.
 
-# TODO: compare SQLua startup time to other IDEs (like DBeaver)
+// TODO: compare SQLua startup time to other IDEs (like DBeaver)
 
 - [x] Create functional connection for psql
 - [x] Be able to execute queries from buffer
@@ -82,5 +85,5 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [ ] Integrate other databases
 - [ ] Implement multiple db's available in sidebar at once (easily jumping between them)
 - [ ] Include fancy ui functionality to make SQLua sexy
-- [ ] Implement tmp queries, ddl, saved sql files (db specific), and other template queries into the sidebar tree.
+- [ ] Implement queries, ddl, and other template queries into the sidebar tree.
 
