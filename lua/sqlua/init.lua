@@ -9,6 +9,7 @@ local M = {}
 local DEFAULT_SETTINGS = {
   db_save_location = utils.concat { RootDir, "dbs" },
   connections_save_location = utils.concat {RootDir, 'connections.json'},
+  default_limit = 200,
   keybinds = {
     execute_query = "<leader>r"
   }
@@ -35,7 +36,7 @@ M.setup = function(opts)
 
   -- main function to enter the UI
   vim.api.nvim_create_user_command('SQLua', function(args)
-    UI:setup()
+    UI:setup(M.setup)
     Connection:connect(args.args)
   end, {nargs = 1})
 
@@ -44,7 +45,7 @@ M.setup = function(opts)
   end, {})
 
   vim.keymap.set({"n", "v"},
-    opts.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
+    M.setup.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
       noremap = true, silent = true
     }
   )

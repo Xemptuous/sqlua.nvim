@@ -21,6 +21,19 @@ local function pairsByKeys(t, f)
   return iter
 end
 
+local function createTableStatement(type, table)
+  -- TODO: grab cursor position and text
+  -- crawl up to closest expanded parent in sidebar
+  -- use that name
+  local buf = UI.sidebar_buf
+  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {})
+  if type == 'select' then
+    vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {
+      "SELECT * FROM "..table.." LIMIT "..UI.options.default_limit
+    })
+  end
+end
+
 local function toggleItem(table, search)
   for key, value in pairs(table) do
     if key == search then
@@ -32,34 +45,74 @@ local function toggleItem(table, search)
   end
 end
 
+local function refreshTables(buf, tables, srow)
+  local sep = "      "
+  local statements = {
+    "Data",
+    "Columns",
+    "Primary Keys",
+    "Indexes",
+    "References",
+    "Foreign Keys",
+    "DDL"
+  }
+  for table, _ in pairsByKeys(tables) do
+    if tables[table].expanded then
+      vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+        sep.." "..table
+      })
+      srow = srow + 1
+      for _, stmt in pairsByKeys(statements) do
+        vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+          sep.."    "..stmt
+        })
+        srow = srow + 1
+      end
+    else
+      vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+        sep.." "..table
+      })
+      srow = srow + 1
+    end
+  end
+  return srow
+end
+
+local function refreshSchema(buf, db, srow)
+  local sep = "    "
+  for schema, _ in pairsByKeys(UI.dbs[db].schema) do
+    if UI.dbs[db].schema[schema].expanded then
+      if type(UI.dbs[db].schema[schema]) == 'table' then
+        vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+          sep.." "..schema
+        })
+        srow = srow + 1
+        local tables = UI.dbs[db].schema[schema].tables
+        srow = refreshTables(buf, tables, srow)
+      end
+    else
+      vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+        sep.." "..schema
+      })
+      srow = srow + 1
+    end
+  end
+  return srow
+end
 function UI:refreshSidebar()
   local buf = UI.sidebar_buf
-  local a = vim.api
+  local sep = "  "
   setSidebarModifiable(buf, true)
-  a.nvim_buf_set_lines(buf, 1, -1, 0, {})
+  vim.api.nvim_buf_set_lines(buf, 1, -1, 0, {})
   local srow = 2
 
   for db, _ in pairsByKeys(UI.dbs) do
     if UI.dbs[db].expanded then
-      a.nvim_buf_set_lines(buf, 1, 1, 0, {"   "..db})
-      for schema, _ in pairsByKeys(UI.dbs[db].schema) do
-        if UI.dbs[db].schema[schema].expanded then
-          if type(UI.dbs[db].schema[schema]) == 'table' then
-            a.nvim_buf_set_lines(buf, srow, srow, 0, {"     "..schema})
-            srow = srow + 1
-            for table, _ in pairsByKeys(UI.dbs[db].schema[schema].tables) do
-              a.nvim_buf_set_lines(buf, srow, srow, 0, {"        "..table})
-              srow = srow + 1
-            end
-          end
-        else
-          a.nvim_buf_set_lines(buf, srow, srow, 0, {"     "..schema})
-          srow = srow + 1
-        end
-      end
+      vim.api.nvim_buf_set_lines(buf, 1, 1, 0, {sep.." "..db})
+      srow = refreshSchema(buf, db, srow)
       srow = srow + 1
     else
-      a.nvim_buf_set_lines(buf, 1, 1, 0, {"   "..db})
+      vim.api.nvim_buf_set_lines(buf, 1, 1, 0, {sep.." "..db})
       srow = srow + 1
     end
   end
@@ -116,7 +169,8 @@ local function createEditor(win)
   vim.cmd('set filetype=sql')
 end
 
-function UI:setup()
+function UI:setup(args)
+  UI.options = { default_limit = args.default_limit }
   for _, buf in pairs(vim.api.nvim_list_bufs()) do
     vim.api.nvim_buf_delete(buf, { force = true, unload = false })
   end
