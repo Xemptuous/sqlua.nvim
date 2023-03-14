@@ -33,12 +33,15 @@ M.setup = function(opts)
   vim.api.nvim_create_user_command('SQLua', function(args)
     UI:setup()
     Connection:connect(args.args)
-
-    vim.keymap.set({"n", "v"}, "<leader>r", function() 
-      Connection:executeQuery() 
-    end, {noremap = true, silent = true})
-
   end, {nargs = 1})
+
+  vim.api.nvim_create_user_command('SQLuaExecute', function()
+    Connection:executeQuery()
+  end, {})
+
+  vim.keymap.set({"n", "v"}, "<leader>r", ":SQLuaExecute<CR>", {
+    noremap = true, silent = true
+  })
 
   vim.api.nvim_create_user_command('SQLuaAddConnection', function()
     -- TODO: add floating window to edit connections file on the spot
