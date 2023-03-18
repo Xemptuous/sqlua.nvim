@@ -1,5 +1,8 @@
+local utils = require('sqlua.utils')
+local Connection = require('sqlua.connection')
 local UI = {
   sidebar_buf = nil,
+  editor_buf = nil,
   dbs = {},
 }
 
@@ -21,17 +24,67 @@ local function pairsByKeys(t, f)
   return iter
 end
 
-local function createTableStatement(type, table)
-  -- TODO: grab cursor position and text
-  -- crawl up to closest expanded parent in sidebar
-  -- use that name
-  local buf = UI.sidebar_buf
-  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {})
-  if type == 'select' then
-    vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {
-      "SELECT * FROM "..table.." LIMIT "..UI.options.default_limit
-    })
+local function createTableStatement(type, tbl, schema)
+  local buf = UI.editor_buf
+  local win = UI.editor_win
+  vim.api.nvim_set_current_win(win)
+  vim.api.nvim_win_set_buf(win, buf)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
+  vim.api.nvim_win_set_cursor(win, {1, 0})
+  local query = ""
+  if type == 'Data' then
+    query = [[
+SELECT * 
+FROM ]]..tbl..[[ 
+LIMIT ]]..UI.options.default_limit
+  elseif type == 'Columns' then
+    query = [[
+SELECT 
+  column_name, column_default, is_nullable, data_type
+FROM information_schema.columns
+WHERE table_name = ']]..tbl..[['
+  AND table_schema = ']]..schema..[[
+ORDER BY column_name
+  ]]
+  elseif type == 'PrimaryKeys' then
+    query = [[
+SELECT 
+  tc.constraint_name,
+  tc.table_name,
+  kcu.column_name,
+  ccu.table_name AS foreigntbl_name,
+  ccu.column_name AS foreign_column_name,
+  rc.update_rule,
+  rc.delete_rule
+FROM information_schema.table_constraints AS tc
+  JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+  JOIN information_schema.referential_constraints as rc
+    ON tc.constraint_name = rc.constraint_name
+  JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+WHERE constraint_type = 'PRIMARY KEY'
+and tc.table_name = ']]..tbl..[['
+and tc.table_schema = ']]..schema..[['
+    ]]
+  elseif type == 'Indexes' then
+    query = [[
+SELECT * 
+FROM pg_indexes
+WHERE tablename = ']]..tbl..[[' 
+  AND schemaname = ']]..schema.."'"
+  elseif type == 'References' then
+  elseif type == 'ForeignKeys' then
+  elseif type == 'DDL' then
   end
+  local stmt = {}
+  for line in string.gmatch(query, "[^\r\n]+") do
+    -- line = utils.removeEndWhitespace(line)
+    print(line)
+    table.insert(stmt, line)
+  end
+  vim.api.nvim_buf_set_lines(buf, 0, 0, 0, stmt)
+  Connection:executeQuery()
 end
 
 local function toggleItem(table, search)
@@ -151,11 +204,40 @@ local function createSidebar(win)
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
       local val = vim.api.nvim_get_current_line()
-      val = val:gsub("", "")
-      val = val:gsub("", "")
-      toggleItem(UI.dbs, val:gsub("%s+", ""))
-      UI:refreshSidebar()
-      vim.api.nvim_win_set_cursor(0, cursorPos)
+      val = val:gsub("%s+", "")
+      local m1, _ = string.find(val, '')
+      local m2, _ = string.find(val, '')
+      if not m1 and not m2 then
+        local table = nil
+        local num = cursorPos[1]
+        while true do
+          table = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+          if string.find(table, '') then
+            break
+          end
+          num = num - 1
+        end
+        num = num - 1
+        local schema = nil
+        while true do
+          schema = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+          if string.find(schema, '    ') then
+            break
+          end
+          num = num - 1
+        end
+        table = table:gsub("%s+", "")
+        table = string.sub(table, 4)
+        schema = schema:gsub("%s+", "")
+        schema = string.sub(schema, 4)
+        createTableStatement(val, table, schema)
+      else
+        val = val:gsub("", "")
+        val = val:gsub("", "")
+        toggleItem(UI.dbs, val)
+        UI:refreshSidebar()
+        vim.api.nvim_win_set_cursor(0, cursorPos)
+      end
     end
   })
 end
@@ -167,6 +249,7 @@ local function createEditor(win)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_cursor(win, {1, 0})
   vim.cmd('set filetype=sql')
+  UI.editor_buf = buf
 end
 
 function UI:setup(args)
@@ -176,8 +259,10 @@ function UI:setup(args)
   end
 
   local sidebar_win = vim.api.nvim_get_current_win()
+  UI.sidebar_win = sidebar_win
   vim.cmd('vsplit')
   local editor_win = vim.api.nvim_get_current_win()
+  UI.editor_win = editor_win
 
   createSidebar(sidebar_win)
   createEditor(editor_win)

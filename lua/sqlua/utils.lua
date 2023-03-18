@@ -97,6 +97,10 @@ M.deepReplace = function(table, search_for, replacement)
   end
 end
 
+M.removeEndWhitespace = function(line)
+  return line:gsub("^%s*(.-)%s*$", "%1")
+end
+
 -- local parseUrl = function(url)
 --   local db = string.gsub(
 --     string.sub(url, string.find(url, "%w+:")),

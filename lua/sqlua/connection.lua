@@ -102,7 +102,6 @@ end
 function Connection:executeQuery()
   local mode = vim.api.nvim_get_mode()['mode']
   local query = nil
-  print(mode)
   if mode == 'n' then
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
   elseif mode == 'V' then
@@ -146,7 +145,7 @@ function Connection:executeQuery()
     on_stderr = onEvent,
     on_data = onEvent
   }
-  local cmd = self.cmd.. '"' .. table.concat(query, " ") .. '"'
+  local cmd = self.cmd..'"'.. table.concat(query, " ")..'"'
   local job = vim.fn.jobstart(cmd, opts)
 
   -- exit visual mode on run
