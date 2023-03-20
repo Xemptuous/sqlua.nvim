@@ -40,39 +40,39 @@ LIMIT ]]..UI.options.default_limit
   elseif type == 'Columns' then
     query = [[
 SELECT 
-  column_name, column_default, is_nullable, data_type
+    column_name, column_default, is_nullable, data_type
 FROM information_schema.columns
 WHERE table_name = ']]..tbl..[['
-  AND table_schema = ']]..schema..[[
+    AND table_schema = ']]..schema..[[
 ORDER BY column_name
   ]]
   elseif type == 'PrimaryKeys' then
     query = [[
 SELECT 
-  tc.constraint_name,
-  tc.table_name,
-  kcu.column_name,
-  ccu.table_name AS foreigntbl_name,
-  ccu.column_name AS foreign_column_name,
-  rc.update_rule,
-  rc.delete_rule
+    tc.constraint_name,
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS foreigntbl_name,
+    ccu.column_name AS foreign_column_name,
+    rc.update_rule,
+    rc.delete_rule
 FROM information_schema.table_constraints AS tc
-  JOIN information_schema.key_column_usage AS kcu
-    ON tc.constraint_name = kcu.constraint_name
-  JOIN information_schema.referential_constraints as rc
-    ON tc.constraint_name = rc.constraint_name
-  JOIN information_schema.constraint_column_usage AS ccu
-    ON ccu.constraint_name = tc.constraint_name
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.referential_constraints as rc
+      ON tc.constraint_name = rc.constraint_name
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'PRIMARY KEY'
-and tc.table_name = ']]..tbl..[['
-and tc.table_schema = ']]..schema..[['
-    ]]
+    AND tc.table_name = ']]..tbl..[['
+    AND tc.table_schema = ']]..schema..[['
+]]
   elseif type == 'Indexes' then
     query = [[
 SELECT * 
 FROM pg_indexes
 WHERE tablename = ']]..tbl..[[' 
-  AND schemaname = ']]..schema.."'"
+    AND schemaname = ']]..schema.."'"
   elseif type == 'References' then
   elseif type == 'ForeignKeys' then
   elseif type == 'DDL' then
