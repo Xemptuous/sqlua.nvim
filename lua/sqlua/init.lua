@@ -40,14 +40,16 @@ M.setup = function(opts)
     Connection:connect(args.args)
   end, {nargs = 1})
 
-  vim.api.nvim_create_user_command('SQLuaExecute', function()
+  vim.api.nvim_create_user_command('SQLuaExecute', function(mode)
     Connection:executeQuery()
-  end, {})
+  end, {nargs = 1})
 
   vim.keymap.set({"n", "v"},
-    M.setup.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
-      noremap = true, silent = true
-    }
+    -- M.setup.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
+    M.setup.keybinds.execute_query, function()
+      local mode = vim.api.nvim_get_mode().mode
+      vim.cmd(":SQLuaExecute "..mode.."<CR>")
+      end, { noremap = true, silent = true }
   )
 
   vim.api.nvim_create_user_command('SQLuaAddConnection', function()

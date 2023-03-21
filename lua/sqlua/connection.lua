@@ -104,15 +104,15 @@ end
 
 
 function Connection:executeQuery()
-  local mode = vim.api.nvim_get_mode()['mode']
+  local mode = vim.api.nvim_get_mode().mode
   local query = nil
   if mode == 'n' then
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
   elseif mode == 'V' then
     -- FIXME: only captures previous selection, not the current one
     -- might be neovim limitation (tried feeding esc & 'gv', doesn't work)
-    local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "'<"))
-    local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, "'>"))
+    local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
+    local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
     ecol = 1024
     if srow < erow or (srow == erow and scol <= ecol) then
       query = vim.api.nvim_buf_get_text(0, srow-1, scol-1, erow-1, ecol, {})
