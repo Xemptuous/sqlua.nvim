@@ -3,6 +3,7 @@ local Connection = {
   name = nil,
   url = nil,
   cmd = nil,
+  rdbms = nil,
   last_query = {},
   dbs = {},
   schema = {},
@@ -18,8 +19,8 @@ FROM information_schema.tables
 "]]
 
 
--- local getPostgresSchema = function(data)
 function Connection:getPostgresSchema(data)
+  Connection.rdbms = 'postgresql'
   local schema = utils.shallowcopy(data)
   -- cleaning data
   table.remove(schema, 1)
@@ -59,6 +60,9 @@ local function createResultsPane(data)
   vim.api.nvim_win_set_height(0, 10)
   vim.api.nvim_buf_set_lines(buf, 0, -1, 0, data)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_win_set_option(win, 'wrap', false)
+  vim.api.nvim_win_set_option(win, 'number', false)
+  vim.api.nvim_win_set_option(win, 'relativenumber', false)
   vim.cmd('goto 1')
 end
 

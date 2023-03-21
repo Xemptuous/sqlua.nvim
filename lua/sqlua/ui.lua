@@ -25,59 +25,15 @@ local function pairsByKeys(t, f)
 end
 
 local function createTableStatement(type, tbl, schema)
+  local queries = require('sqlua.queries')
   local buf = UI.editor_buf
   local win = UI.editor_win
   vim.api.nvim_set_current_win(win)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
   vim.api.nvim_win_set_cursor(win, {1, 0})
-  local query = ""
-  if type == 'Data' then
-    query = [[
-SELECT * 
-FROM ]]..tbl..[[ 
-LIMIT ]]..UI.options.default_limit
-  elseif type == 'Columns' then
-    query = [[
-SELECT 
-    column_name, column_default, is_nullable, data_type
-FROM information_schema.columns
-WHERE table_name = ']]..tbl..[['
-    AND table_schema = ']]..schema..[[
-ORDER BY column_name
-  ]]
-  elseif type == 'PrimaryKeys' then
-    query = [[
-SELECT 
-    tc.constraint_name,
-    tc.table_name,
-    kcu.column_name,
-    ccu.table_name AS foreigntbl_name,
-    ccu.column_name AS foreign_column_name,
-    rc.update_rule,
-    rc.delete_rule
-FROM information_schema.table_constraints AS tc
-    JOIN information_schema.key_column_usage AS kcu
-      ON tc.constraint_name = kcu.constraint_name
-    JOIN information_schema.referential_constraints as rc
-      ON tc.constraint_name = rc.constraint_name
-    JOIN information_schema.constraint_column_usage AS ccu
-      ON ccu.constraint_name = tc.constraint_name
-WHERE constraint_type = 'PRIMARY KEY'
-    AND tc.table_name = ']]..tbl..[['
-    AND tc.table_schema = ']]..schema..[['
-]]
-  elseif type == 'Indexes' then
-    query = [[
-SELECT * 
-FROM pg_indexes
-WHERE tablename = ']]..tbl..[[' 
-    AND schemaname = ']]..schema.."'"
-  elseif type == 'References' then
-  elseif type == 'ForeignKeys' then
-  elseif type == 'DDL' then
-  end
   local stmt = {}
+  local query = queries.getPostgresQuery(tbl, schema, UI.options.default_limit)[type]
   for line in string.gmatch(query, "[^\r\n]+") do
     -- line = utils.removeEndWhitespace(line)
     print(line)
