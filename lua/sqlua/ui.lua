@@ -25,7 +25,7 @@ local function pairsByKeys(t, f)
 end
 
 local function createTableStatement(type, tbl, schema)
-  local queries = require('sqlua.queries')
+  local queries = require('sqlua/queries.postgres')
   local buf = UI.editor_buf
   local win = UI.editor_win
   vim.api.nvim_set_current_win(win)
@@ -33,7 +33,7 @@ local function createTableStatement(type, tbl, schema)
   vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
   vim.api.nvim_win_set_cursor(win, {1, 0})
   local stmt = {}
-  local query = queries.getPostgresQuery(tbl, schema, UI.options.default_limit)[type]
+  local query = queries.getQueries(tbl, schema, UI.options.default_limit)[type]
   for line in string.gmatch(query, "[^\r\n]+") do
     -- line = utils.removeEndWhitespace(line)
     print(line)

@@ -1,6 +1,6 @@
 local M = {}
 
-M.getPostgresQuery = function(tbl, schema, limit)
+M.getQueries = function(tbl, schema, limit)
   return {
     Data = [[
 SELECT * 
