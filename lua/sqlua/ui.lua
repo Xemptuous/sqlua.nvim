@@ -186,7 +186,7 @@ local function createSidebar(win)
         tbl = string.sub(tbl, 4)
         schema = schema:gsub("%s+", "")
         schema = string.sub(schema, 4)
-        createtblStatement(val, tbl, schema)
+        createTableStatement(val, tbl, schema)
       else
         val = val:gsub("", "")
         val = val:gsub("", "")

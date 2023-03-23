@@ -17,12 +17,14 @@ local DEFAULT_SETTINGS = {
 
 
 M.setup = function(opts)
-  if opts == nil then
-    M.setup = DEFAULT_SETTINGS
-  else
-    -- TODO: alter only modified settings
-    M.setup = opts
-  end
+  config = vim.tbl_deep_extend('force', DEFAULT_SETTINGS, opts or {})
+  -- utils.getDatabases(config['connections_save_location'])
+  -- if opts == nil then
+  --   M.setup = DEFAULT_SETTINGS
+  -- else
+  --   -- TODO: alter only modified settings
+  --   M.setup = opts
+  -- end
 
   -- creating root directory
   if vim.fn.isdirectory(RootDir) == 0 then
@@ -36,7 +38,7 @@ M.setup = function(opts)
 
   -- main function to enter the UI
   vim.api.nvim_create_user_command('SQLua', function(args)
-    UI:setup(M.setup)
+    UI:setup(config)
     Connection:connect(args.args)
   end, {nargs = 1})
 
@@ -46,7 +48,7 @@ M.setup = function(opts)
 
   vim.keymap.set({"n", "v"},
     -- M.setup.keybinds.execute_query, ":<C-U>SQLuaExecute<CR>", {
-    M.setup.keybinds.execute_query, function()
+    config.keybinds.execute_query, function()
       local mode = vim.api.nvim_get_mode().mode
       vim.cmd(":SQLuaExecute "..mode.."<CR>")
       end, { noremap = true, silent = true }

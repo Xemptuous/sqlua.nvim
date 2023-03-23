@@ -4,7 +4,7 @@ M.getQueries = function(tbl, schema, limit)
   return {
     Data = [[
 SELECT * 
-FROM ]]..tbl..[[ 
+FROM ]]..schema.."."..tbl..[[ 
 LIMIT ]]..limit,
 
     Columns = [[
