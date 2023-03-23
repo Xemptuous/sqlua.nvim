@@ -35,8 +35,6 @@ local function createTableStatement(type, tbl, schema)
   local stmt = {}
   local query = queries.getQueries(tbl, schema, UI.options.default_limit)[type]
   for line in string.gmatch(query, "[^\r\n]+") do
-    -- line = utils.removeEndWhitespace(line)
-    print(line)
     table.insert(stmt, line)
   end
   vim.api.nvim_buf_set_lines(buf, 0, 0, 0, stmt)
@@ -164,11 +162,13 @@ local function createSidebar(win)
       local m1, _ = string.find(val, '')
       local m2, _ = string.find(val, '')
       if not m1 and not m2 then
-        local table = nil
+        local tbl = nil
         local num = cursorPos[1]
         while true do
-          table = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
-          if string.find(table, '') then
+          tbl = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+          if not tbl then
+            return
+          elseif string.find(tbl, '') then
             break
           end
           num = num - 1
@@ -182,11 +182,11 @@ local function createSidebar(win)
           end
           num = num - 1
         end
-        table = table:gsub("%s+", "")
-        table = string.sub(table, 4)
+        tbl = tbl:gsub("%s+", "")
+        tbl = string.sub(tbl, 4)
         schema = schema:gsub("%s+", "")
         schema = string.sub(schema, 4)
-        createTableStatement(val, table, schema)
+        createtblStatement(val, tbl, schema)
       else
         val = val:gsub("", "")
         val = val:gsub("", "")
