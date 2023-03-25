@@ -1,16 +1,19 @@
 local utils = require('sqlua.utils')
+local Connections = {}
 local Connection = {
+  expanded = false,
+  num_schema = 0,
   name = nil,
   url = nil,
   cmd = nil,
   rdbms = nil,
   last_query = {},
-  dbs = {},
-  schema = {},
-  connections_file =  utils.concat {
-    vim.fn.stdpath("data"), 'sqlua', 'connections.json'
-  }
+  schema = {}
 }
+
+
+RUNNING_JOBS = {}
+CONNECTIONS_FILE =  utils.concat {vim.fn.stdpath("data"), 'sqlua', 'connections.json'}
 
 
 local schemaQuery = [["
@@ -96,14 +99,13 @@ local function onConnect(job_id, data, event)
     Connection:getPostgresSchema(data)
   elseif event == 'stderr' then
   elseif event == 'exit' then
-    table.insert(Connection.dbs, Connection)
-    require("sqlua.ui"):populateSidebar(Connection.name, Connection.schema)
+    require("sqlua.ui"):add(Connection)
   else
   end
 end
 
 
-function Connection:executeQuery()
+Connections.executeQuery = function(cmd)
   local mode = vim.api.nvim_get_mode().mode
   local query = nil
   if mode == 'n' then
@@ -130,9 +132,11 @@ function Connection:executeQuery()
   elseif mode == '\22' then
     local _, srow, scol, _ = unpack(vim.fn.getpos("."))
     local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
-    local lines = vim.api.nvim_buf_get_lines(0,
-      math.min(srow, erow) -1,
-      math.max(srow, erow), 0
+    local lines = vim.api.nvim_buf_get_lines(
+      0,
+      math.min(srow, erow) - 1,
+      math.max(srow, erow),
+      0
     )
     query = {}
     local start = math.min(scol, ecol)
@@ -149,8 +153,8 @@ function Connection:executeQuery()
     on_stderr = onEvent,
     on_data = onEvent
   }
-  local cmd = self.cmd..'"'.. table.concat(query, " ")..'"'
-  local job = vim.fn.jobstart(cmd, opts)
+  local command = cmd..'"'.. table.concat(query, " ")..'"'
+  local job = vim.fn.jobstart(command, opts)
 
   -- exit visual mode on run
   local keys = vim.api.nvim_replace_termcodes('<ESC>', true, false, true)
@@ -158,18 +162,19 @@ function Connection:executeQuery()
 end
 
 
-function Connection:connect(name)
-  local connections = Connection:readConnection()
+Connections.connect = function(name)
+  local connections = Connections.readConnection()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
       Connection.name = name
       local query = string.gsub(schemaQuery, '\n', " ")
-      self.url = connection['url']
-      self.cmd = 'psql ' .. connection['url'] .. ' -c '
-      local cmd = self.cmd .. query
-      table.insert(self.last_query, query)
+      Connection.url = connection['url']
+      Connection.cmd = 'psql ' .. connection['url'] .. ' -c '
+      local cmd = Connection.cmd .. query
+      table.insert(Connection.last_query, query)
 
       local opts = {
+        stdin = "null",
         stdout_buffered = true,
         stderr_buffered = true,
         on_exit = onConnect,
@@ -177,30 +182,31 @@ function Connection:connect(name)
         on_stderr = onConnect,
         on_data = onConnect
       }
-      local job = vim.fn.jobstart(cmd, opts)
+      table.insert(RUNNING_JOBS, vim.fn.jobstart(cmd, opts))
+      local running = vim.fn.jobwait(RUNNING_JOBS, 5000)
     end
   end
 end
 
 
-function Connection:writeConnection(data)
+Connections.writeConnection = function(data)
   local json = vim.fn.json_encode(data)
-  vim.fn.writefile({json}, self.connections_file)
+  vim.fn.writefile({json}, CONNECTIONS_FILE)
 end
 
 
-function Connection:readConnection()
-  local content = vim.fn.readfile(self.connections_file)
+Connections.readConnection = function()
+  local content = vim.fn.readfile(CONNECTIONS_FILE)
   content = vim.fn.json_decode(vim.fn.join(content, "\n"))
   return content
 end
 
 
-function Connection:addConnection(url, name)
+Connections.addConnection = function(url, name)
   local file = Connection:readConnection()
   table.insert(file, {url = url, name = name})
-  Connection:writeConnection(file)
+  Connection.writeConnection(file)
 end
 
 
-return Connection
+return Connections

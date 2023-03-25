@@ -101,6 +101,12 @@ M.removeEndWhitespace = function(line)
   return line:gsub("^%s*(.-)%s*$", "%1")
 end
 
+M.getDatabases = function(file)
+  local content = vim.fn.readfile(file)
+  content = vim.fn.json_decode(vim.fn.join(content, "\n"))
+  return content
+end
+
 -- local parseUrl = function(url)
 --   local db = string.gsub(
 --     string.sub(url, string.find(url, "%w+:")),
