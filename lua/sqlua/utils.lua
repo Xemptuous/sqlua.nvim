@@ -107,6 +107,8 @@ M.getDatabases = function(file)
   return content
 end
 
+M.replaceIcons = function(val)
+end
 -- local parseUrl = function(url)
 --   local db = string.gsub(
 --     string.sub(url, string.find(url, "%w+:")),

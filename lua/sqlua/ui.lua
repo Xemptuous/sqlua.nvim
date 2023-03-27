@@ -5,6 +5,20 @@ local UI = {
   dbs = {},
 }
 
+local UI_ICONS = {
+  db = ' ',
+  buffers = '' ,
+  saved_queries = ' ',
+  schemas = ' ',
+  schema = 'פּ ',
+  table = '藺 ',
+  saved_query = ' ',
+  new_query = '璘 ',
+  table_stmt = '離 ',
+  -- table = ' ',
+}
+
+
 
 local function setSidebarModifiable(buf, val)
   vim.api.nvim_buf_set_option(buf, 'modifiable', val)
@@ -71,18 +85,18 @@ function UI:refreshSidebar()
     for table, _ in pairsByKeys(tables) do
       if tables[table].expanded then
         vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-          sep.." "..table
+          sep.." "..UI_ICONS.table..table
         })
         srow = srow + 1
         for _, stmt in pairsByKeys(statements) do
           vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-            sep.."    "..stmt
+            sep.."    "..UI_ICONS.table_stmt..stmt
           })
           srow = srow + 1
         end
       else
         vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-          sep.." "..table
+          sep.." "..UI_ICONS.table..table
         })
         srow = srow + 1
       end
@@ -97,7 +111,7 @@ function UI:refreshSidebar()
       if UI.dbs[db].schema[schema].expanded then
         if type(UI.dbs[db].schema[schema]) == 'table' then
           vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-            sep.." "..schema
+            sep.." "..UI_ICONS.schema..schema
           })
           srow = srow + 1
           local tables = UI.dbs[db].schema[schema].tables
@@ -105,7 +119,7 @@ function UI:refreshSidebar()
         end
       else
         vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-          sep.." "..schema
+          sep.." "..UI_ICONS.schema..schema
         })
         srow = srow + 1
       end
@@ -120,10 +134,10 @@ function UI:refreshSidebar()
   local srow = 2
   for db, _ in pairsByKeys(UI.dbs) do
     if UI.dbs[db].expanded then
-      vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..db})
+      vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
       srow = refreshSchema(buf, db, srow)
     else
-      vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..db})
+      vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
     end
     srow = srow + 1
   end
@@ -172,7 +186,8 @@ local function sidebarFind(type, buf, num)
       db = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
       if string.find(db, '^  ', 1) or string.find(db, '^  ', 1) then
         db = db:gsub("%s+", "")
-        db = db:gsub("[]", "")
+        db = db:gsub("[פּ藺璘離]" , "")
+        -- db = db:gsub("[]", "")
         break
       end
       num = num - 1
@@ -209,15 +224,18 @@ local function createSidebar(win)
         tbl, num = sidebarFind('table', buf, num)
         schema, num = sidebarFind('schema', buf, num)
         db, num = sidebarFind('database', buf, num)
+        val = val:gsub("[פּ藺璘離]" , "")
         tbl = tbl:gsub("%s+", "")
-        tbl = string.sub(tbl, 4)
+        tbl = tbl:gsub("[פּ藺璘離]" , "")
         schema = schema:gsub("%s+", "")
-        schema = string.sub(schema, 4)
+        schema = schema:gsub("[פּ藺璘離]" , "")
+        print(val, tbl, schema, db)
         createTableStatement(val, tbl, schema, db)
       else
         local db = nil
         db, num = sidebarFind('database', buf, num)
-        val = val:gsub("[]", "")
+        -- val = val:gsub("[]", "")
+        val = val:gsub("[פּ藺璘離]" , "")
         if db and db == val then
           toggleItem(UI.dbs, val)
         else

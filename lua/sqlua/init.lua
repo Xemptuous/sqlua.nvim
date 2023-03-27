@@ -14,6 +14,17 @@ DEFAULT_CONFIG = {
   default_limit = 200,
   keybinds = {
     execute_query = "<leader>r"
+  },
+  ddl_colors = {
+    db = "",
+    buffers = "",
+    saved_queries = "",
+    schemas = "",
+    schema = "",
+    table = "",
+    saved_query = "",
+    new_query = "",
+    table_stmt = "",
   }
 }
 
