@@ -6,11 +6,11 @@ local UI = require('sqlua.ui')
 local M = {}
 
 
-local RootDir = utils.concat { vim.fn.stdpath("data"), "sqlua" }
+ROOT_DIR = utils.concat { vim.fn.stdpath("data"), "sqlua" }
 CONNECTIONS_FILE =  utils.concat {vim.fn.stdpath("data"), 'sqlua', 'connections.json'}
-local DEFAULT_SETTINGS = {
-  db_save_location = utils.concat { RootDir, "dbs" },
-  connections_save_location = utils.concat {RootDir, 'connections.json'},
+DEFAULT_CONFIG = {
+  db_save_location = utils.concat { ROOT_DIR, "dbs" },
+  connections_save_location = utils.concat {ROOT_DIR, 'connections.json'},
   default_limit = 200,
   keybinds = {
     execute_query = "<leader>r"
@@ -19,16 +19,14 @@ local DEFAULT_SETTINGS = {
 
 
 M.setup = function(opts)
-  local config = vim.tbl_deep_extend('force', DEFAULT_SETTINGS, opts or {})
+  local config = vim.tbl_deep_extend('force', DEFAULT_CONFIG, opts or {})
 
   -- creating root directory
-  if vim.fn.isdirectory(RootDir) == 0 then
-    vim.fn.mkdir(RootDir)
-  end
+  vim.fn.mkdir(ROOT_DIR, 'p')
 
   -- creating config json
   if vim.fn.filereadable(CONNECTIONS_FILE) == 0 then
-    Connection.writeConnection({})
+    Connection.write({})
   end
 
   -- main function to enter the UI
@@ -50,14 +48,14 @@ M.setup = function(opts)
   end, {nargs = '?'})
 
   vim.api.nvim_create_user_command('SQLuaExecute', function(mode)
-    Connection.executeQuery()
+    Connection.execute()
   end, {nargs = 1})
 
   vim.keymap.set({"n", "v"},
     config.keybinds.execute_query, function()
       local mode = vim.api.nvim_get_mode().mode
       vim.cmd(":SQLuaExecute "..mode.."<CR>")
-      end, { noremap = true, silent = true }
+    end, { noremap = true, silent = true }
   )
 
   vim.api.nvim_create_user_command('SQLuaAddConnection', function()

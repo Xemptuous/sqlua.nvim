@@ -52,7 +52,7 @@ local function createTableStatement(type, tbl, schema, db)
     table.insert(stmt, line)
   end
   vim.api.nvim_buf_set_lines(buf, 0, 0, 0, stmt)
-  Connection.executeQuery(UI.dbs[db].cmd)
+  Connection.execute(UI.dbs[db].cmd)
 end
 
 

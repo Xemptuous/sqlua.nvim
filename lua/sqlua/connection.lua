@@ -89,7 +89,6 @@ local function onEvent(job_id, data, event)
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_cursor(win, pos)
-  elseif event == 'exit' then
   end
 end
 
@@ -105,7 +104,7 @@ local function onConnect(job_id, data, event)
 end
 
 
-Connections.executeQuery = function(cmd)
+Connections.execute = function(cmd)
   local mode = vim.api.nvim_get_mode().mode
   local query = nil
   if mode == 'n' then
@@ -163,7 +162,7 @@ end
 
 
 Connections.connect = function(name)
-  local connections = Connections.readConnection()
+  local connections = Connections.read()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
       Connection.name = name
@@ -189,22 +188,23 @@ Connections.connect = function(name)
 end
 
 
-Connections.writeConnection = function(data)
-  local json = vim.fn.json_encode(data)
-  vim.fn.writefile({json}, CONNECTIONS_FILE)
-end
-
-
-Connections.readConnection = function()
+Connections.read = function()
   local content = vim.fn.readfile(CONNECTIONS_FILE)
   content = vim.fn.json_decode(vim.fn.join(content, "\n"))
   return content
 end
 
 
-Connections.addConnection = function(url, name)
-  local file = Connection:readConnection()
+Connections.write = function(data)
+  local json = vim.fn.json_encode(data)
+  vim.fn.writefile({json}, CONNECTIONS_FILE)
+end
+
+
+Connections.add = function(url, name)
+  local file = Connection:read()
   table.insert(file, {url = url, name = name})
+  vim.fn.mkdir(ROOT_DIR..'/name', "p")
   Connection.writeConnection(file)
 end
 
