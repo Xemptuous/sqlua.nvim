@@ -199,6 +199,7 @@ local function createSidebar(win)
       local num = cursorPos[1]
       local val = vim.api.nvim_get_current_line()
       val = val:gsub("%s+", "")
+      if val == "" then return end
       local m1, _ = string.find(val, '')
       local m2, _ = string.find(val, '')
       if not m1 and not m2 then
