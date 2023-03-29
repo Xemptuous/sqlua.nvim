@@ -10,14 +10,16 @@ local UI_ICONS = {
   buffers = '' ,
   saved_queries = ' ',
   schemas = ' ',
-  schema = 'פּ ',
-  table = '藺 ',
+  -- schema = 'פּ ',
+  schema = '󱁊 ',
+  table = '藺',
   saved_query = ' ',
   new_query = '璘 ',
   table_stmt = '離 ',
   -- table = ' ',
 }
-
+local ICONS_STRING = "פּ󱁊藺璘離"
+local ICONS_SUB = "[פּ󱁊藺璘離]"
 
 
 local function setSidebarModifiable(buf, val)
@@ -186,8 +188,7 @@ local function sidebarFind(type, buf, num)
       db = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
       if string.find(db, '^  ', 1) or string.find(db, '^  ', 1) then
         db = db:gsub("%s+", "")
-        db = db:gsub("[פּ藺璘離]" , "")
-        -- db = db:gsub("[]", "")
+        db = db:gsub(ICONS_SUB , "")
         break
       end
       num = num - 1
@@ -198,7 +199,7 @@ end
 
 
 local function createSidebar(win)
-  local buf = vim.api.nvim_create_buf(true, false)
+  local buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(buf, "Sidebar")
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_set_current_win(win)
@@ -207,6 +208,10 @@ local function createSidebar(win)
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
+  vim.cmd('syn match Function /[פּ藺璘]/')
+  vim.cmd('syn match String /[פּ󱁊]/')
+  vim.cmd('syn match Boolean /[離]/')
+  vim.cmd('syn match Comment /[]/')
   UI.sidebar_buf = buf
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '<CR>', {
     callback = function()
@@ -224,18 +229,18 @@ local function createSidebar(win)
         tbl, num = sidebarFind('table', buf, num)
         schema, num = sidebarFind('schema', buf, num)
         db, num = sidebarFind('database', buf, num)
-        val = val:gsub("[פּ藺璘離]" , "")
+        val = val:gsub(ICONS_SUB , "")
         tbl = tbl:gsub("%s+", "")
-        tbl = tbl:gsub("[פּ藺璘離]" , "")
+        tbl = tbl:gsub(ICONS_SUB , "")
         schema = schema:gsub("%s+", "")
-        schema = schema:gsub("[פּ藺璘離]" , "")
+        schema = schema:gsub(ICONS_SUB , "")
         print(val, tbl, schema, db)
         createTableStatement(val, tbl, schema, db)
       else
         local db = nil
         db, num = sidebarFind('database', buf, num)
         -- val = val:gsub("[]", "")
-        val = val:gsub("[פּ藺璘離]" , "")
+        val = val:gsub(ICONS_SUB , "")
         if db and db == val then
           toggleItem(UI.dbs, val)
         else
@@ -251,11 +256,11 @@ end
 
 local function createEditor(win)
   vim.api.nvim_set_current_win(win)
-  local buf = vim.api.nvim_create_buf(true, false)
+  local buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(buf, "Editor")
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_cursor(win, {1, 0})
-  vim.cmd('set filetype=sql')
+  vim.cmd('setfiletype sql')
   UI.editor_buf = buf
 end
 
