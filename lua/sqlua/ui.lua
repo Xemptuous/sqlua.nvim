@@ -240,7 +240,7 @@ local function createSidebar(win)
   vim.cmd('syn match Comment /[]/')
   UI.sidebar_buf = buf
   -- set active db
-  vim.api.nvim_buf_set_keymap(buf, 'n', 'a', 'a', {
+  vim.api.nvim_buf_set_keymap(buf, 'n', UI.options.keybinds.activate_db, "", {
     callback = function()
       vim.cmd('syn match Normal /'..UI.active_db..'$/')
       local cursorPos = vim.api.nvim_win_get_cursor(0)
@@ -252,7 +252,7 @@ local function createSidebar(win)
     end
   })
   -- expand and collapse
-  vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '<CR>', {
+  vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
       local num = cursorPos[1]
@@ -305,7 +305,8 @@ end
 
 
 function UI:setup(config)
-  UI.options = { default_limit = config.default_limit }
+  UI.options = config
+  P(UI.options)
   for _, buf in pairs(vim.api.nvim_list_bufs()) do
     vim.api.nvim_buf_delete(buf, { force = true, unload = false })
   end

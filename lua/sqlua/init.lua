@@ -13,7 +13,8 @@ DEFAULT_CONFIG = {
   connections_save_location = utils.concat {ROOT_DIR, 'connections.json'},
   default_limit = 200,
   keybinds = {
-    execute_query = "<leader>r"
+    execute_query = "<leader>r",
+    activate_db = "a"
   },
   ddl_colors = {
     db = "",
