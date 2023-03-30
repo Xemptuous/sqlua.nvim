@@ -39,17 +39,20 @@ You can override the default settings by feeding the table as a table to the set
 {
     db_save_location = "~/.local/share/nvim/sqlua/dbs",
     connections_save_location = "~/.local/share/nvim/sqlua/connections.json"
+    default_limit = 200,
+    keybinds = {
+        execute_query = "<leader>r",
+        activate_db = "a"
+    }
 }
 ```
-
-the `dbs` folder specific to each URL will host tmp queries and saved queries.
 
 ## Usage:
 
 Current commands include:
 ```
-:SQLua <dbname> - launches the SQLua UI
-:SQLuaExecute - executes the buffer/selection (based on mode)
+:SQLua <dbname(s)> - launches the SQLua UI with the listed DB's
+:SQLuaExecute - executes the buffer (in normal mode) or selection (in a visual mode)
 :SQLuaAddConnection - prompts the user to add a connection to the connections file
 ```
 
@@ -62,12 +65,12 @@ By default, the keymap to execute commands is set to `<leader>r`, acting differe
 
 <pre>
     <kdb>&lt;leader>r</kbd> (normal mode): Runs the entire buffer as a query.
-    <kdb>&lt;leader>r</kbd> (visual mode): Runs the selected lines as a query.
+    <kdb>&lt;leader>r</kbd> (visual mode): Runs the selected lines as a query. (visual, visual block, and/or visual line)
 </pre>
 
 Upon executing a query, the results will be shown in a results buffer.
 
-You can rebind the run command by using `vim.keymap.set({'n', 'v'}, 'lhs', ':SQLuaExecute<CR>', {opts}`
+The DB used will be highlighted and set to the "active" DB. Using the `activate_db` keybind will change which DB is considered the active one for each query.
 
 ## Roadmap
 
@@ -79,11 +82,11 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [x] Be able to execute queries from buffer
 - [x] Create a minimal UI structure
 - [x] Make a functional NvimTree-sidebar for navigating the DB
+- [x] Implement multiple db's available in sidebar at once (easily jumping between them)
+- [x] Implement queries, ddl, and other template queries into the sidebar tree.
 - [ ] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
 - [ ] Integrate other databases
-- [ ] Implement multiple db's available in sidebar at once (easily jumping between them)
 - [ ] Include fancy ui functionality to make SQLua sexy
-- [ ] Implement queries, ddl, and other template queries into the sidebar tree.
 
