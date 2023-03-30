@@ -20,6 +20,7 @@ local UI_ICONS = {
 }
 local ICONS_STRING = "פּ󱁊藺璘離"
 local ICONS_SUB = "[פּ󱁊藺璘離]"
+local EDITOR_NUM = 0
 
 
 local function setSidebarModifiable(buf, val)
@@ -205,6 +206,7 @@ local function createSidebar(win)
   vim.api.nvim_set_current_win(win)
   vim.api.nvim_win_set_width(0, 40)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_win_set_option(win, 'wfw', true)
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
@@ -234,7 +236,6 @@ local function createSidebar(win)
         tbl = tbl:gsub(ICONS_SUB , "")
         schema = schema:gsub("%s+", "")
         schema = schema:gsub(ICONS_SUB , "")
-        print(val, tbl, schema, db)
         createTableStatement(val, tbl, schema, db)
       else
         local db = nil
@@ -257,11 +258,12 @@ end
 local function createEditor(win)
   vim.api.nvim_set_current_win(win)
   local buf = vim.api.nvim_create_buf(true, true)
-  vim.api.nvim_buf_set_name(buf, "Editor")
+  vim.api.nvim_buf_set_name(buf, "Editor "..EDITOR_NUM)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_cursor(win, {1, 0})
   vim.cmd('setfiletype sql')
   UI.editor_buf = buf
+  EDITOR_NUM = EDITOR_NUM + 1
 end
 
 
@@ -270,6 +272,31 @@ function UI:setup(config)
   for _, buf in pairs(vim.api.nvim_list_bufs()) do
     vim.api.nvim_buf_delete(buf, { force = true, unload = false })
   end
+
+  -- FIXME: when inputting command :qa! then hitting <Esc>, still deletes window
+  -- use different command most likely
+  vim.api.nvim_create_autocmd({ "BufDelete", "BufHidden" }, {
+    callback = function()
+      local closed_buf = vim.api.nvim_get_current_buf()
+      if not closed_buf == UI.sidebar_buf then
+        local bufs = vim.api.nvim_list_bufs()
+        for _, buf in pairs(bufs) do
+          if buf == closed_buf then
+            vim.api.nvim_buf_delete(buf, { unload = true })
+          end
+        end
+        EDITOR_NUM = EDITOR_NUM - 1
+      end
+    end
+  })
+  vim.api.nvim_create_autocmd({ "WinNew" }, {
+    callback = function(ev)
+      if ev.buf == 1 then
+        return
+      end
+      createEditor(vim.api.nvim_get_current_win())
+    end
+  })
 
   local sidebar_win = vim.api.nvim_get_current_win()
   UI.sidebar_win = sidebar_win

@@ -57,6 +57,8 @@ end
 local function createResultsPane(data)
   vim.cmd('split')
   local win = vim.api.nvim_get_current_win()
+  --TODO: new result window increments by 1 each time
+  -- consider reusing same one per window
   local buf = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_buf_set_name(buf, "ResultsBuf")
   vim.api.nvim_win_set_buf(win, buf)
@@ -105,6 +107,7 @@ end
 
 
 Connections.execute = function(cmd)
+  if not cmd then return end
   local mode = vim.api.nvim_get_mode().mode
   local query = nil
   if mode == 'n' then
