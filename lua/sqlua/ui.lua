@@ -1,8 +1,10 @@
 local Connection = require('sqlua.connection')
 local UI = {
   sidebar_buf = nil,
+  sidebar_ns = nil,
   editor_buf = nil,
   dbs = {},
+  active_db = nil
 }
 
 local UI_ICONS = {
@@ -134,13 +136,32 @@ function UI:refreshSidebar()
   local sep = "  "
   setSidebarModifiable(buf, true)
   vim.api.nvim_buf_set_lines(buf, 1, -1, 0, {})
+  -- setting win for syn match
+  vim.api.nvim_set_current_win(UI.sidebar_win)
+  vim.cmd('syn match active_db /'..UI.active_db..'$/')
   local srow = 2
   for db, _ in pairsByKeys(UI.dbs) do
     if UI.dbs[db].expanded then
       vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
+      vim.api.nvim_buf_add_highlight(
+        UI.sidebar_buf,
+        UI.sidebar_ns,
+        'active_db',
+        srow - 1,
+        10,
+        string.len(db)
+      )
       srow = refreshSchema(buf, db, srow)
     else
       vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
+      vim.api.nvim_buf_add_highlight(
+        UI.sidebar_buf,
+        UI.sidebar_ns,
+        'active_db',
+        srow - 1,
+        10,
+        string.len(db)
+      )
     end
     srow = srow + 1
   end
@@ -151,6 +172,9 @@ end
 function UI:add(con)
   local copy = vim.deepcopy(con)
   local db = copy.name
+  if not UI.active_db then
+    UI.active_db = db
+  end
   UI.dbs[db] = copy
   for _ in pairs(UI.dbs[copy.name].schema) do
     UI.dbs[db].num_schema = UI.dbs[db].num_schema + 1
@@ -215,6 +239,19 @@ local function createSidebar(win)
   vim.cmd('syn match Boolean /[離]/')
   vim.cmd('syn match Comment /[]/')
   UI.sidebar_buf = buf
+  -- set active db
+  vim.api.nvim_buf_set_keymap(buf, 'n', 'a', 'a', {
+    callback = function()
+      vim.cmd('syn match Normal /'..UI.active_db..'$/')
+      local cursorPos = vim.api.nvim_win_get_cursor(0)
+      local num = cursorPos[1]
+      local db, _ = sidebarFind('database', buf, num)
+      UI.active_db = db
+      UI:refreshSidebar()
+      vim.api.nvim_win_set_cursor(0, cursorPos)
+    end
+  })
+  -- expand and collapse
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '<CR>', {
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
@@ -273,8 +310,6 @@ function UI:setup(config)
     vim.api.nvim_buf_delete(buf, { force = true, unload = false })
   end
 
-  -- FIXME: when inputting command :qa! then hitting <Esc>, still deletes window
-  -- use different command most likely
   vim.api.nvim_create_autocmd({ "BufDelete", "BufHidden" }, {
     callback = function()
       local closed_buf = vim.api.nvim_get_current_buf()
@@ -297,6 +332,9 @@ function UI:setup(config)
       createEditor(vim.api.nvim_get_current_win())
     end
   })
+
+  UI.sidebar_ns = vim.api.nvim_create_namespace('SQLuaSidebar')
+  vim.api.nvim_set_hl(0, 'active_db', {fg = "#00ff00", bold = true})
 
   local sidebar_win = vim.api.nvim_get_current_win()
   UI.sidebar_win = sidebar_win

@@ -106,9 +106,14 @@ local function onConnect(job_id, data, event)
 end
 
 
-Connections.execute = function(cmd)
-  if not cmd then return end
-  local mode = vim.api.nvim_get_mode().mode
+Connections.execute = function(cmd, --[[optional]]mode)
+  if not cmd or type(cmd) == 'table' then
+    local ui = require('sqlua.ui')
+      cmd = ui.dbs[ui.active_db].cmd
+  end
+  if not mode then
+    mode = vim.api.nvim_get_mode().mode
+  end
   local query = nil
   if mode == 'n' then
     query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
@@ -156,6 +161,8 @@ Connections.execute = function(cmd)
     on_data = onEvent
   }
   local command = cmd..'"'.. table.concat(query, " ")..'"'
+  print(mode)
+  print(command)
   local job = vim.fn.jobstart(command, opts)
 
   -- exit visual mode on run

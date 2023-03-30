@@ -59,13 +59,13 @@ M.setup = function(opts)
   end, {nargs = '?'})
 
   vim.api.nvim_create_user_command('SQLuaExecute', function(mode)
-    Connection.execute()
+    Connection.execute(nil, mode.args)
   end, {nargs = 1})
 
   vim.keymap.set({"n", "v"},
     config.keybinds.execute_query, function()
       local mode = vim.api.nvim_get_mode().mode
-      vim.cmd(":SQLuaExecute "..mode.."<CR>")
+      vim.cmd(":SQLuaExecute "..mode)
     end, { noremap = true, silent = true }
   )
 
