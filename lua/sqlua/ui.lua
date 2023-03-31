@@ -2,11 +2,6 @@ local Connection = require('sqlua.connection')
 local UI = {
   connections_loaded = false,
   initial_layout_loaded = false,
-  last_cursor_position = {
-    sidebar = {},
-    editor = {},
-    result = {}
-  },
   sidebar_buf = nil,
   sidebar_ns = nil,
   editor_buf = nil,
@@ -22,6 +17,11 @@ local UI = {
     editors = {},
     results = {}
   },
+  last_cursor_position = {
+    sidebar = {},
+    editor = {},
+    result = {}
+  },
   last_active_buffer = nil,
   current_active_buffer = nil,
   last_active_window = nil,
@@ -33,8 +33,8 @@ local UI_ICONS = {
   buffers = '' ,
   saved_queries = ' ',
   schemas = ' ',
-  -- schema = 'פּ ',
-  schema = '󱁊 ',
+  schema = 'פּ ',
+  -- schema = '󱁊 ',
   table = '藺',
   saved_query = ' ',
   new_query = '璘 ',
@@ -97,8 +97,6 @@ end
 
 local function createTableStatement(type, tbl, schema, db)
   local queries = require('sqlua/queries.postgres')
-  -- local buf = UI.editor_buf
-  -- local win = UI.editor_win
   local buf = UI.last_active_buffer
   local win = UI.last_active_window
   vim.api.nvim_set_current_win(win)
