@@ -69,6 +69,8 @@ local function createResultsPane(data)
   vim.api.nvim_win_set_option(win, 'number', false)
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
   vim.cmd('goto 1')
+  table.insert(require('sqlua.ui').buffers.results, buf)
+  table.insert(require('sqlua.ui').windows.results, win)
 end
 
 

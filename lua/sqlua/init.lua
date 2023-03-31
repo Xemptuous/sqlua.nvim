@@ -56,7 +56,9 @@ M.setup = function(opts)
         Connection.connect(db)
       end
     end
+    UI.connections_loaded = true
     UI:refreshSidebar()
+    UI.initial_layout_loaded = true
   end, {nargs = '?'})
 
   vim.api.nvim_create_user_command('SQLuaExecute', function(mode)
