@@ -7,6 +7,7 @@ local UI = {
   editor_buf = nil,
   active_db = nil,
   dbs = {},
+  num_dbs = 0,
   buffers = {
     sidebar = nil,
     editors = {},
@@ -177,7 +178,7 @@ function UI:refreshSidebar()
   vim.api.nvim_buf_set_lines(buf, 1, -1, 0, {})
   -- setting win for syn match
   vim.api.nvim_set_current_win(UI.windows.sidebar)
-  vim.cmd('syn match active_db /'..UI.active_db..'$/')
+  vim.cmd('syn match SQLua_active_db /'..UI.active_db..'$/')
   local srow = 2
   for db, _ in pairsByKeys(UI.dbs) do
     if UI.dbs[db].expanded then
@@ -218,6 +219,7 @@ function UI:add(con)
   for _ in pairs(UI.dbs[copy.name].schema) do
     UI.dbs[db].num_schema = UI.dbs[db].num_schema + 1
   end
+  UI.num_dbs = UI.num_dbs + 1
   setSidebarModifiable(UI.buffers.sidebar, false)
 end
 
@@ -272,6 +274,8 @@ local function createSidebar(win)
   vim.api.nvim_win_set_option(win, 'wfw', true)
   vim.api.nvim_win_set_option(win, 'wrap', false)
   vim.api.nvim_win_set_option(win, 'number', false)
+  vim.api.nvim_win_set_option(win, 'cursorline', true)
+  vim.api.nvim_win_set_option(win, 'cursorlineopt', 'line')
   vim.api.nvim_win_set_option(win, 'relativenumber', false)
   vim.cmd('syn match Function /[פּ藺璘]/')
   vim.cmd('syn match String /[פּ󱁊]/')
@@ -415,9 +419,25 @@ function UI:setup(config)
       createEditor(vim.api.nvim_get_current_win())
     end
   })
+  vim.api.nvim_create_autocmd({ "CursorMoved" }, {
+    callback = function(ev)
+      if ev.buf ~= UI.buffers.sidebar then
+        return
+      end
+      if not UI.initial_layout_loaded then
+        return
+      end
+      local pos = vim.api.nvim_win_get_cursor(0)
+      P(pos)
+      pos[1] = math.max(pos[1], 2)
+      pos[2] = math.max(pos[2], 2)
+      P(pos)
+      vim.api.nvim_win_set_cursor(0, pos)
+    end
+  })
 
   UI.sidebar_ns = vim.api.nvim_create_namespace('SQLuaSidebar')
-  vim.api.nvim_set_hl(0, 'active_db', {fg = "#00ff00", bold = true})
+  vim.api.nvim_set_hl(0, 'SQLua_active_db', {fg = "#00ff00", bold = true})
 
   local sidebar_win = vim.api.nvim_get_current_win()
   UI.windows.sidebar = sidebar_win

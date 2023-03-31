@@ -59,6 +59,10 @@ M.setup = function(opts)
     UI.connections_loaded = true
     UI:refreshSidebar()
     UI.initial_layout_loaded = true
+    if UI.num_dbs > 0 then
+      vim.api.nvim_win_set_cursor(UI.windows.sidebar, {2, 2})
+    end
+
   end, {nargs = '?'})
 
   vim.api.nvim_create_user_command('SQLuaExecute', function(mode)
