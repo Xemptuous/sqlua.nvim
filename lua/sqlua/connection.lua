@@ -163,8 +163,6 @@ Connections.execute = function(cmd, --[[optional]]mode)
     on_data = onEvent
   }
   local command = cmd..'"'.. table.concat(query, " ")..'"'
-  print(mode)
-  print(command)
   local job = vim.fn.jobstart(command, opts)
 
   -- exit visual mode on run

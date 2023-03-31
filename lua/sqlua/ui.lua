@@ -101,7 +101,6 @@ local function createTableStatement(type, tbl, schema, db)
   -- local win = UI.editor_win
   local buf = UI.last_active_buffer
   local win = UI.last_active_window
-  print(buf, win)
   vim.api.nvim_set_current_win(win)
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
