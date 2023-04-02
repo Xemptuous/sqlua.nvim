@@ -2,6 +2,7 @@ local Connection = require('sqlua.connection')
 local UI = {
   connections_loaded = false,
   initial_layout_loaded = false,
+  help_toggled = false,
   sidebar_buf = nil,
   sidebar_ns = nil,
   editor_buf = nil,
@@ -116,7 +117,7 @@ end
 
 function UI:refreshSidebar()
   local function refreshTables(buf, tables, srow)
-    local sep = "      "
+    local sep = "     "
     local statements = {
       "Data",
       "Columns",
@@ -148,9 +149,8 @@ function UI:refreshSidebar()
     return srow
   end
 
-
   local function refreshSchema(buf, db, srow)
-    local sep = "    "
+    local sep = "   "
     for schema, _ in pairsByKeys(UI.dbs[db].schema) do
       if UI.dbs[db].schema[schema].expanded then
         if type(UI.dbs[db].schema[schema]) == 'table' then
@@ -172,38 +172,65 @@ function UI:refreshSidebar()
   end
 
   local buf = UI.buffers.sidebar
-  -- local buf = UI.buffers.sidebar
-  local sep = "  "
+  local sep = " "
   setSidebarModifiable(buf, true)
-  vim.api.nvim_buf_set_lines(buf, 1, -1, 0, {})
-  -- setting win for syn match
+  vim.api.nvim_buf_set_lines(UI.buffers.sidebar, 0, -1, 0, {})
+  local winwidth = vim.api.nvim_win_get_width(UI.windows.sidebar)
+  local helptext = "press ? to toggle help"
+  local helpTextTable = {
+    string.format("%+"..winwidth/2 - (string.len(helptext)/2).."s%s", "", helptext),
+    " a - set the active db",
+    " <A-t> - toggle sidebar focus",
+    " <leader>r - run query"
+  }
+  local setCursor = UI.last_cursor_position.sidebar
+  local srow = 2
+  if UI.help_toggled then
+    UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(UI.windows.sidebar)
+    vim.cmd('syn match SQLuaHelpKey /.*\\( -\\)\\@=/')
+    vim.cmd('syn match SQLuaHelpText /\\(- \\).*/')
+    vim.api.nvim_buf_set_lines(buf, 0, 0, 0, helpTextTable)
+    vim.cmd('syn match SQLuaHelpText /^$/')
+    srow = srow + #helpTextTable
+    vim.api.nvim_buf_add_highlight(
+      UI.buffers.sidebar, UI.sidebar_ns, 'Comment', 0, 0, winwidth
+    )
+    setCursor[1] = setCursor[1] + #helpTextTable
+  else
+    vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {
+      string.format("%+"..winwidth/2 - (string.len(helptext)/2).."s%s", "", helptext)
+    })
+    vim.api.nvim_buf_add_highlight(
+      UI.buffers.sidebar, UI.sidebar_ns, 'Comment', 0, 0, winwidth
+    )
+  end
+
   vim.api.nvim_set_current_win(UI.windows.sidebar)
   vim.cmd('syn match SQLua_active_db /'..UI.active_db..'$/')
-  local srow = 2
   for db, _ in pairsByKeys(UI.dbs) do
     if UI.dbs[db].expanded then
       vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
-      vim.api.nvim_buf_add_highlight(
-        UI.buffers.sidebar,
-        UI.sidebar_ns,
-        'active_db',
-        srow - 1,
-        10,
-        string.len(db)
-      )
       srow = refreshSchema(buf, db, srow)
     else
       vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, {sep.." "..UI_ICONS.db..db})
-      vim.api.nvim_buf_add_highlight(
-        UI.buffers.sidebar,
-        UI.sidebar_ns,
-        'active_db',
-        srow - 1,
-        10,
-        string.len(db)
-      )
     end
     srow = srow + 1
+    vim.api.nvim_buf_add_highlight(
+      UI.buffers.sidebar,
+      UI.sidebar_ns,
+      'active_db',
+      srow - 1,
+      10,
+      string.len(db)
+    )
+  end
+  if not pcall(
+    function() vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor) end)
+    then
+    vim.api.nvim_win_set_cursor(UI.windows.sidebar, {
+      math.max(1, UI.last_cursor_position.sidebar[1] - #helpTextTable),
+      math.max(2, UI.last_cursor_position.sidebar[2])
+    })
   end
   setSidebarModifiable(buf, false)
 end
@@ -242,7 +269,7 @@ local function sidebarFind(type, buf, num)
     local schema = nil
     while true do
       schema = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
-      if string.find(schema, '    ') then
+      if string.find(schema, '   ') then
         break
       end
       num = num - 1
@@ -252,7 +279,7 @@ local function sidebarFind(type, buf, num)
     local db = nil
     while true do
       db = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
-      if string.find(db, '^  ', 1) or string.find(db, '^  ', 1) then
+      if string.find(db, '^ ', 1) or string.find(db, '^ ', 1) then
         db = db:gsub("%s+", "")
         db = db:gsub(ICONS_SUB , "")
         break
@@ -306,6 +333,13 @@ local function createSidebar(win)
         vim.api.nvim_set_current_win(sidebarwin)
         vim.api.nvim_win_set_cursor(sidebarwin, sidebar_pos)
       end
+    end
+  })
+  vim.api.nvim_buf_set_keymap(buf, 'n', "?", "", {
+    callback = function()
+      UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(UI.windows.sidebar)
+      UI.help_toggled = not UI.help_toggled
+      UI:refreshSidebar()
     end
   })
   vim.api.nvim_buf_set_keymap(buf, 'n', UI.options.keybinds.activate_db, "", {
@@ -428,16 +462,20 @@ function UI:setup(config)
         return
       end
       local pos = vim.api.nvim_win_get_cursor(0)
-      P(pos)
       pos[1] = math.max(pos[1], 2)
-      pos[2] = math.max(pos[2], 2)
-      P(pos)
+      pos[2] = math.max(pos[2], 1)
       vim.api.nvim_win_set_cursor(0, pos)
     end
   })
 
   UI.sidebar_ns = vim.api.nvim_create_namespace('SQLuaSidebar')
   vim.api.nvim_set_hl(0, 'SQLua_active_db', {fg = "#00ff00", bold = true})
+  vim.api.nvim_set_hl(0, 'SQLuaHelpKey', {
+    fg = vim.api.nvim_get_hl_by_name('String', true).foreground
+  })
+  vim.api.nvim_set_hl(0, 'SQLuaHelpText', {
+    fg = vim.api.nvim_get_hl_by_name('Comment', true).foreground
+  })
 
   local sidebar_win = vim.api.nvim_get_current_win()
   UI.windows.sidebar = sidebar_win
