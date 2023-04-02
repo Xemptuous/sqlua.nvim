@@ -41,7 +41,6 @@ FROM information_schema.tables
 function Connection:getPostgresSchema(data)
   Connection.rdbms = 'postgresql'
   local schema = utils.shallowcopy(data)
-  -- cleaning data
   table.remove(schema, 1)
   table.remove(schema, 1)
   table.remove(schema)
