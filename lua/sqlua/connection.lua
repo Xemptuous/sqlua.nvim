@@ -1,12 +1,25 @@
 local utils = require('sqlua.utils')
+---@class Connections
+---module class for various methods
 local Connections = {}
+
+---@class Connection
+---@field expanded boolean sidebar expansion flag
+---@field num_schema integer number of schema in this db
+---@field name string locally defined db name
+---@field url string full url to connect to the db
+---@field cmd string query to execute
+---@field rdbms string actual db name according to the url
+---@field last_query table<string> last query executed
+---@field schema table<table<table>> nested schema design for this db
+---the primary object representing a single connection to a rdbms by url
 local Connection = {
   expanded = false,
   num_schema = 0,
-  name = nil,
-  url = nil,
-  cmd = nil,
-  rdbms = nil,
+  name = "",
+  url = "",
+  cmd = "",
+  rdbms = "",
   last_query = {},
   schema = {}
 }
@@ -22,6 +35,9 @@ FROM information_schema.tables
 "]]
 
 
+---@param data table
+---@return nil
+---Gets the initial db structure for postgresql rdbms
 function Connection:getPostgresSchema(data)
   Connection.rdbms = 'postgresql'
   local schema = utils.shallowcopy(data)
@@ -54,6 +70,9 @@ function Connection:getPostgresSchema(data)
 end
 
 
+---@param data table
+---@return nil
+---Takes query output and creates a 'Results' window & buffer
 local function createResultsPane(data)
   vim.cmd('split')
   local win = vim.api.nvim_get_current_win()
@@ -74,6 +93,11 @@ local function createResultsPane(data)
 end
 
 
+---@param job_id integer
+---@param data table
+---@param event string<'stdout', 'stderr', 'exit'>
+---@return nil
+---Callback for general jobcontrol events
 local function onEvent(job_id, data, event)
   local win = vim.api.nvim_get_current_win()
   local pos = vim.api.nvim_win_get_cursor(win)
@@ -96,7 +120,11 @@ local function onEvent(job_id, data, event)
   end
 end
 
-
+---@param job_id integer
+---@param data table
+---@param event string<'stdout', 'stderr', 'exit'>
+---@return nil
+---Callback for Connection.connect() jobcontrol
 local function onConnect(job_id, data, event)
   if event == 'stdout' then
     Connection:getPostgresSchema(data)
@@ -107,8 +135,15 @@ local function onConnect(job_id, data, event)
   end
 end
 
-
-Connections.execute = function(cmd, --[[optional]]mode)
+---@param cmd string
+---@return nil
+---Executes the given query (cmd).
+---Optional 'mode' determines what is executed:
+---  - 'n' - executes entire buffer
+---  - 'v' - executes visual selection
+---  - 'V' - executes visual line
+---  - '^V' - executes visual block
+Connections.execute = function(cmd, --[[optional mode string]]mode)
   if not cmd or type(cmd) == 'table' then
     local ui = require('sqlua.ui')
       cmd = ui.dbs[ui.active_db].cmd
@@ -171,6 +206,10 @@ Connections.execute = function(cmd, --[[optional]]mode)
 end
 
 
+---@param name string
+---@return nil
+---Initializes the connection to the DB, and inserts into UI.
+---Required for any operations on the given db.
 Connections.connect = function(name)
   local connections = Connections.read()
   for _, connection in pairs(connections) do
@@ -198,24 +237,33 @@ Connections.connect = function(name)
 end
 
 
+---@return table<string, string>
+---Reads the connection.json file and returns content as a table
 Connections.read = function()
   local content = vim.fn.readfile(CONNECTIONS_FILE)
   content = vim.fn.json_decode(vim.fn.join(content, "\n"))
   return content
 end
 
-
+---@param data table<string, string>
+---@return nil
+---Writes the given table to the connections.json file.
+---table is expected to be in json format
 Connections.write = function(data)
   local json = vim.fn.json_encode(data)
   vim.fn.writefile({json}, CONNECTIONS_FILE)
 end
 
 
+---@param url string
+---@param name string
+---@return nil
+---Adds the given url + name to the connections.json file
 Connections.add = function(url, name)
-  local file = Connection:read()
+  local file = Connections:read()
   table.insert(file, {url = url, name = name})
   vim.fn.mkdir(ROOT_DIR..'/name', "p")
-  Connection.writeConnection(file)
+  Connections.write(file)
 end
 
 

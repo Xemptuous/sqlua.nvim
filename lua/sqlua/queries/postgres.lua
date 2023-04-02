@@ -1,5 +1,9 @@
 local M = {}
 
+---@param tbl string
+---@param schema string
+---@param limit integer
+---@return string[]
 M.getQueries = function(tbl, schema, limit)
   return {
     Data = [[

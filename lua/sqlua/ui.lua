@@ -1,21 +1,39 @@
-local Connection = require('sqlua.connection')
+---@alias buffer integer
+---@alias window integer
+---@alias namespace_id integer
+---@alias iterator function
+
+---@class UI
+---@field connections_loaded boolean
+---@field initial_layout_loaded boolean
+---@field help_toggled boolean
+---@field sidebar_ns namespace_id
+---@field active_db string
+---@field dbs table
+---@field num_dbs integer
+---@field buffers table<buffer|table<buffer>>
+---@field windows table<window|table<window>>
+---@field last_cursor_position table<table<integer, integer>>
+---@field last_active_buffer buffer
+---@field current_active_buffer buffer
+---@field last_active_window window
+---@field current_active_window window
+
 local UI = {
   connections_loaded = false,
   initial_layout_loaded = false,
   help_toggled = false,
-  sidebar_buf = nil,
-  sidebar_ns = nil,
-  editor_buf = nil,
-  active_db = nil,
+  sidebar_ns = 0,
+  active_db = "",
   dbs = {},
   num_dbs = 0,
   buffers = {
-    sidebar = nil,
+    sidebar = 0,
     editors = {},
     results = {}
   },
   windows = {
-    sidebar = nil,
+    sidebar = 0,
     editors = {},
     results = {}
   },
@@ -24,11 +42,13 @@ local UI = {
     editor = {},
     result = {}
   },
-  last_active_buffer = nil,
-  current_active_buffer = nil,
-  last_active_window = nil,
-  current_active_window = nil,
+  last_active_buffer = 0,
+  current_active_buffer = 0,
+  last_active_window = 0,
+  current_active_window = 0,
 }
+
+local Connection = require('sqlua.connection')
 
 local UI_ICONS = {
   db = ' ',
@@ -43,16 +63,22 @@ local UI_ICONS = {
   table_stmt = '離 ',
   -- table = ' ',
 }
-local ICONS_STRING = "פּ󱁊藺璘離"
+
 local ICONS_SUB = "[פּ󱁊藺璘離]"
 local EDITOR_NUM = 0
 
 
+---@param buf buffer
+---@param val boolean
+---@return nil
 local function setSidebarModifiable(buf, val)
   vim.api.nvim_buf_set_option(buf, 'modifiable', val)
 end
 
 
+---@param buf buffer
+---@return string|nil, buffer|nil
+---Searches existing buffers and returns the buffer type, and buffer number
 local function getBufferType(buf)
   if UI.buffers.sidebar == buf then
     return 'sidebar', UI.buffers.sidebar
@@ -70,6 +96,10 @@ local function getBufferType(buf)
 end
 
 
+
+---@param t table
+---@return iterator
+---replaces pairs() by utilizing a sorted table
 local function pairsByKeys(t, f)
   local a = {}
   for n in pairs(t) do table.insert(a, n) end
@@ -85,18 +115,31 @@ local function pairsByKeys(t, f)
 end
 
 
-local function toggleItem(table, search)
+---@param table table table to begin the search at
+---@param search string what to search for to toggle
+---@return nil
+--[[Recursively searches the given table to toggle the 'expanded'
+  attribute for the given item.
+]]
+local function toggleExpanded(table, search)
   for key, value in pairs(table) do
     if key == search then
       table[search].expanded = not table[search].expanded
       return
     elseif type(value) == 'table' then
-      toggleItem(value, search)
+      toggleExpanded(value, search)
     end
   end
 end
 
 
+---@param type string the type of table statement
+---@param tbl string table
+---@param schema string schema
+---@param db string database
+---@return nil
+---Creates the specified statement to query the given table.
+---Query is pulled based on active_db rdbms, and fills the available buffer.
 local function createTableStatement(type, tbl, schema, db)
   local queries = require('sqlua/queries.postgres')
   local buf = UI.last_active_buffer
@@ -115,7 +158,12 @@ local function createTableStatement(type, tbl, schema, db)
 end
 
 
+---@return nil
 function UI:refreshSidebar()
+  ---@param buf buffer
+  ---@param tables table
+  ---@param srow integer
+  ---@return integer srow
   local function refreshTables(buf, tables, srow)
     local sep = "     "
     local statements = {
@@ -149,6 +197,10 @@ function UI:refreshSidebar()
     return srow
   end
 
+  ---@param buf buffer
+  ---@param db string
+  ---@param srow integer
+  ---@return integer srow
   local function refreshSchema(buf, db, srow)
     local sep = "   "
     for schema, _ in pairsByKeys(UI.dbs[db].schema) do
@@ -236,6 +288,8 @@ function UI:refreshSidebar()
 end
 
 
+---@param con Connection
+---Adds the Connection object to the UI's databases
 function UI:add(con)
   local copy = vim.deepcopy(con)
   local db = copy.name
@@ -251,11 +305,18 @@ function UI:add(con)
 end
 
 
-local function sidebarFind(type, buf, num)
+---@param type string the type to search for
+---@param num integer the starting row to begin the search
+---@return string db, integer num
+--[[Searches the sidebar from the given starting point upwards
+  for the given type, returning the first occurence of either
+  table, schema, or db
+]]
+local function sidebarFind(type, num)
   if type == 'table' then
     local tbl = nil
     while true do
-      tbl = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+      tbl = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
       if not tbl then
         return
       elseif string.find(tbl, '') then
@@ -268,7 +329,7 @@ local function sidebarFind(type, buf, num)
   elseif type == 'schema' then
     local schema = nil
     while true do
-      schema = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+      schema = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
       if string.find(schema, '   ') then
         break
       end
@@ -278,7 +339,7 @@ local function sidebarFind(type, buf, num)
   elseif type == 'database' then
     local db = nil
     while true do
-      db = vim.api.nvim_buf_get_lines(buf, num - 1, num, 0)[1]
+      db = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
       if string.find(db, '^ ', 1) or string.find(db, '^ ', 1) then
         db = db:gsub("%s+", "")
         db = db:gsub(ICONS_SUB , "")
@@ -288,10 +349,13 @@ local function sidebarFind(type, buf, num)
     end
     return db, num
   end
+  return
 end
 
 
-local function createSidebar(win)
+---@return nil
+local function createSidebar()
+  local win = UI.windows.sidebar
   local buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(buf, "Sidebar")
   vim.api.nvim_win_set_buf(win, buf)
@@ -347,7 +411,7 @@ local function createSidebar(win)
       vim.cmd('syn match Normal /'..UI.active_db..'$/')
       local cursorPos = vim.api.nvim_win_get_cursor(0)
       local num = cursorPos[1]
-      local db, _ = sidebarFind('database', buf, num)
+      local db, _ = sidebarFind('database', num)
       UI.active_db = db
       UI:refreshSidebar()
       vim.api.nvim_win_set_cursor(0, cursorPos)
@@ -367,9 +431,9 @@ local function createSidebar(win)
         local tbl = nil
         local schema = nil
         local db = nil
-        tbl, num = sidebarFind('table', buf, num)
-        schema, num = sidebarFind('schema', buf, num)
-        db, num = sidebarFind('database', buf, num)
+        tbl, num = sidebarFind('table', num)
+        schema, num = sidebarFind('schema', num)
+        db, num = sidebarFind('database', num)
         val = val:gsub(ICONS_SUB , "")
         tbl = tbl:gsub("%s+", "")
         tbl = tbl:gsub(ICONS_SUB , "")
@@ -378,13 +442,13 @@ local function createSidebar(win)
         createTableStatement(val, tbl, schema, db)
       else
         local db = nil
-        db, num = sidebarFind('database', buf, num)
+        db, num = sidebarFind('database', num)
         -- val = val:gsub("[]", "")
         val = val:gsub(ICONS_SUB , "")
         if db and db == val then
-          toggleItem(UI.dbs, val)
+          toggleExpanded(UI.dbs, val)
         else
-          toggleItem(UI.dbs[db], val)
+          toggleExpanded(UI.dbs[db], val)
         end
         UI:refreshSidebar()
         vim.api.nvim_win_set_cursor(0, cursorPos)
@@ -394,6 +458,8 @@ local function createSidebar(win)
 end
 
 
+---@param win window
+---@return nil
 local function createEditor(win)
   vim.api.nvim_set_current_win(win)
   local buf = vim.api.nvim_create_buf(true, true)
@@ -406,11 +472,12 @@ local function createEditor(win)
     UI.last_active_buffer = buf
     UI.last_active_window = win
   end
-  -- UI.editor_buf = buf
   EDITOR_NUM = EDITOR_NUM + 1
 end
 
 
+---@param config table
+---@return nil
 function UI:setup(config)
   UI.options = config
   for _, buf in pairs(vim.api.nvim_list_bufs()) do
@@ -481,9 +548,9 @@ function UI:setup(config)
   UI.windows.sidebar = sidebar_win
   vim.cmd('vsplit')
   local editor_win = vim.api.nvim_get_current_win()
-  UI.editor_win = editor_win
+  table.insert(UI.windows.editors, editor_win)
 
-  createSidebar(sidebar_win)
+  createSidebar()
   createEditor(editor_win)
 end
 
