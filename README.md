@@ -72,11 +72,12 @@ Upon executing a query, the results will be shown in a results buffer.
 
 The DB used will be highlighted and set to the "active" DB. Using the `activate_db` keybind will change which DB is considered the active one for each query.
 
+Note, template DDL statements do not need to set the active DB; i.e., they will always
+be run based on the parent table, schema, and database.
+
 ## Roadmap
 
 This project is actively being developed, and will hopefully serve as NeoVim's full-fledged SQL IDE moving forward, eliminating the need for long load times and vim extensions.
-
-// TODO: compare SQLua startup time to other IDEs (like DBeaver)
 
 - [x] Create functional connection for psql
 - [x] Be able to execute queries from buffer
@@ -84,6 +85,7 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [x] Make a functional NvimTree-sidebar for navigating the DB
 - [x] Implement multiple db's available in sidebar at once (easily jumping between them)
 - [x] Implement queries, ddl, and other template queries into the sidebar tree.
+- [ ] Create asynchronous jobs for queries and connections.
 - [ ] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
