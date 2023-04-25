@@ -38,8 +38,9 @@ FROM information_schema.tables
 ---@param data table
 ---@return nil
 ---Gets the initial db structure for postgresql rdbms
-function Connection:getPostgresSchema(data)
-  Connection.rdbms = 'postgres'
+-- function Connection:getPostgresSchema(data)
+local function getPostgresSchema(data, con)
+  con.rdbms = 'postgres'
   local schema = utils.shallowcopy(data)
   table.remove(schema, 1)
   table.remove(schema, 1)
@@ -54,15 +55,15 @@ function Connection:getPostgresSchema(data)
     local schema_name = schema[i][1]
     local table_name = schema[i][2]
     if not seen[schema_name] then
-      self.schema[schema_name] = {
+      con.schema[schema_name] = {
         expanded = false,
         num_tables = 0,
         tables = {}
       }
       seen[schema_name] = true
     end
-    self.schema[schema_name].num_tables = self.schema[schema_name].num_tables + 1
-    self.schema[schema_name].tables[table_name] = {
+    con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
+    con.schema[schema_name].tables[table_name] = {
       expanded = false
     }
   end
@@ -123,13 +124,18 @@ end
 ---@param data table
 ---@param event string<'stdout', 'stderr', 'exit'>
 ---@return nil
----Callback for Connection.connect() jobcontrol
-local function onConnect(job_id, data, event)
+-- -Callback for Connection.connect() jobcontrol
+-- C = {}
+-- function C:onConnect(job_id, data, event)
+--   P(self)
+local function onConnect(job_id, data, event, con)
+  local connection = con
   if event == 'stdout' then
-    Connection:getPostgresSchema(data)
+    -- Connection:getPostgresSchema(data)
+    con = getPostgresSchema(data, connection)
   elseif event == 'stderr' then
   elseif event == 'exit' then
-    require("sqlua.ui"):add(Connection)
+    require("sqlua.ui"):add(connection)
   else
   end
 end
@@ -216,26 +222,30 @@ Connections.connect = function(name)
   local connections = Connections.read()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
-      -- TODO: deepcopy Connection here and pass variable
-      -- to onConnect callback to allow async without the
-      -- jobwait function.
-      -- Need to figure out how to pass additional variable
-      -- to the callback :(
-      Connection.name = name
+      local con = vim.deepcopy(Connection)
+      con.name = name
       local query = string.gsub(schemaQuery, '\n', " ")
-      Connection.url = connection['url']
-      Connection.cmd = 'psql ' .. connection['url'] .. ' -c '
-      local cmd = Connection.cmd .. query
-      table.insert(Connection.last_query, query)
+      con.url = connection['url']
+      con.cmd = 'psql ' .. connection['url'] .. ' -c '
+      local cmd = con.cmd .. query
+      table.insert(con.last_query, query)
 
       local opts = {
         stdin = "null",
         stdout_buffered = true,
         stderr_buffered = true,
-        on_exit = onConnect,
-        on_stdout = onConnect,
-        on_stderr = onConnect,
-        on_data = onConnect
+        on_stdout = function(job_id, data, event)
+          onConnect(job_id, data, event, con)
+        end,
+        on_data = function(job_id, data, event)
+          onConnect(job_id, data, event, con)
+        end,
+        on_stderr = function(job_id, data, event)
+          onConnect(job_id, data, event, con)
+        end,
+        on_exit = function(job_id, data, event)
+          onConnect(job_id, data, event, con)
+        end
       }
       table.insert(RUNNING_JOBS, vim.fn.jobstart(cmd, opts))
       local running = vim.fn.jobwait(RUNNING_JOBS, 5000)

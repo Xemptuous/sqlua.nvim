@@ -289,13 +289,13 @@ end
 ---@param con Connection
 ---Adds the Connection object to the UI's databases
 function UI:add(con)
-  local copy = vim.deepcopy(con)
-  local db = copy.name
+  -- local copy = vim.deepcopy(con)
+  local db = con.name
   if not UI.active_db then
     UI.active_db = db
   end
-  UI.dbs[db] = copy
-  for _ in pairs(UI.dbs[copy.name].schema) do
+  UI.dbs[db] = con
+  for _ in pairs(UI.dbs[con.name].schema) do
     UI.dbs[db].num_schema = UI.dbs[db].num_schema + 1
   end
   UI.num_dbs = UI.num_dbs + 1
