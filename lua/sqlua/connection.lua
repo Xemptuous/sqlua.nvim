@@ -39,7 +39,7 @@ FROM information_schema.tables
 ---@return nil
 ---Gets the initial db structure for postgresql rdbms
 function Connection:getPostgresSchema(data)
-  Connection.rdbms = 'postgresql'
+  Connection.rdbms = 'postgres'
   local schema = utils.shallowcopy(data)
   table.remove(schema, 1)
   table.remove(schema, 1)

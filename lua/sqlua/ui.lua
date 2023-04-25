@@ -141,7 +141,7 @@ end
 ---Creates the specified statement to query the given table.
 ---Query is pulled based on active_db rdbms, and fills the available buffer.
 local function createTableStatement(type, tbl, schema, db)
-  local queries = require('sqlua/queries.postgres')
+  local queries = require('sqlua/queries.'..UI.dbs[db].rdbms)
   local buf = UI.last_active_buffer
   local win = UI.last_active_window
   if buf == 0 then
@@ -167,18 +167,12 @@ function UI:refreshSidebar()
   ---@param buf buffer
   ---@param tables table
   ---@param srow integer
+  ---@param db string
   ---@return integer srow
-  local function refreshTables(buf, tables, srow)
+  local function refreshTables(buf, tables, srow, db)
     local sep = "     "
-    local statements = {
-      "Data",
-      "Columns",
-      "Primary Keys",
-      "Indexes",
-      "References",
-      "Foreign Keys",
-      "DDL"
-    }
+    local queries = require('sqlua/queries.'..UI.dbs[db].rdbms)
+    local statements = queries.ddl
     for table, _ in pairsByKeys(tables) do
       if tables[table].expanded then
         vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
@@ -215,7 +209,7 @@ function UI:refreshSidebar()
           })
           srow = srow + 1
           local tables = UI.dbs[db].schema[schema].tables
-          srow = refreshTables(buf, tables, srow)
+          srow = refreshTables(buf, tables, srow, db)
         end
       else
         vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {

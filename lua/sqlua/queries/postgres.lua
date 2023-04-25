@@ -1,5 +1,15 @@
 local M = {}
 
+M.ddl = {
+  "Data",
+  "Columns",
+  "Primary Keys",
+  "Indexes",
+  "References",
+  "Foreign Keys",
+  "DDL"
+}
+
 ---@param tbl string
 ---@param schema string
 ---@param limit integer
