@@ -77,7 +77,7 @@ local function createResultsPane(data)
   local win = vim.api.nvim_get_current_win()
   --TODO: new result window increments by 1 each time
   -- consider reusing same one per window
-  local buf = vim.api.nvim_create_buf(true, false)
+  local buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_buf_set_name(buf, "ResultsBuf")
   vim.api.nvim_win_set_buf(win, buf)
   vim.api.nvim_win_set_height(0, 10)
@@ -145,7 +145,10 @@ end
 Connections.execute = function(cmd, --[[optional mode string]]mode)
   if not cmd or type(cmd) == 'table' then
     local ui = require('sqlua.ui')
-      cmd = ui.dbs[ui.active_db].cmd
+    if not ui.dbs[ui.active_db] then
+      return
+    end
+    cmd = ui.dbs[ui.active_db].cmd
   end
   if not mode then
     mode = vim.api.nvim_get_mode().mode

@@ -421,7 +421,14 @@ local function createSidebar()
   vim.api.nvim_buf_set_keymap(buf, 'n', '<CR>', '', {
     callback = function()
       local cursorPos = vim.api.nvim_win_get_cursor(0)
+      local num_lines = vim.api.nvim_buf_line_count(UI.buffers.sidebar)
       local num = cursorPos[1]
+      -- if on last line, choose value above
+      if num == num_lines then
+        local cursorCol = cursorPos[2]
+        local newpos = {num - 1, cursorCol}
+        vim.api.nvim_win_set_cursor(UI.windows.sidebar, newpos)
+      end
       local val = vim.api.nvim_get_current_line()
       val = val:gsub("%s+", "")
       if val == "" then return end
