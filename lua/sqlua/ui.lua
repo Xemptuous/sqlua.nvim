@@ -278,7 +278,7 @@ function UI:refreshSidebar()
     function() vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor) end)
     then
     vim.api.nvim_win_set_cursor(UI.windows.sidebar, {
-      math.max(1, UI.last_cursor_position.sidebar[1] - #helpTextTable),
+      math.min(srow, UI.last_cursor_position.sidebar[1] - #helpTextTable),
       math.max(2, UI.last_cursor_position.sidebar[2])
     })
   end

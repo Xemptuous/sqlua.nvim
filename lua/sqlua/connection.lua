@@ -219,6 +219,7 @@ end
 ---Initializes the connection to the DB, and inserts into UI.
 ---Required for any operations on the given db.
 Connections.connect = function(name)
+  -- TODO: add async functionality without having to use jobwait
   local connections = Connections.read()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
@@ -226,6 +227,7 @@ Connections.connect = function(name)
       con.name = name
       local query = string.gsub(schemaQuery, '\n', " ")
       con.url = connection['url']
+      -- TODO: check url and change cli command appropriately
       con.cmd = 'psql ' .. connection['url'] .. ' -c '
       local cmd = con.cmd .. query
       table.insert(con.last_query, query)
@@ -248,7 +250,8 @@ Connections.connect = function(name)
         end
       }
       table.insert(RUNNING_JOBS, vim.fn.jobstart(cmd, opts))
-      local running = vim.fn.jobwait(RUNNING_JOBS, 5000)
+      vim.fn.jobwait(RUNNING_JOBS, 5000)
+      table.remove(RUNNING_JOBS, 1)
     end
   end
 end
