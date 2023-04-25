@@ -216,6 +216,11 @@ Connections.connect = function(name)
   local connections = Connections.read()
   for _, connection in pairs(connections) do
     if connection['name'] == name then
+      -- TODO: deepcopy Connection here and pass variable
+      -- to onConnect callback to allow async without the
+      -- jobwait function.
+      -- Need to figure out how to pass additional variable
+      -- to the callback :(
       Connection.name = name
       local query = string.gsub(schemaQuery, '\n', " ")
       Connection.url = connection['url']
