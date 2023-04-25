@@ -280,7 +280,7 @@ end
 ---@return nil
 ---Adds the given url + name to the connections.json file
 Connections.add = function(url, name)
-  local file = Connections:read()
+  local file = Connections.read()
   table.insert(file, {url = url, name = name})
   vim.fn.mkdir(ROOT_DIR..'/name', "p")
   Connections.write(file)
