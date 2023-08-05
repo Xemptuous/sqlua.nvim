@@ -1,13 +1,13 @@
 local M = {}
 
 M.ddl = {
-  "Data",
-  "Columns",
-  "Primary Keys",
-  "Indexes",
-  "References",
-  "Foreign Keys",
-  "DDL"
+	"Data",
+	"Columns",
+	"Primary Keys",
+	"Indexes",
+	"References",
+	"Foreign Keys",
+	"DDL",
 }
 
 ---@param tbl string
@@ -15,23 +15,23 @@ M.ddl = {
 ---@param limit integer
 ---@return string[]
 M.getQueries = function(tbl, schema, limit)
-  return {
-    Data = [[
-SELECT * 
-FROM ]]..schema.."."..tbl..[[ 
-LIMIT ]]..limit,
+	return {
+		Data = [[
+SELECT *
+FROM ]] .. schema .. "." .. tbl .. [[
+LIMIT ]] .. limit,
 
-    Columns = [[
-SELECT 
+		Columns = [[
+SELECT
     column_name, column_default, is_nullable, data_type
 FROM information_schema.columns
-WHERE table_name = ']]..tbl..[[' 
-    AND table_schema = ']]..schema..[[' 
+WHERE table_name = ']] .. tbl .. [['
+    AND table_schema = ']] .. schema .. [['
 ORDER BY column_name
   ]],
 
-    PrimaryKeys = [[
-SELECT 
+		PrimaryKeys = [[
+SELECT
     tc.constraint_name,
     tc.table_name,
     kcu.column_name,
@@ -47,17 +47,17 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
       ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'PRIMARY KEY'
-    AND tc.table_name = ']]..tbl..[['
-    AND tc.table_schema = ']]..schema..[['
+    AND tc.table_name = ']] .. tbl .. [['
+    AND tc.table_schema = ']] .. schema .. [['
 ]],
 
-    Indexes = [[
-SELECT * 
+		Indexes = [[
+SELECT *
 FROM pg_indexes
-WHERE tablename = ']]..tbl..[[' 
-    AND schemaname = ']]..schema.."'",
-    References = [[
-SELECT 
+WHERE tablename = ']] .. tbl .. [['
+    AND schemaname = ']] .. schema .. "'",
+		References = [[
+SELECT
     tc.constraint_name,
     tc.table_name,
     kcu.column_name,
@@ -73,12 +73,12 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
         ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-    AND ccu.table_name = ']]..tbl..[[' 
-    AND tc.table_schema = ']]..schema..[[' 
+    AND ccu.table_name = ']] .. tbl .. [['
+    AND tc.table_schema = ']] .. schema .. [['
 ]],
 
-    ForeignKeys = [[
-SELECT 
+		ForeignKeys = [[
+SELECT
     tc.constraint_name,
     tc.table_name,
     kcu.column_name,
@@ -94,11 +94,11 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
         ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-    AND ccu.table_name = ']]..tbl..[[' 
-    AND tc.table_schema = ']]..schema..[[' 
+    AND ccu.table_name = ']] .. tbl .. [['
+    AND tc.table_schema = ']] .. schema .. [['
 ]],
 
-    DDL = [[
+		DDL = [[
 SELECT
     table_name,
     pg_size_pretty(pg_relation_size(quote_ident(table_name))),
@@ -106,8 +106,8 @@ SELECT
 FROM Information_schema.tables
 WHERE table_schema = 'public'
 ORDER BY 3 DESC;
-]]
-  }
+]],
+	}
 end
 
 return M
