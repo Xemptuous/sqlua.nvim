@@ -10,7 +10,7 @@ A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turn
 {
     'xemptuous/sqlua.nvim',
     lazy = true,
-    event = 'SQLua',
+    cmd = 'SQLua',
     config = function() require('sqlua').setup(opts) end
 }
 ```
@@ -25,7 +25,7 @@ Plug 'xemptuous/sqlua.nvim'
 use "xemptuous/sqlua.nvim"
 ```
 
-## Setup 
+## Setup
 
 To use, require the setup:
 `:lua require('sqlua').setup(opts)`
@@ -91,4 +91,3 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
 - [ ] Integrate other databases
 - [ ] Include fancy ui functionality to make SQLua sexy
-

@@ -494,6 +494,9 @@ function UI:setup(config)
 				UI.last_active_buffer = curbuf
 				UI.last_active_window = curwin
 				local _type, val = getBufferType(curbuf)
+                if _type == nil then
+                    return
+                end
 				UI.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(curwin)
 			else
 				UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(curwin)
