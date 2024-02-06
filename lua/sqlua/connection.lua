@@ -15,6 +15,8 @@ local Connections = {}
 ---the primary object representing a single connection to a rdbms by url
 local Connection = {
 	expanded = false,
+    saved_queries_expanded = false,
+    schemas_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
@@ -22,6 +24,7 @@ local Connection = {
 	rdbms = "",
 	last_query = {},
 	schema = {},
+    saved_queries = {},
 }
 
 RUNNING_JOBS = {}

@@ -120,6 +120,10 @@ M.removeEndWhitespace = function(line)
 	return line:gsub("^%s*(.-)%s*$", "%1")
 end
 
+M.getFileName = function(path)
+    return path:match("^.+/(.+)$")
+end
+
 ---@param file table the connections.json file
 ---@return table content json table object
 M.getDatabases = function(file)

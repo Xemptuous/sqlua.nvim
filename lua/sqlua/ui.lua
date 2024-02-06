@@ -53,12 +53,12 @@ local Connection = require("sqlua.connection")
 local UI_ICONS = {
 	db = " ",
 	buffers = "",
-	saved_queries = " ",
+	folder = " ",
 	schemas = " ",
 	schema = "פּ ",
 	-- schema = '󱁊 ',
 	table = "藺",
-	saved_query = " ",
+	file = " ",
 	new_query = "璘 ",
 	table_stmt = "離 ",
 	-- table = ' ',
@@ -159,6 +159,59 @@ local function createTableStatement(type, tbl, schema, db)
 	Connection.execute(UI.dbs[db].cmd)
 end
 
+---@param db string
+---Populates files in the database local folder
+local function populateSavedQueries(db)
+    local File = {
+        name = "",
+        isdir = false,
+        expanded = false,
+        files = {}
+    }
+    local utils = require("sqlua.utils")
+
+    local function iterateFiles(dir, parent)
+        for _, file in pairs(dir) do
+            local f = vim.deepcopy(File)
+            local fname = utils.getFileName(file)
+
+            if vim.fn.isdirectory(file) == 1 then
+                f.name = fname
+                f.isdir = true
+                parent.files[fname] = f
+                -- table.insert(parent.files, f)
+                dir = vim.split(vim.fn.glob(file .. "/*"), '\n', {trimempty=true})
+                iterateFiles(dir, f)
+            else
+                f.name = fname
+                parent.files[f.name] = f
+                -- table.insert(parent.files, f)
+            end
+        end
+    end
+
+    local parent = utils.concat({ vim.fn.stdpath("data"), "sqlua", db })
+    local content = vim.split(vim.fn.glob(parent .. "/*"), '\n', {trimempty=true})
+
+    for _, file in pairs(content) do
+        local f = vim.deepcopy(File)
+        local fname = utils.getFileName(file)
+
+        if vim.fn.isdirectory(file) == 1 then
+            f.name = fname
+            f.isdir = true
+            UI.dbs[db].saved_queries[fname] = f
+            -- table.insert(UI.dbs[db].saved_queries, f)
+            local dir = vim.split(vim.fn.glob(file .. "/*"), '\n', {trimempty=true})
+            iterateFiles(dir, f)
+        else
+            f.name = fname
+            UI.dbs[db].saved_queries[fname] = f
+            -- table.insert(UI.dbs[db].saved_queries, f)
+        end
+    end
+end
+
 ---@return nil
 function UI:refreshSidebar()
 	---@param buf buffer
@@ -193,6 +246,36 @@ function UI:refreshSidebar()
 	end
 
 	---@param buf buffer
+	---@param dir table
+	---@param srow integer
+	---@param sep string
+	---@return integer srow
+    local function refreshSavedQueries(buf, dir, srow, sep)
+        for _, file in pairsByKeys(dir) do
+            if file.isdir then
+                if file.expanded then
+                    vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+                        sep .. " " .. UI_ICONS.folder .. file.name,
+                    })
+                    srow = srow + 1
+                    srow = refreshSavedQueries(buf, file.files, srow, sep.."  ")
+                else
+                    vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+                        sep .. " " .. UI_ICONS.folder .. file.name,
+                    })
+                    srow = srow + 1
+                end
+            else
+                vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+                    sep .. "  " .. UI_ICONS.file .. file.name,
+                })
+                srow = srow + 1
+            end
+        end
+        return srow
+    end
+
+	---@param buf buffer
 	---@param db string
 	---@param srow integer
 	---@return integer srow
@@ -217,6 +300,26 @@ function UI:refreshSidebar()
 		end
 		return srow
 	end
+
+
+    local function refreshOverview(buf, db, srow)
+		local sep = "   "
+        if UI.dbs[db].saved_queries_expanded then
+            vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+                sep .. " " .. UI_ICONS.folder .. "Saved Queries",
+            })
+            srow = srow + 1
+            srow = refreshSavedQueries(buf, UI.dbs[db].saved_queries, srow, sep.."  ")
+            srow = refreshSchema(buf, db ,srow)
+        else
+            vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
+                sep .. " " .. UI_ICONS.folder .. "Saved Queries",
+            })
+            srow = srow + 1
+            srow = refreshSchema(buf, db ,srow)
+        end
+        return srow
+    end
 
 	local buf = UI.buffers.sidebar
 	local sep = " "
@@ -253,7 +356,8 @@ function UI:refreshSidebar()
 	for db, _ in pairsByKeys(UI.dbs) do
 		if UI.dbs[db].expanded then
 			vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, { sep .. " " .. UI_ICONS.db .. db })
-			srow = refreshSchema(buf, db, srow)
+			srow = refreshOverview(buf, db, srow)
+			-- srow = refreshSchema(buf, db, srow)
 		else
 			vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, { sep .. " " .. UI_ICONS.db .. db })
 		end
@@ -285,6 +389,7 @@ function UI:add(con)
 	end
 	UI.num_dbs = UI.num_dbs + 1
 	setSidebarModifiable(UI.buffers.sidebar, false)
+    populateSavedQueries(db)
 end
 
 ---@param type string the type to search for
@@ -418,18 +523,23 @@ local function createSidebar()
 			local m1, _ = string.find(val, "")
 			local m2, _ = string.find(val, "")
 			if not m1 and not m2 then
-				local tbl = nil
-				local schema = nil
-				local db = nil
-				tbl, num = sidebarFind("table", num)
-				schema, num = sidebarFind("schema", num)
-				db, num = sidebarFind("database", num)
-				val = val:gsub(ICONS_SUB, "")
-				tbl = tbl:gsub("%s+", "")
-				tbl = tbl:gsub(ICONS_SUB, "")
-				schema = schema:gsub("%s+", "")
-				schema = schema:gsub(ICONS_SUB, "")
-				createTableStatement(val, tbl, schema, db)
+                local file, _ = string.find(val, "")
+                if file then
+                    -- TODO: implement handling files
+                else
+                    local tbl = nil
+                    local schema = nil
+                    local db = nil
+                    tbl, num = sidebarFind("table", num)
+                    schema, num = sidebarFind("schema", num)
+                    db, num = sidebarFind("database", num)
+                    val = val:gsub(ICONS_SUB, "")
+                    tbl = tbl:gsub("%s+", "")
+                    tbl = tbl:gsub(ICONS_SUB, "")
+                    schema = schema:gsub("%s+", "")
+                    schema = schema:gsub(ICONS_SUB, "")
+                    createTableStatement(val, tbl, schema, db)
+                end
 			else
 				local db = nil
 				db, num = sidebarFind("database", num)
@@ -437,6 +547,8 @@ local function createSidebar()
 				val = val:gsub(ICONS_SUB, "")
 				if db and db == val then
 					toggleExpanded(UI.dbs, val)
+                elseif val == "SavedQueries" then
+                    UI.dbs[db].saved_queries_expanded = not UI.dbs[db].saved_queries_expanded
 				else
 					toggleExpanded(UI.dbs[db], val)
 				end
