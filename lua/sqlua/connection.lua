@@ -165,14 +165,11 @@ Connections.execute = function(
 		query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
 	elseif mode == "V" then
         -- visual line mode
-		-- FIXME: only captures previous selection, not the current one
-		-- might be neovim limitation (tried feeding esc & 'gv', doesn't work).
-		local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
-		local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
-        if srow < 0 then srow = 0 end
-        if scol < 0 then scol = 0 end
-		ecol = 1024
-		if srow < erow or (srow == erow and scol <= ecol) then
+        esc_key = vim.api.nvim_replace_termcodes('<Esc>', false, true, true)
+        vim.api.nvim_feedkeys(esc_key, 'nx', false)
+        local srow = vim.api.nvim_buf_get_mark(0, "<")[1]
+        local erow = vim.api.nvim_buf_get_mark(0, ">")[1]
+		if srow < erow then
             query = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
 		else
 			query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
@@ -208,10 +205,6 @@ Connections.execute = function(
 	}
 	local command = cmd .. '"' .. table.concat(query, " ") .. '"'
 	local job = vim.fn.jobstart(command, opts)
-
-	-- exit visual mode on run
-	local keys = vim.api.nvim_replace_termcodes("<ESC>", true, false, true)
-	vim.api.nvim_feedkeys(keys, "m", false)
 end
 
 ---@param name string
