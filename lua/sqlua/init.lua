@@ -78,6 +78,14 @@ M.setup = function(opts)
 		-- TODO: verify url string
 		local name = vim.fn.input("Enter the name for the connection: ")
 		Connection.add(url, name)
+        local dbs = utils.getDatabases(config.connections_save_location)
+        for _, db in pairs(dbs) do
+            Connection.connect(db.name)
+        end
+        UI:refreshSidebar()
+		if UI.num_dbs > 0 then
+			vim.api.nvim_win_set_cursor(UI.windows.sidebar, { 2, 2 })
+		end
 	end, {})
 end
 

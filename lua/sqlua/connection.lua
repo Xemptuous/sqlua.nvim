@@ -273,7 +273,7 @@ end
 Connections.add = function(url, name)
 	local file = Connections.read()
 	table.insert(file, { url = url, name = name })
-	vim.fn.mkdir(ROOT_DIR .. "/name", "p")
+	vim.fn.mkdir(ROOT_DIR .. "/"..name, "p")
 	Connections.write(file)
 end
 
