@@ -154,17 +154,19 @@ Connections.execute = function(
 		end
 		cmd = ui.dbs[ui.active_db].cmd
 	end
-    P(cmd)
 	if not mode then
 		mode = vim.api.nvim_get_mode().mode
 	end
+
 	local query = nil
+
 	if mode == "n" then
+        -- normal mode
 		query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
 	elseif mode == "V" then
+        -- visual line mode
 		-- FIXME: only captures previous selection, not the current one
 		-- might be neovim limitation (tried feeding esc & 'gv', doesn't work).
-
 		local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
 		local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
         if srow < 0 then srow = 0 end
@@ -176,6 +178,7 @@ Connections.execute = function(
 			query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
 		end
 	elseif mode == "v" then
+        -- visual mode
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
 		local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
 		if srow < erow or (srow == erow and scol <= ecol) then
@@ -184,6 +187,7 @@ Connections.execute = function(
 			query = vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
 		end
 	elseif mode == "\22" then
+        -- visual block mode
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
 		local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
 		local lines = vim.api.nvim_buf_get_lines(0, math.min(srow, erow) - 1, math.max(srow, erow), 0)
