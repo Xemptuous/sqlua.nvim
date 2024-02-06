@@ -154,6 +154,7 @@ Connections.execute = function(
 		end
 		cmd = ui.dbs[ui.active_db].cmd
 	end
+    P(cmd)
 	if not mode then
 		mode = vim.api.nvim_get_mode().mode
 	end
@@ -162,14 +163,17 @@ Connections.execute = function(
 		query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
 	elseif mode == "V" then
 		-- FIXME: only captures previous selection, not the current one
-		-- might be neovim limitation (tried feeding esc & 'gv', doesn't work)
+		-- might be neovim limitation (tried feeding esc & 'gv', doesn't work).
+
 		local srow, scol = unpack(vim.api.nvim_buf_get_mark(0, "<"))
 		local erow, ecol = unpack(vim.api.nvim_buf_get_mark(0, ">"))
+        if srow < 0 then srow = 0 end
+        if scol < 0 then scol = 0 end
 		ecol = 1024
 		if srow < erow or (srow == erow and scol <= ecol) then
-			query = vim.api.nvim_buf_get_text(0, srow - 1, scol - 1, erow - 1, ecol, {})
+            query = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
 		else
-			query = vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
+			query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
 		end
 	elseif mode == "v" then
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
