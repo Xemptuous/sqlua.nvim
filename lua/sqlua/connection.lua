@@ -15,8 +15,8 @@ local Connections = {}
 ---the primary object representing a single connection to a rdbms by url
 local Connection = {
 	expanded = false,
-    saved_queries_expanded = false,
-    schemas_expanded = false,
+	saved_queries_expanded = false,
+	schemas_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
@@ -24,7 +24,7 @@ local Connection = {
 	rdbms = "",
 	last_query = {},
 	schema = {},
-    saved_queries = {},
+	saved_queries = {},
 }
 
 RUNNING_JOBS = {}
@@ -82,10 +82,10 @@ local function createResultsPane(data)
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_win_set_height(0, 10)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
-    vim.api.nvim_set_option_value("modifiable", false, {buf=buf})
-    vim.api.nvim_set_option_value("wrap", false, {win=win})
-    vim.api.nvim_set_option_value("number", false, {win=win})
-    vim.api.nvim_set_option_value("relativenumber", false, {win=win})
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("number", false, { win = win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
 	table.insert(require("sqlua.ui").buffers.results, buf)
 	table.insert(require("sqlua.ui").windows.results, win)
@@ -164,21 +164,21 @@ Connections.execute = function(
 	local query = nil
 
 	if mode == "n" then
-        -- normal mode
+		-- normal mode
 		query = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 	elseif mode == "V" then
-        -- visual line mode
-        esc_key = vim.api.nvim_replace_termcodes('<Esc>', false, true, true)
-        vim.api.nvim_feedkeys(esc_key, 'nx', false)
-        local srow = vim.api.nvim_buf_get_mark(0, "<")[1]
-        local erow = vim.api.nvim_buf_get_mark(0, ">")[1]
+		-- visual line mode
+		esc_key = vim.api.nvim_replace_termcodes("<Esc>", false, true, true)
+		vim.api.nvim_feedkeys(esc_key, "nx", false)
+		local srow = vim.api.nvim_buf_get_mark(0, "<")[1]
+		local erow = vim.api.nvim_buf_get_mark(0, ">")[1]
 		if srow < erow then
-            query = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
+			query = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
 		else
 			query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
 		end
 	elseif mode == "v" then
-        -- visual mode
+		-- visual mode
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
 		local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
 		if srow < erow or (srow == erow and scol <= ecol) then
@@ -187,7 +187,7 @@ Connections.execute = function(
 			query = vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
 		end
 	elseif mode == "\22" then
-        -- visual block mode
+		-- visual block mode
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
 		local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
 		local lines = vim.api.nvim_buf_get_lines(0, math.min(srow, erow) - 1, math.max(srow, erow), false)
@@ -276,7 +276,7 @@ end
 Connections.add = function(url, name)
 	local file = Connections.read()
 	table.insert(file, { url = url, name = name })
-	vim.fn.mkdir(ROOT_DIR .. "/"..name, "p")
+	vim.fn.mkdir(ROOT_DIR .. "/" .. name, "p")
 	Connections.write(file)
 end
 

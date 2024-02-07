@@ -121,7 +121,7 @@ M.removeEndWhitespace = function(line)
 end
 
 M.getFileName = function(path)
-    return path:match("^.+/(.+)$")
+	return path:match("^.+/(.+)$")
 end
 
 ---@param file table|string the connections.json file
@@ -152,7 +152,6 @@ M.pairsByKeys = function(t, f)
 	end
 	return iter
 end
-
 
 -- local parseUrl = function(url)
 --   local db = string.gsub(
