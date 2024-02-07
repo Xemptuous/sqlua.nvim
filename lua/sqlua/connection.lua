@@ -81,11 +81,11 @@ local function createResultsPane(data)
 	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_win_set_height(0, 10)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, 0, data)
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
-	vim.api.nvim_win_set_option(win, "wrap", false)
-	vim.api.nvim_win_set_option(win, "number", false)
-	vim.api.nvim_win_set_option(win, "relativenumber", false)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
+    vim.api.nvim_set_option_value("modifiable", false, {buf=buf})
+    vim.api.nvim_set_option_value("wrap", false, {win=win})
+    vim.api.nvim_set_option_value("number", false, {win=win})
+    vim.api.nvim_set_option_value("relativenumber", false, {win=win})
 	vim.cmd("goto 1")
 	table.insert(require("sqlua.ui").buffers.results, buf)
 	table.insert(require("sqlua.ui").windows.results, win)
@@ -138,7 +138,7 @@ local function onConnect(job_id, data, event, con)
 	end
 end
 
----@param cmd string
+---@param cmd string|nil
 ---@return nil
 ---Executes the given query (cmd).
 ---Optional 'mode' determines what is executed:
@@ -165,7 +165,7 @@ Connections.execute = function(
 
 	if mode == "n" then
         -- normal mode
-		query = vim.api.nvim_buf_get_lines(0, 0, -1, 0)
+		query = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 	elseif mode == "V" then
         -- visual line mode
         esc_key = vim.api.nvim_replace_termcodes('<Esc>', false, true, true)
@@ -190,7 +190,7 @@ Connections.execute = function(
         -- visual block mode
 		local _, srow, scol, _ = unpack(vim.fn.getpos("."))
 		local _, erow, ecol, _ = unpack(vim.fn.getpos("v"))
-		local lines = vim.api.nvim_buf_get_lines(0, math.min(srow, erow) - 1, math.max(srow, erow), 0)
+		local lines = vim.api.nvim_buf_get_lines(0, math.min(srow, erow) - 1, math.max(srow, erow), false)
 		query = {}
 		local start = math.min(scol, ecol)
 		local _end = math.max(scol, ecol)

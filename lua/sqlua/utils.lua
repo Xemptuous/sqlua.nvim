@@ -32,7 +32,7 @@ local sep = (function()
 	end
 end)()
 
----@param path_components string[]
+---@param path_components table<string>|string[]
 ---@return string
 function M.concat(path_components)
 	return table.concat(path_components, sep)
@@ -124,7 +124,7 @@ M.getFileName = function(path)
     return path:match("^.+/(.+)$")
 end
 
----@param file table the connections.json file
+---@param file table|string the connections.json file
 ---@return table content json table object
 M.getDatabases = function(file)
 	local content = vim.fn.readfile(file)
