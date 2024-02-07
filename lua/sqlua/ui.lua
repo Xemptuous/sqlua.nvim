@@ -47,6 +47,7 @@ local UI = {
 }
 
 local Connection = require("sqlua.connection")
+local Utils = require("sqlua.utils")
 
 local UI_ICONS = {
 	db = " ",
@@ -89,27 +90,6 @@ local function getBufferType(buf)
 			return "result", v
 		end
 	end
-end
-
----@param t table
----@return iterator
----replaces pairs() by utilizing a sorted table
-local function pairsByKeys(t, f)
-	local a = {}
-	for n in pairs(t) do
-		table.insert(a, n)
-	end
-	table.sort(a, f)
-	local i = 0
-	local iter = function()
-		i = i + 1
-		if a[i] == nil then
-			return nil
-		else
-			return a[i], t[a[i]]
-		end
-	end
-	return iter
 end
 
 ---@param table table table to begin the search at
@@ -236,7 +216,6 @@ local function populateSavedQueries(db)
     end
 end
 
----@return nil
 function UI:refreshSidebar()
 	---@param buf buffer
 	---@param tables table
@@ -247,12 +226,12 @@ function UI:refreshSidebar()
 		local sep = "     "
 		local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
 		local statements = queries.ddl
-		for table, _ in pairsByKeys(tables) do
+		for table, _ in Utils.pairsByKeys(tables) do
             local text = UI_ICONS.table .. table
 			if tables[table].expanded then
                 srow = printSidebarExpanded(buf, srow, text, sep)
 
-				for _, stmt in pairsByKeys(statements) do
+				for _, stmt in Utils.pairsByKeys(statements) do
                     text = UI_ICONS.table_stmt .. stmt
                     srow = printSidebarEmpty(buf, srow, sep.."    "..text)
 				end
@@ -269,7 +248,7 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
     local function refreshSavedQueries(buf, dir, srow, sep)
-        for _, file in pairsByKeys(dir) do
+        for _, file in Utils.pairsByKeys(dir) do
             if file.isdir then
                 local text = UI_ICONS.folder .. file.name
                 if file.expanded then
@@ -292,7 +271,7 @@ function UI:refreshSidebar()
 	---@return integer srow
 	local function refreshSchema(buf, db, srow)
 		local sep = "   "
-		for schema, _ in pairsByKeys(UI.dbs[db].schema) do
+		for schema, _ in Utils.pairsByKeys(UI.dbs[db].schema) do
             local text = UI_ICONS.schema .. schema
 			if UI.dbs[db].schema[schema].expanded then
 				if type(UI.dbs[db].schema[schema]) == "table" then
@@ -360,7 +339,7 @@ function UI:refreshSidebar()
 
 	vim.api.nvim_set_current_win(UI.windows.sidebar)
 	vim.cmd("syn match SQLua_active_db /" .. UI.active_db .. "$/")
-	for db, _ in pairsByKeys(UI.dbs) do
+	for db, _ in Utils.pairsByKeys(UI.dbs) do
         local text = UI_ICONS.db .. db
 		if UI.dbs[db].expanded then
             printSidebarExpanded(buf, srow - 1, text, sep)
