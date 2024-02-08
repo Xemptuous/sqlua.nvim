@@ -1,5 +1,10 @@
 local M = {}
 
+M.SchemaQuery = [["
+SELECT table_schema, table_name
+FROM information_schema.tables
+"]]
+
 M.ddl = {
 	"Data",
 	"Columns",

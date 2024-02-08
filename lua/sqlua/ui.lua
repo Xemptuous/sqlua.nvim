@@ -366,7 +366,7 @@ end
 function UI:add(con)
 	-- local copy = vim.deepcopy(con)
 	local db = con.name
-	if not UI.active_db then
+	if UI.active_db == false then
 		UI.active_db = db
 	end
 	UI.dbs[db] = con
@@ -431,11 +431,8 @@ local function openFileInEditor(db, file)
 		for key, value in pairs(table) do
 			if key == "parents" and type(value) == "table" then
 			elseif type(value) == "table" then
-				-- print(key, value)
 				if key == search then
 					return value
-					-- table[search].expanded = not table[search].expanded
-					-- return
 				else
 					local recursed = findFile(value, search)
 					if recursed ~= nil then
@@ -445,11 +442,18 @@ local function openFileInEditor(db, file)
 			end
 		end
 	end
-	-- print(db, file)
 	local files = UI.dbs[db].saved_queries
 	local found = findFile(files, file)
-	-- P(found)
-	-- P(UI.buffers.editors)
+	P(found)
+	P(vim.api.nvim_list_bufs())
+	local win = UI.windows.editors
+	for _, v in ipairs(win) do
+		local buf = vim.api.nvim_win_get_buf(v)
+		-- TODO: open file selected and put contents into buffer.
+		-- On write, save contents to file.
+		-- Add checks for multiple "splits" open; if so, do nvim-tree
+		-- esque thing to select (using statusline)
+	end
 end
 
 ---@return nil
@@ -503,6 +507,19 @@ local function createSidebar()
 			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(UI.windows.sidebar)
 			UI.help_toggled = not UI.help_toggled
 			UI:refreshSidebar()
+		end,
+	})
+	vim.api.nvim_buf_set_keymap(buf, "n", "R", "", {
+		callback = function()
+			print(UI.dbs["csc675"].url)
+			print(UI.dbs["csc675"].name)
+			local cursorPos = vim.api.nvim_win_get_cursor(0)
+			for db, _ in pairs(UI.dbs) do
+				local con = Connection.refreshSchema(UI.dbs[db])
+				P(con)
+			end
+			UI:refreshSidebar()
+			vim.api.nvim_win_set_cursor(0, cursorPos)
 		end,
 	})
 	vim.api.nvim_buf_set_keymap(buf, "n", UI.options.keybinds.activate_db, "", {
@@ -614,7 +631,6 @@ end
 ---@param win window
 ---@return nil
 local function createEditor(win)
-	print(win)
 	vim.api.nvim_set_current_win(win)
 	local buf = vim.api.nvim_create_buf(true, true)
 	vim.api.nvim_buf_set_name(buf, "Editor " .. EDITOR_NUM)

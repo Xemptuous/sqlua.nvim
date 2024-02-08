@@ -2,6 +2,7 @@ local utils = require("sqlua.utils")
 ---@class Connections
 ---module class for various methods
 local Connections = {}
+Connections.connections = {}
 
 ---@class Connection
 ---@field expanded boolean sidebar expansion flag
@@ -29,11 +30,6 @@ local Connection = {
 
 RUNNING_JOBS = {}
 CONNECTIONS_FILE = utils.concat({ vim.fn.stdpath("data"), "sqlua", "connections.json" })
-
-local schemaQuery = [["
-SELECT table_schema, table_name
-FROM information_schema.tables
-"]]
 
 ---@param data table
 ---@return nil
@@ -66,6 +62,83 @@ local function getPostgresSchema(data, con)
 		con.schema[schema_name].tables[table_name] = {
 			expanded = false,
 		}
+	end
+end
+
+local function refreshPostgresSchema(data, con)
+	con.rdbms = "postgres"
+	local schema = utils.shallowcopy(data)
+	table.remove(schema, 1)
+	table.remove(schema, 1)
+	table.remove(schema)
+	table.remove(schema)
+	table.remove(schema)
+	for i, _ in ipairs(schema) do
+		schema[i] = string.gsub(schema[i], "%s", "")
+		schema[i] = utils.splitString(schema[i], "|")
+
+		local schema_name = schema[i][1]
+		local table_name = schema[i][2]
+
+		if not con.schema[schema_name] then
+			con.schema[schema_name] = {
+				expanded = false,
+				num_tables = 0,
+				tables = {},
+			}
+		else
+			if not con.schema[schema_name].tables[table_name] then
+				con.schema[schema_name].tables[table_name] = {
+					expanded = false,
+				}
+				con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
+			end
+		end
+	end
+end
+
+local function onRefresh(job_id, data, event, con, name)
+	if event == "stdout" then
+		refreshPostgresSchema(data, con)
+	elseif event == "stderr" then
+	elseif event == "exit" then
+	else
+	end
+end
+
+Connections.refreshSchema = function(Con)
+	for _, connection in pairs(Connections.connections) do
+		if connection["name"] == Con.name then
+			local Queries = require("sqlua.queries.postgres")
+			-- TODO: change based on active connection
+			local query = string.gsub(Queries.SchemaQuery, "\n", " ")
+			local name = connection.name
+			local cmd = connection.cmd .. query
+			table.insert(connection.last_query, query)
+
+			local opts = {
+				stdin = "null",
+				stdout_buffered = true,
+				stderr_buffered = true,
+				on_stdout = function(job_id, data, event)
+					onRefresh(job_id, data, event, connection, name)
+				end,
+				on_data = function(job_id, data, event)
+					onRefresh(job_id, data, event, connection, name)
+				end,
+				on_stderr = function(job_id, data, event)
+					onRefresh(job_id, data, event, connection, name)
+				end,
+				on_exit = function(job_id, data, event)
+					onRefresh(job_id, data, event, connection, name)
+				end,
+			}
+			table.insert(RUNNING_JOBS, vim.fn.jobstart(cmd, opts))
+			vim.fn.jobwait(RUNNING_JOBS, 5000)
+			table.remove(RUNNING_JOBS, 1)
+			-- Connections.connections[con.name] = con
+			return connection
+		end
 	end
 end
 
@@ -221,10 +294,12 @@ Connections.connect = function(name)
 		if connection["name"] == name then
 			local con = vim.deepcopy(Connection)
 			con.name = name
-			local query = string.gsub(schemaQuery, "\n", " ")
 			con.url = connection["url"]
 			-- TODO: check url and change cli command appropriately
 			con.cmd = "psql " .. connection["url"] .. " -c "
+			local Queries = require("sqlua.queries.postgres")
+			-- TODO: change based on active connection
+			local query = string.gsub(Queries.SchemaQuery, "\n", " ")
 			local cmd = con.cmd .. query
 			table.insert(con.last_query, query)
 
@@ -248,6 +323,7 @@ Connections.connect = function(name)
 			table.insert(RUNNING_JOBS, vim.fn.jobstart(cmd, opts))
 			vim.fn.jobwait(RUNNING_JOBS, 5000)
 			table.remove(RUNNING_JOBS, 1)
+			Connections.connections[con.name] = con
 		end
 	end
 end
