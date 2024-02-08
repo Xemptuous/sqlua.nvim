@@ -32,7 +32,7 @@ local sep = (function()
 	end
 end)()
 
----@param path_components string[]
+---@param path_components table<string>|string[]
 ---@return string
 function M.concat(path_components)
 	return table.concat(path_components, sep)
@@ -120,12 +120,37 @@ M.removeEndWhitespace = function(line)
 	return line:gsub("^%s*(.-)%s*$", "%1")
 end
 
----@param file table the connections.json file
+M.getFileName = function(path)
+	return path:match("^.+/(.+)$")
+end
+
+---@param file table|string the connections.json file
 ---@return table content json table object
 M.getDatabases = function(file)
 	local content = vim.fn.readfile(file)
 	content = vim.fn.json_decode(vim.fn.join(content, "\n"))
 	return content
+end
+
+---@param t table
+---@return iterator
+---replaces pairs() by utilizing a sorted table
+M.pairsByKeys = function(t, f)
+	local a = {}
+	for n in pairs(t) do
+		table.insert(a, n)
+	end
+	table.sort(a, f)
+	local i = 0
+	local iter = function()
+		i = i + 1
+		if a[i] == nil then
+			return nil
+		else
+			return a[i], t[a[i]]
+		end
+	end
+	return iter
 end
 
 -- local parseUrl = function(url)

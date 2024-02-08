@@ -1,5 +1,3 @@
----@alias buffer integer
----@alias window integer
 ---@alias namespace_id integer
 ---@alias iterator function
 
@@ -49,16 +47,17 @@ local UI = {
 }
 
 local Connection = require("sqlua.connection")
+local Utils = require("sqlua.utils")
 
 local UI_ICONS = {
 	db = " ",
 	buffers = "",
-	saved_queries = " ",
+	folder = " ",
 	schemas = " ",
 	schema = "פּ ",
 	-- schema = '󱁊 ',
 	table = "藺",
-	saved_query = " ",
+	file = " ",
 	new_query = "璘 ",
 	table_stmt = "離 ",
 	-- table = ' ',
@@ -71,7 +70,7 @@ local EDITOR_NUM = 0
 ---@param val boolean
 ---@return nil
 local function setSidebarModifiable(buf, val)
-	vim.api.nvim_buf_set_option(buf, "modifiable", val)
+	vim.api.nvim_set_option_value("modifiable", val, { buf = buf })
 end
 
 ---@param buf buffer
@@ -93,27 +92,6 @@ local function getBufferType(buf)
 	end
 end
 
----@param t table
----@return iterator
----replaces pairs() by utilizing a sorted table
-local function pairsByKeys(t, f)
-	local a = {}
-	for n in pairs(t) do
-		table.insert(a, n)
-	end
-	table.sort(a, f)
-	local i = 0
-	local iter = function()
-		i = i + 1
-		if a[i] == nil then
-			return nil
-		else
-			return a[i], t[a[i]]
-		end
-	end
-	return iter
-end
-
 ---@param table table table to begin the search at
 ---@param search string what to search for to toggle
 ---@return nil
@@ -129,6 +107,32 @@ local function toggleExpanded(table, search)
 			toggleExpanded(value, search)
 		end
 	end
+end
+
+---@param buf buffer
+---@param srow integer
+---@param text string
+---@param sep string
+local function printSidebarExpanded(buf, srow, text, sep)
+	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { sep .. " " .. text })
+	return srow + 1
+end
+
+---@param buf buffer
+---@param srow integer
+---@param text string
+---@param sep string
+local function printSidebarCollapsed(buf, srow, text, sep)
+	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { sep .. " " .. text })
+	return srow + 1
+end
+
+---@param buf buffer
+---@param srow integer
+---@param text string
+local function printSidebarEmpty(buf, srow, text)
+	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { text })
+	return srow + 1
 end
 
 ---@param type string the type of table statement
@@ -148,18 +152,70 @@ local function createTableStatement(type, tbl, schema, db)
 	end
 	vim.api.nvim_set_current_win(win)
 	vim.api.nvim_win_set_buf(win, buf)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, 0, {})
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
 	vim.api.nvim_win_set_cursor(win, { 1, 0 })
 	local stmt = {}
 	local query = queries.getQueries(tbl, schema, UI.options.default_limit)[type]
 	for line in string.gmatch(query, "[^\r\n]+") do
 		table.insert(stmt, line)
 	end
-	vim.api.nvim_buf_set_lines(buf, 0, 0, 0, stmt)
+	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
 	Connection.execute(UI.dbs[db].cmd)
 end
 
----@return nil
+---@param db string
+---Populates files in the database local folder
+local function populateSavedQueries(db)
+	local File = {
+		name = "",
+		isdir = false,
+		expanded = false,
+		parents = {},
+		files = {},
+	}
+	local utils = require("sqlua.utils")
+
+	local function iterateFiles(dir, parent)
+		for _, file in pairs(dir) do
+			local f = vim.deepcopy(File)
+			local fname = utils.getFileName(file)
+			f.parents = vim.deepcopy(parent.parents)
+
+			table.insert(f.parents, parent.name)
+			if vim.fn.isdirectory(file) == 1 then
+				f.name = fname
+				f.isdir = true
+				parent.files[fname] = f
+				dir = vim.split(vim.fn.glob(file .. "/*"), "\n", { trimempty = true })
+				iterateFiles(dir, f)
+			else
+				f.name = fname
+				parent.files[f.name] = f
+			end
+		end
+	end
+
+	local parent = utils.concat({ vim.fn.stdpath("data"), "sqlua", db })
+	local content = vim.split(vim.fn.glob(parent .. "/*"), "\n", { trimempty = true })
+
+	for _, file in pairs(content) do
+		local f = vim.deepcopy(File)
+		local fname = utils.getFileName(file)
+
+		table.insert(f.parents, db)
+		if vim.fn.isdirectory(file) == 1 then
+			f.name = fname
+			f.isdir = true
+			UI.dbs[db].saved_queries[fname] = f
+			local dir = vim.split(vim.fn.glob(file .. "/*"), "\n", { trimempty = true })
+			iterateFiles(dir, f)
+		else
+			f.name = fname
+			UI.dbs[db].saved_queries[fname] = f
+		end
+	end
+end
+
 function UI:refreshSidebar()
 	---@param buf buffer
 	---@param tables table
@@ -170,23 +226,40 @@ function UI:refreshSidebar()
 		local sep = "     "
 		local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
 		local statements = queries.ddl
-		for table, _ in pairsByKeys(tables) do
+		for table, _ in Utils.pairsByKeys(tables) do
+			local text = UI_ICONS.table .. table
 			if tables[table].expanded then
-				vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-					sep .. " " .. UI_ICONS.table .. table,
-				})
-				srow = srow + 1
-				for _, stmt in pairsByKeys(statements) do
-					vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-						sep .. "    " .. UI_ICONS.table_stmt .. stmt,
-					})
-					srow = srow + 1
+				srow = printSidebarExpanded(buf, srow, text, sep)
+
+				for _, stmt in Utils.pairsByKeys(statements) do
+					text = UI_ICONS.table_stmt .. stmt
+					srow = printSidebarEmpty(buf, srow, sep .. "    " .. text)
 				end
 			else
-				vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-					sep .. " " .. UI_ICONS.table .. table,
-				})
-				srow = srow + 1
+				srow = printSidebarCollapsed(buf, srow, text, sep)
+			end
+		end
+		return srow
+	end
+
+	---@param buf buffer
+	---@param dir table
+	---@param srow integer
+	---@param sep string
+	---@return integer srow
+	local function refreshSavedQueries(buf, dir, srow, sep)
+		for _, file in Utils.pairsByKeys(dir) do
+			if file.isdir then
+				local text = UI_ICONS.folder .. file.name
+				if file.expanded then
+					srow = printSidebarExpanded(buf, srow, text, sep)
+					srow = refreshSavedQueries(buf, file.files, srow, sep .. "  ")
+				else
+					srow = printSidebarCollapsed(buf, srow, text, sep)
+				end
+			else
+				local text = UI_ICONS.file .. file.name
+				srow = printSidebarEmpty(buf, srow, sep .. "  " .. text)
 			end
 		end
 		return srow
@@ -198,30 +271,45 @@ function UI:refreshSidebar()
 	---@return integer srow
 	local function refreshSchema(buf, db, srow)
 		local sep = "   "
-		for schema, _ in pairsByKeys(UI.dbs[db].schema) do
+		for schema, _ in Utils.pairsByKeys(UI.dbs[db].schema) do
+			local text = UI_ICONS.schema .. schema
 			if UI.dbs[db].schema[schema].expanded then
 				if type(UI.dbs[db].schema[schema]) == "table" then
-					vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-						sep .. " " .. UI_ICONS.schema .. schema,
-					})
-					srow = srow + 1
+					srow = printSidebarExpanded(buf, srow, text, sep)
 					local tables = UI.dbs[db].schema[schema].tables
 					srow = refreshTables(buf, tables, srow, db)
 				end
 			else
-				vim.api.nvim_buf_set_lines(buf, srow, srow, 0, {
-					sep .. " " .. UI_ICONS.schema .. schema,
-				})
-				srow = srow + 1
+				srow = printSidebarCollapsed(buf, srow, text, sep)
 			end
 		end
 		return srow
 	end
 
+	---@param buf buffer
+	---@param db string
+	---@param srow integer
+	local function refreshOverview(buf, db, srow)
+		local sep = "   "
+		local text = UI_ICONS.folder .. "Saved Queries"
+		if UI.dbs[db].saved_queries_expanded then
+			srow = printSidebarExpanded(buf, srow, text, sep)
+			srow = refreshSavedQueries(buf, UI.dbs[db].saved_queries, srow, sep .. "  ")
+			srow = refreshSchema(buf, db, srow)
+		else
+			srow = printSidebarCollapsed(buf, srow, text, sep)
+			srow = refreshSchema(buf, db, srow)
+		end
+		return srow
+	end
+
+	-- sidebar basic setup
 	local buf = UI.buffers.sidebar
 	local sep = " "
+
 	setSidebarModifiable(buf, true)
-	vim.api.nvim_buf_set_lines(UI.buffers.sidebar, 0, -1, 0, {})
+	vim.api.nvim_buf_set_lines(UI.buffers.sidebar, 0, -1, false, {})
+
 	local winwidth = vim.api.nvim_win_get_width(UI.windows.sidebar)
 	local helptext = "press ? to toggle help"
 	local helpTextTable = {
@@ -232,17 +320,18 @@ function UI:refreshSidebar()
 	}
 	local setCursor = UI.last_cursor_position.sidebar
 	local srow = 2
+
 	if UI.help_toggled then
 		UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(UI.windows.sidebar)
 		vim.cmd("syn match SQLuaHelpKey /.*\\( -\\)\\@=/")
 		vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
-		vim.api.nvim_buf_set_lines(buf, 0, 0, 0, helpTextTable)
+		vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
 		vim.cmd("syn match SQLuaHelpText /^$/")
 		srow = srow + #helpTextTable
 		vim.api.nvim_buf_add_highlight(UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth)
 		setCursor[1] = setCursor[1] + #helpTextTable
 	else
-		vim.api.nvim_buf_set_lines(buf, 0, 0, 0, {
+		vim.api.nvim_buf_set_lines(buf, 0, 0, false, {
 			string.format("%+" .. winwidth / 2 - (string.len(helptext) / 2) .. "s%s", "", helptext),
 		})
 		vim.api.nvim_buf_add_highlight(UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth)
@@ -250,12 +339,13 @@ function UI:refreshSidebar()
 
 	vim.api.nvim_set_current_win(UI.windows.sidebar)
 	vim.cmd("syn match SQLua_active_db /" .. UI.active_db .. "$/")
-	for db, _ in pairsByKeys(UI.dbs) do
+	for db, _ in Utils.pairsByKeys(UI.dbs) do
+		local text = UI_ICONS.db .. db
 		if UI.dbs[db].expanded then
-			vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, { sep .. " " .. UI_ICONS.db .. db })
-			srow = refreshSchema(buf, db, srow)
+			printSidebarExpanded(buf, srow - 1, text, sep)
+			srow = refreshOverview(buf, db, srow)
 		else
-			vim.api.nvim_buf_set_lines(buf, srow - 1, srow - 1, 0, { sep .. " " .. UI_ICONS.db .. db })
+			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
 		vim.api.nvim_buf_add_highlight(UI.buffers.sidebar, UI.sidebar_ns, "active_db", srow - 1, 10, string.len(db))
@@ -276,7 +366,7 @@ end
 function UI:add(con)
 	-- local copy = vim.deepcopy(con)
 	local db = con.name
-	if not UI.active_db then
+	if UI.active_db == false then
 		UI.active_db = db
 	end
 	UI.dbs[db] = con
@@ -285,11 +375,14 @@ function UI:add(con)
 	end
 	UI.num_dbs = UI.num_dbs + 1
 	setSidebarModifiable(UI.buffers.sidebar, false)
+	populateSavedQueries(db)
 end
 
 ---@param type string the type to search for
 ---@param num integer the starting row to begin the search
----@return string db, integer num
+---@return string|nil db
+---@return integer|nil num
+---@return nil
 --[[Searches the sidebar from the given starting point upwards
   for the given type, returning the first occurence of either
   table, schema, or db
@@ -298,7 +391,7 @@ local function sidebarFind(type, num)
 	if type == "table" then
 		local tbl = nil
 		while true do
-			tbl = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
+			tbl = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, false)[1]
 			if not tbl then
 				return
 			elseif string.find(tbl, "") then
@@ -311,7 +404,7 @@ local function sidebarFind(type, num)
 	elseif type == "schema" then
 		local schema = nil
 		while true do
-			schema = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
+			schema = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, false)[1]
 			if string.find(schema, "   ") then
 				break
 			end
@@ -321,7 +414,7 @@ local function sidebarFind(type, num)
 	elseif type == "database" then
 		local db = nil
 		while true do
-			db = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, 0)[1]
+			db = vim.api.nvim_buf_get_lines(UI.buffers.sidebar, num - 1, num, false)[1]
 			if string.find(db, "^ ", 1) or string.find(db, "^ ", 1) then
 				db = db:gsub("%s+", "")
 				db = db:gsub(ICONS_SUB, "")
@@ -331,7 +424,36 @@ local function sidebarFind(type, num)
 		end
 		return db, num
 	end
-	return
+end
+
+local function openFileInEditor(db, file)
+	local function findFile(table, search)
+		for key, value in pairs(table) do
+			if key == "parents" and type(value) == "table" then
+			elseif type(value) == "table" then
+				if key == search then
+					return value
+				else
+					local recursed = findFile(value, search)
+					if recursed ~= nil then
+						return recursed
+					end
+				end
+			end
+		end
+	end
+	local files = UI.dbs[db].saved_queries
+	local found = findFile(files, file)
+	P(found)
+	P(vim.api.nvim_list_bufs())
+	local win = UI.windows.editors
+	for _, v in ipairs(win) do
+		local buf = vim.api.nvim_win_get_buf(v)
+		-- TODO: open file selected and put contents into buffer.
+		-- On write, save contents to file.
+		-- Add checks for multiple "splits" open; if so, do nvim-tree
+		-- esque thing to select (using statusline)
+	end
 end
 
 ---@return nil
@@ -342,13 +464,13 @@ local function createSidebar()
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_set_current_win(win)
 	vim.api.nvim_win_set_width(0, 40)
-	vim.api.nvim_buf_set_option(buf, "modifiable", false)
-	vim.api.nvim_win_set_option(win, "wfw", true)
-	vim.api.nvim_win_set_option(win, "wrap", false)
-	vim.api.nvim_win_set_option(win, "number", false)
-	vim.api.nvim_win_set_option(win, "cursorline", true)
-	vim.api.nvim_win_set_option(win, "cursorlineopt", "line")
-	vim.api.nvim_win_set_option(win, "relativenumber", false)
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	vim.api.nvim_set_option_value("wfw", true, { win = win })
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("number", false, { win = win })
+	vim.api.nvim_set_option_value("cursorline", true, { win = win })
+	vim.api.nvim_set_option_value("cursorlineopt", "line", { win = win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("syn match Function /[פּ藺璘]/")
 	vim.cmd("syn match String /[פּ󱁊]/")
 	vim.cmd("syn match Boolean /[離]/")
@@ -387,6 +509,19 @@ local function createSidebar()
 			UI:refreshSidebar()
 		end,
 	})
+	vim.api.nvim_buf_set_keymap(buf, "n", "R", "", {
+		callback = function()
+			print(UI.dbs["csc675"].url)
+			print(UI.dbs["csc675"].name)
+			local cursorPos = vim.api.nvim_win_get_cursor(0)
+			for db, _ in pairs(UI.dbs) do
+				local con = Connection.refreshSchema(UI.dbs[db])
+				P(con)
+			end
+			UI:refreshSidebar()
+			vim.api.nvim_win_set_cursor(0, cursorPos)
+		end,
+	})
 	vim.api.nvim_buf_set_keymap(buf, "n", UI.options.keybinds.activate_db, "", {
 		callback = function()
 			vim.cmd("syn match Normal /" .. UI.active_db .. "$/")
@@ -415,34 +550,80 @@ local function createSidebar()
 			if val == "" then
 				return
 			end
-			local m1, _ = string.find(val, "")
-			local m2, _ = string.find(val, "")
-			if not m1 and not m2 then
-				local tbl = nil
-				local schema = nil
+			local is_collapsed, _ = string.find(val, "")
+			local is_expanded, _ = string.find(val, "")
+			if is_collapsed or is_expanded then
 				local db = nil
-				tbl, num = sidebarFind("table", num)
-				schema, num = sidebarFind("schema", num)
-				db, num = sidebarFind("database", num)
-				val = val:gsub(ICONS_SUB, "")
-				tbl = tbl:gsub("%s+", "")
-				tbl = tbl:gsub(ICONS_SUB, "")
-				schema = schema:gsub("%s+", "")
-				schema = schema:gsub(ICONS_SUB, "")
-				createTableStatement(val, tbl, schema, db)
-			else
-				local db = nil
-				db, num = sidebarFind("database", num)
-				-- val = val:gsub("[]", "")
+				db, _ = sidebarFind("database", num)
 				val = val:gsub(ICONS_SUB, "")
 				if db and db == val then
 					toggleExpanded(UI.dbs, val)
+				elseif val == "SavedQueries" then
+					UI.dbs[db].saved_queries_expanded = not UI.dbs[db].saved_queries_expanded
 				else
 					toggleExpanded(UI.dbs[db], val)
 				end
 				UI:refreshSidebar()
 				vim.api.nvim_win_set_cursor(0, cursorPos)
+			else
+				local is_file, _ = string.find(val, "")
+				if is_file then
+					local file = val:gsub(ICONS_SUB, "")
+					local db, _ = sidebarFind("database", num)
+					openFileInEditor(db, file)
+				else
+					local tbl = nil
+					local schema = nil
+					local db = nil
+					tbl, _ = sidebarFind("table", num)
+					schema, _ = sidebarFind("schema", num)
+					db, _ = sidebarFind("database", num)
+					val = val:gsub(ICONS_SUB, "")
+					if tbl == nil then
+						return
+					end
+					if schema == nil then
+						return
+					end
+					if db == nil then
+						db = ""
+					end
+					createTableStatement(val, tbl, schema, db)
+				end
 			end
+			-- if not is_collapsed and not is_expanded then
+			--              local is_file, _ = string.find(val, "")
+			--              if is_file then
+			--                  val = val:gsub(ICONS_SUB, "")
+			--                  -- openFileInEditor(file)
+			--              else
+			--                  local tbl = nil
+			--                  local schema = nil
+			--                  local db = nil
+			--                  tbl, _ = sidebarFind("table", num)
+			--                  schema, _ = sidebarFind("schema", num)
+			--                  db, _ = sidebarFind("database", num)
+			--                  val = val:gsub(ICONS_SUB, "")
+			--                  if tbl == nil then return end
+			--                  if schema == nil then return end
+			--                  if db == nil then db = "" end
+			--                  createTableStatement(val, tbl, schema, db)
+			--              end
+			-- else
+			-- 	local db = nil
+			-- 	db, _ = sidebarFind("database", num)
+			-- 	-- val = val:gsub("[]", "")
+			-- 	val = val:gsub(ICONS_SUB, "")
+			-- 	if db and db == val then
+			-- 		toggleExpanded(UI.dbs, val)
+			--              elseif val == "SavedQueries" then
+			--                  UI.dbs[db].saved_queries_expanded = not UI.dbs[db].saved_queries_expanded
+			-- 	else
+			-- 		toggleExpanded(UI.dbs[db], val)
+			-- 	end
+			-- 	UI:refreshSidebar()
+			-- 	vim.api.nvim_win_set_cursor(0, cursorPos)
+			-- end
 		end,
 	})
 end
@@ -493,10 +674,10 @@ function UI:setup(config)
 			if UI.connections_loaded and UI.initial_layout_loaded then
 				UI.last_active_buffer = curbuf
 				UI.last_active_window = curwin
-				local _type, val = getBufferType(curbuf)
-                if _type == nil then
-                    return
-                end
+				local _type, _ = getBufferType(curbuf)
+				if _type == nil then
+					return
+				end
 				UI.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(curwin)
 			else
 				UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(curwin)
@@ -505,8 +686,14 @@ function UI:setup(config)
 	})
 	vim.api.nvim_create_autocmd({ "WinNew" }, {
 		callback = function(ev)
-			if ev.buf == 1 then
+			local sidebar, _ = string.find(ev.file, "Sidebar")
+			if ev.buf == 1 or sidebar then
 				return
+			end
+			for _, value in pairs(UI.buffers.editors) do
+				if value == ev.buf then
+					return
+				end
 			end
 			createEditor(vim.api.nvim_get_current_win())
 		end,
@@ -529,10 +716,10 @@ function UI:setup(config)
 	UI.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
 	vim.api.nvim_set_hl(0, "SQLua_active_db", { fg = "#00ff00", bold = true })
 	vim.api.nvim_set_hl(0, "SQLuaHelpKey", {
-		fg = vim.api.nvim_get_hl_by_name("String", true).foreground,
+		fg = vim.api.nvim_get_hl(0, { name = "String" }).fg,
 	})
 	vim.api.nvim_set_hl(0, "SQLuaHelpText", {
-		fg = vim.api.nvim_get_hl_by_name("Comment", true).foreground,
+		fg = vim.api.nvim_get_hl(0, { name = "Comment" }).fg,
 	})
 
 	local sidebar_win = vim.api.nvim_get_current_win()

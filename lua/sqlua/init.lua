@@ -66,11 +66,11 @@ M.setup = function(opts)
 	end, { nargs = 1 })
 
 	vim.api.nvim_set_keymap("", "<leader>r", "", {
-        callback = function()
-            local mode = vim.api.nvim_get_mode().mode
-            vim.cmd(":SQLuaExecute " .. mode)
-        end
-    })
+		callback = function()
+			local mode = vim.api.nvim_get_mode().mode
+			vim.cmd(":SQLuaExecute " .. mode)
+		end,
+	})
 
 	vim.api.nvim_create_user_command("SQLuaAddConnection", function()
 		-- TODO: add floating window to edit connections file on the spot
@@ -78,11 +78,11 @@ M.setup = function(opts)
 		-- TODO: verify url string
 		local name = vim.fn.input("Enter the name for the connection: ")
 		Connection.add(url, name)
-        local dbs = utils.getDatabases(config.connections_save_location)
-        for _, db in pairs(dbs) do
-            Connection.connect(db.name)
-        end
-        UI:refreshSidebar()
+		local dbs = utils.getDatabases(config.connections_save_location)
+		for _, db in pairs(dbs) do
+			Connection.connect(db.name)
+		end
+		UI:refreshSidebar()
 		if UI.num_dbs > 0 then
 			vim.api.nvim_win_set_cursor(UI.windows.sidebar, { 2, 2 })
 		end
