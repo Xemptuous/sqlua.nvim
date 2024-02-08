@@ -245,7 +245,7 @@ Connections.execute = function(
 		vim.api.nvim_feedkeys(esc_key, "nx", false)
 		local srow = vim.api.nvim_buf_get_mark(0, "<")[1]
 		local erow = vim.api.nvim_buf_get_mark(0, ">")[1]
-		if srow < erow then
+		if srow <= erow then
 			query = vim.api.nvim_buf_get_lines(0, srow - 1, erow, false)
 		else
 			query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
