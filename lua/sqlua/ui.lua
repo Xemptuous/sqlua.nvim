@@ -366,7 +366,7 @@ end
 function UI:add(con)
 	-- local copy = vim.deepcopy(con)
 	local db = con.name
-	if UI.active_db == false then
+	if UI.active_db == "" then
 		UI.active_db = db
 	end
 	UI.dbs[db] = con
@@ -444,8 +444,8 @@ local function openFileInEditor(db, file)
 	end
 	local files = UI.dbs[db].saved_queries
 	local found = findFile(files, file)
-	P(found)
-	P(vim.api.nvim_list_bufs())
+	-- P(found)
+	-- P(vim.api.nvim_list_bufs())
 	local win = UI.windows.editors
 	for _, v in ipairs(win) do
 		local buf = vim.api.nvim_win_get_buf(v)
@@ -453,6 +453,18 @@ local function openFileInEditor(db, file)
 		-- On write, save contents to file.
 		-- Add checks for multiple "splits" open; if so, do nvim-tree
 		-- esque thing to select (using statusline)
+	end
+end
+
+local function updateSidebarCursorPosition(pos)
+	local cursorPos = vim.api.nvim_win_get_cursor(0)
+	local num_lines = vim.api.nvim_buf_line_count(UI.buffers.sidebar)
+	local num = cursorPos[1]
+	-- if on last line, choose value above
+	if num == num_lines then
+		local cursorCol = cursorPos[2]
+		local newpos = { num - 1, cursorCol }
+		vim.api.nvim_win_set_cursor(UI.windows.sidebar, newpos)
 	end
 end
 
@@ -511,15 +523,11 @@ local function createSidebar()
 	})
 	vim.api.nvim_buf_set_keymap(buf, "n", "R", "", {
 		callback = function()
-			print(UI.dbs["csc675"].url)
-			print(UI.dbs["csc675"].name)
-			local cursorPos = vim.api.nvim_win_get_cursor(0)
+			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(0)
 			for db, _ in pairs(UI.dbs) do
-				local con = Connection.refreshSchema(UI.dbs[db])
-				P(con)
+				Connection.refreshSchema(UI.dbs[db])
 			end
 			UI:refreshSidebar()
-			vim.api.nvim_win_set_cursor(0, cursorPos)
 		end,
 	})
 	vim.api.nvim_buf_set_keymap(buf, "n", UI.options.keybinds.activate_db, "", {

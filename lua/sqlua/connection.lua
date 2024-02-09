@@ -59,14 +59,15 @@ local function getPostgresSchema(data, con)
 			seen[schema_name] = true
 		end
 		con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
-		con.schema[schema_name].tables[table_name] = {
-			expanded = false,
-		}
+		if table_name ~= "-" then
+			con.schema[schema_name].tables[table_name] = {
+				expanded = false,
+			}
+		end
 	end
 end
 
 local function refreshPostgresSchema(data, con)
-	con.rdbms = "postgres"
 	local schema = utils.shallowcopy(data)
 	table.remove(schema, 1)
 	table.remove(schema, 1)
@@ -86,12 +87,35 @@ local function refreshPostgresSchema(data, con)
 				num_tables = 0,
 				tables = {},
 			}
-		else
+		end
+		if table_name ~= "-" then
 			if not con.schema[schema_name].tables[table_name] then
 				con.schema[schema_name].tables[table_name] = {
 					expanded = false,
 				}
 				con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
+			end
+		end
+	end
+	-- cleaner k:v version
+	local final_schema = {}
+	for _, tbl in ipairs(schema) do
+		if not final_schema[tbl[1]] then
+			final_schema[tbl[1]] = {}
+		end
+		final_schema[tbl[1]][tbl[2]] = ""
+	end
+	-- remove schema/tables that have been deleted since last refresh
+	for s, _ in pairs(con.schema) do
+		if s ~= "pg_catalog" and s ~= "information_schema" then
+			if final_schema[s] == nil then
+				con.schema[s] = nil
+			else
+				for t, _ in pairs(con.schema[s].tables) do
+					if final_schema[s][t] == nil then
+						con.schema[s].tables[t] = nil
+					end
+				end
 			end
 		end
 	end
@@ -195,10 +219,7 @@ end
 ---@param data table
 ---@param event string<'stdout', 'stderr', 'exit'>
 ---@return nil
--- -Callback for Connection.connect() jobcontrol
--- C = {}
--- function C:onConnect(job_id, data, event)
---   P(self)
+--Callback for Connection.connect() jobcontrol
 local function onConnect(job_id, data, event, con)
 	local connection = con
 	if event == "stdout" then

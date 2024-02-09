@@ -1,9 +1,17 @@
 local M = {}
 
 M.SchemaQuery = [["
-SELECT table_schema, table_name
-FROM information_schema.tables
+SELECT
+    s.schema_name,
+    COALESCE(t.table_name, '-')
+FROM information_schema.schemata s
+    LEFT JOIN information_schema.tables t
+        ON t.table_schema = s.schema_name
 "]]
+-- M.SchemaQuery = [["
+-- SELECT table_schema, table_name
+-- FROM information_schema.tables
+-- "]]
 
 M.ddl = {
 	"Data",
