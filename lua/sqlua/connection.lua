@@ -300,6 +300,15 @@ Connections.execute = function(
 		on_stderr = onEvent,
 		on_data = onEvent,
 	}
+	-- removing pure comment lines
+	for i, j in ipairs(query) do
+		local cleaned = j:gsub("%s+", "")
+		if cleaned:sub(1, 1) == "-" then
+			if cleaned:sub(2, 2) then
+				table.remove(query, i)
+			end
+		end
+	end
 	local command = cmd .. '"' .. table.concat(query, " ") .. '"'
 	local job = vim.fn.jobstart(command, opts)
 end
