@@ -58,11 +58,11 @@ local function getPostgresSchema(data, con)
 			}
 			seen[schema_name] = true
 		end
-		con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
 		if table_name ~= "-" then
 			con.schema[schema_name].tables[table_name] = {
 				expanded = false,
 			}
+			con.schema[schema_name].num_tables = con.schema[schema_name].num_tables + 1
 		end
 	end
 end

@@ -73,6 +73,18 @@ local function setSidebarModifiable(buf, val)
 	vim.api.nvim_set_option_value("modifiable", val, { buf = buf })
 end
 
+local function highlightSidebarNumbers()
+	local buf = vim.api.nvim_win_get_buf(UI.windows.sidebar)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, vim.api.nvim_buf_line_count(buf), false)
+	for line, text in ipairs(lines) do
+		local s = text:find("%s%(")
+		local e = text:find("%)")
+		if s and e then
+			vim.api.nvim_buf_add_highlight(UI.buffers.sidebar, UI.sidebar_ns, "Comment", line - 1, s, e)
+		end
+	end
+end
+
 ---@param buf buffer
 ---@return string|nil, buffer|nil
 ---Searches existing buffers and returns the buffer type, and buffer number
@@ -272,7 +284,7 @@ function UI:refreshSidebar()
 	local function refreshSchema(buf, db, srow)
 		local sep = "   "
 		for schema, _ in Utils.pairsByKeys(UI.dbs[db].schema) do
-			local text = UI_ICONS.schema .. schema
+			local text = UI_ICONS.schema .. schema .. " (" .. UI.dbs[db].schema[schema].num_tables .. ")"
 			if UI.dbs[db].schema[schema].expanded then
 				if type(UI.dbs[db].schema[schema]) == "table" then
 					srow = printSidebarExpanded(buf, srow, text, sep)
@@ -340,7 +352,7 @@ function UI:refreshSidebar()
 	vim.api.nvim_set_current_win(UI.windows.sidebar)
 	vim.cmd("syn match SQLua_active_db /" .. UI.active_db .. "$/")
 	for db, _ in Utils.pairsByKeys(UI.dbs) do
-		local text = UI_ICONS.db .. db
+		local text = UI_ICONS.db .. db .. " (" .. UI.dbs[db].num_schema .. ")"
 		if UI.dbs[db].expanded then
 			printSidebarExpanded(buf, srow - 1, text, sep)
 			srow = refreshOverview(buf, db, srow)
@@ -358,6 +370,7 @@ function UI:refreshSidebar()
 			math.max(2, UI.last_cursor_position.sidebar[2]),
 		})
 	end
+	highlightSidebarNumbers()
 	setSidebarModifiable(buf, false)
 end
 
@@ -400,6 +413,10 @@ local function sidebarFind(type, num)
 			num = num - 1
 		end
 		num = num - 1
+		-- tbl = tbl:gsub("%s+", "")
+		if tbl:find("%(") then
+			tbl = tbl:sub(1, tbl:find("%(") - 1)
+		end
 		return tbl, num
 	elseif type == "schema" then
 		local schema = nil
@@ -409,6 +426,9 @@ local function sidebarFind(type, num)
 				break
 			end
 			num = num - 1
+		end
+		if schema:find("%(") then
+			schema = schema:sub(1, schema:find("%(") - 1)
 		end
 		return schema, num
 	elseif type == "database" then
@@ -421,6 +441,9 @@ local function sidebarFind(type, num)
 				break
 			end
 			num = num - 1
+		end
+		if db:find("%(") then
+			db = db:sub(1, db:find("%(") - 1)
 		end
 		return db, num
 	end
@@ -555,6 +578,9 @@ local function createSidebar()
 			end
 			local val = vim.api.nvim_get_current_line()
 			val = val:gsub("%s+", "")
+			if val:find("%(") then
+				val = val:sub(1, val:find("%(") - 1)
+			end
 			if val == "" then
 				return
 			end
@@ -599,6 +625,7 @@ local function createSidebar()
 					createTableStatement(val, tbl, schema, db)
 				end
 			end
+			highlightSidebarNumbers()
 			-- if not is_collapsed and not is_expanded then
 			--              local is_file, _ = string.find(val, "")
 			--              if is_file then
