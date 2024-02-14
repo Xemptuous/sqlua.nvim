@@ -4,8 +4,10 @@ local UI = require("sqlua.ui")
 
 local M = {}
 
-ROOT_DIR = utils.concat({ vim.fn.stdpath("data"), "sqlua" })
-CONNECTIONS_FILE = utils.concat({ vim.fn.stdpath("data"), "sqlua", "connections.json" })
+ROOT_DIR = utils.concat({
+    vim.fn.stdpath("data"),
+    "sqlua"
+})
 DEFAULT_CONFIG = {
 	db_save_location = utils.concat({ ROOT_DIR, "dbs" }),
 	connections_save_location = utils.concat({ ROOT_DIR, "connections.json" }),
@@ -34,7 +36,12 @@ M.setup = function(opts)
 	vim.fn.mkdir(ROOT_DIR, "p")
 
 	-- creating config json
-	if vim.fn.filereadable(CONNECTIONS_FILE) == 0 then
+    local connections_file = utils.concat({
+        vim.fn.stdpath("data"),
+        "sqlua",
+        "connections.json"
+    })
+	if vim.fn.filereadable(connections_file) == 0 then
 		Connection.write({})
 	end
 
@@ -46,31 +53,21 @@ M.setup = function(opts)
 			dbs = utils.getDatabases(config.connections_save_location)
 			for _, db in pairs(dbs) do
 				Connection.connect(db.name)
+                UI:populateSavedQueries(db.name)
 			end
 		else
 			dbs = utils.splitString(args.args, " ")
 			for _, db in pairs(dbs) do
 				Connection.connect(db)
+                UI:populateSavedQueries(db)
 			end
 		end
 		UI.connections_loaded = true
-		UI:refreshSidebar()
 		UI.initial_layout_loaded = true
 		if UI.num_dbs > 0 then
 			vim.api.nvim_win_set_cursor(UI.windows.sidebar, { 2, 2 })
 		end
 	end, { nargs = "?" })
-
-	vim.api.nvim_create_user_command("SQLuaExecute", function(mode)
-		Connection.execute(nil, mode.args)
-	end, { nargs = 1 })
-
-	vim.api.nvim_set_keymap("", "<leader>r", "", {
-		callback = function()
-			local mode = vim.api.nvim_get_mode().mode
-			vim.cmd(":SQLuaExecute " .. mode)
-		end,
-	})
 
 	vim.api.nvim_create_user_command("SQLuaAddConnection", function()
 		-- TODO: add floating window to edit connections file on the spot

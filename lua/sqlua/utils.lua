@@ -32,7 +32,7 @@ local sep = (function()
 	end
 end)()
 
----@param path_components table<string>|string[]
+---@param path_components table<string|string[]>
 ---@return string
 function M.concat(path_components)
 	return table.concat(path_components, sep)
@@ -117,7 +117,7 @@ end
 ---@return string
 ---Trims leading and trailing whitespace
 M.removeEndWhitespace = function(line)
-	return line:gsub("^%s*(.-)%s*$", "%1")
+	return line:gsub("^%s*(.-)%s*$", "%1")[1]
 end
 
 M.getFileName = function(path)
