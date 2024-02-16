@@ -1,13 +1,14 @@
 local M = {}
 
-M.SchemaQuery = [["
+M.SchemaQuery = [[
 SELECT
     s.schema_name,
     COALESCE(t.table_name, '-')
 FROM information_schema.schemata s
     LEFT JOIN information_schema.tables t
         ON t.table_schema = s.schema_name
-"]]
+ORDER BY 1
+]]
 -- M.SchemaQuery = [["
 -- SELECT table_schema, table_name
 -- FROM information_schema.tables
