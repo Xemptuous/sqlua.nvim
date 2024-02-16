@@ -63,7 +63,7 @@ local UI_ICONS = {
 }
 
 local ICONS_SUB = "[פּ󱁊藺璘離]"
-local EDITOR_NUM = 0
+local EDITOR_NUM = 1
 
 ---@param buf buffer
 ---@param val boolean
@@ -72,6 +72,7 @@ local function setSidebarModifiable(buf, val)
 	vim.api.nvim_set_option_value("modifiable", val, { buf = buf })
 end
 
+---Sets highlighting in the sidebar based on the hl
 local function highlightSidebarNumbers()
 	local buf = vim.api.nvim_win_get_buf(UI.windows.sidebar)
 	local lines = vim.api.nvim_buf_get_lines(
@@ -192,12 +193,11 @@ function UI:populateSavedQueries(db)
 		parents = {},
 		files = {},
 	}
-	local utils = require("sqlua.utils")
 
 	local function iterateFiles(dir, parent)
 		for _, file in pairs(dir) do
 			local f = vim.deepcopy(File)
-			local fname = utils.getFileName(file)
+			local fname = Utils.getFileName(file)
 			f.parents = vim.deepcopy(parent.parents)
 
 			table.insert(f.parents, parent.name)
@@ -218,7 +218,7 @@ function UI:populateSavedQueries(db)
 		end
 	end
 
-	local parent = utils.concat({
+	local parent = Utils.concat({
         vim.fn.stdpath("data"),
         "sqlua",
         db
@@ -231,7 +231,7 @@ function UI:populateSavedQueries(db)
 
 	for _, file in pairs(content) do
 		local f = vim.deepcopy(File)
-		local fname = utils.getFileName(file)
+		local fname = Utils.getFileName(file)
 
 		table.insert(f.parents, db)
 		if vim.fn.isdirectory(file) == 1 then
@@ -327,6 +327,7 @@ function UI:refreshSidebar()
 	---@param buf buffer
 	---@param db string
 	---@param srow integer
+    ---@returns integer srow
 	local function refreshOverview(buf, db, srow)
 		local sep = "   "
 		local text = UI_ICONS.folder .. "Saved Queries"
@@ -343,7 +344,6 @@ function UI:refreshSidebar()
 		return srow
 	end
 
-	-- sidebar basic setup
 	local buf = UI.buffers.sidebar
 	local sep = " "
 
@@ -416,7 +416,7 @@ function UI:refreshSidebar()
 end
 
 ---@param con Connection
----Adds the Connection object to the UI's databases
+---Adds the Connection object to the UI object
 function UI:addConnection(con)
 	-- local copy = vim.deepcopy(con)
 	local db = con.name
@@ -502,35 +502,40 @@ local function sidebarFind(type, num)
 	end
 end
 
--- local function openFileInEditor(db, file)
-	-- local function findFile(table, search)
-	-- 	for key, value in pairs(table) do
-	-- 		if key == "parents" and type(value) == "table" then
-	-- 		elseif type(value) == "table" then
-	-- 			if key == search then
-	-- 				return value
-	-- 			else
-	-- 				local recursed = findFile(value, search)
-	-- 				if recursed ~= nil then
-	-- 					return recursed
-	-- 				end
-	-- 			end
-	-- 		end
-	-- 	end
-	-- end
-	-- local files = UI.dbs[db].saved_queries
-	-- local found = findFile(files, file)
-	-- P(found)
-	-- P(vim.api.nvim_list_bufs())
-	-- local win = UI.windows.editors
-	-- for _, v in ipairs(win) do
-		-- local buf = vim.api.nvim_win_get_buf(v)
+local function openFileInEditor(db, file)
+	local function findFile(table, search)
+		for key, value in pairs(table) do
+			if key == "parents" and type(value) == "table" then
+			elseif type(value) == "table" then
+				if key == search then
+					return value
+				else
+					local recursed = findFile(value, search)
+					if recursed ~= nil then
+						return recursed
+					end
+				end
+			end
+		end
+	end
+	local files = UI.dbs[db].saved_queries
+	local found = findFile(files, file)
+    local path = Utils.concat({
+        vim.fn.stdpath("data"),
+        "sqlua",
+        found.parents,
+        found.name
+    })
+    print(path)
+	local win = UI.windows.editors
+	for _, v in ipairs(win) do
+		local buf = vim.api.nvim_win_get_buf(v)
 		-- TODO: open file selected and put contents into buffer.
 		-- On write, save contents to file.
 		-- Add checks for multiple "splits" open; if so, do nvim-tree
 		-- esque thing to select (using statusline)
-	-- end
--- end
+	end
+end
 
 ---@return nil
 local function createSidebar()
@@ -594,7 +599,6 @@ local function createSidebar()
                 local queries = require('sqlua.queries.postgres')
                 local query = string.gsub(queries.SchemaQuery, "\n", " ")
                 con:executeUv("refresh", query)
-				-- Connection.refreshSchema(UI.dbs[db])
 			end
 			UI:refreshSidebar()
 		end,
@@ -649,9 +653,9 @@ local function createSidebar()
 			else
 				local is_file, _ = string.find(val, "")
 				if is_file then
-					-- local file = val:gsub(ICONS_SUB, "")
-					-- local db, _ = sidebarFind("database", num)
-					-- openFileInEditor(db, file)
+					local file = val:gsub(ICONS_SUB, "")
+					local db, _ = sidebarFind("database", num)
+					openFileInEditor(db, file)
 				else
 					local tbl = nil
 					local schema = nil
@@ -792,7 +796,11 @@ function UI:setup(config)
 			local pos = vim.api.nvim_win_get_cursor(0)
 			pos[1] = math.max(pos[1], 2)
 			pos[2] = math.max(pos[2], 1)
-			vim.api.nvim_win_set_cursor(0, pos)
+            if next(UI.dbs) == nil then
+                vim.api.nvim_win_set_cursor(0, {1, 0})
+            else
+                vim.api.nvim_win_set_cursor(0, pos)
+            end
 		end,
 	})
 

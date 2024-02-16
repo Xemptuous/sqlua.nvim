@@ -32,10 +32,20 @@ local sep = (function()
 	end
 end)()
 
----@param path_components table<string|string[]>
+---@param ... table<string|string[]>
 ---@return string
-function M.concat(path_components)
-	return table.concat(path_components, sep)
+function M.concat(...)
+    local result = {}
+    for _, i in pairs(...) do
+        if type(i) == "table" then
+            for _, j in pairs(i) do
+                table.insert(result, j)
+            end
+        else
+            table.insert(result, i)
+        end
+    end
+    return table.concat(result, sep)
 end
 
 ---@param orig table
@@ -128,6 +138,9 @@ end
 ---@return table content json table object
 M.getDatabases = function(file)
 	local content = vim.fn.readfile(file)
+    if next(content) == nil then
+        return {}
+    end
 	content = vim.fn.json_decode(vim.fn.join(content, "\n"))
 	return content
 end

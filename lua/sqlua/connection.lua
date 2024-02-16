@@ -17,9 +17,8 @@ local Schema = {
 ---@field cmd string query to execute
 ---@field rdbms string actual db name according to the url
 ---@field schema Schema nested schema design for this db
--- ---@field schema table<table<table>> nested schema design for this db
 ---@field saved_queries table all saved files in the local dir
----the primary object representing a single connection to a rdbms by url
+---The primary object representing a single connection to a rdbms by url
 local Connection = {
 	saved_queries_expanded = false,
 	num_schema = 0,
@@ -31,7 +30,9 @@ local Connection = {
 	saved_queries = {},
 }
 
-
+---@param data string
+---@return table
+--- Takes string results and transforms them to a table of strings
 local function cleanData(data)
     local result = {}
     local i = 1
@@ -123,6 +124,10 @@ function Connection:getPostgresSchema(data)
 	end
 end
 
+---@param data table
+---@return nil
+---Gets the schema & tables for refreshes and accounts for
+---any changes or differences made since the last refresh
 function Connection:refreshPostgresSchema(data)
 	local schema = utils.shallowcopy(data)
 	table.remove(schema, 1)
@@ -177,6 +182,13 @@ function Connection:refreshPostgresSchema(data)
 	end
 end
 
+---@param query_type string
+---@param query_data table<string>
+---The main query execution wrapper.
+---Takes 3 types of arguments for `query_type`:
+---  - connect
+---  - refresh
+---  - query
 function Connection:executeUv(query_type, query_data)
     local uv = vim.uv
 
@@ -244,8 +256,8 @@ end
 
 ---@param mode string|nil
 ---@return nil
----Executes the given query (cmd).
----Optional 'mode' determines what is executed:
+---Executes a query based on editor that this command was called from
+---Optional `mode` determines what is executed:
 ---  - 'n' - executes entire buffer
 ---  - 'v' - executes visual selection
 ---  - 'V' - executes visual line
@@ -313,7 +325,7 @@ function Connection:execute(--[[optional mode string]] mode)
 			table.insert(query, string.sub(line, start, _end))
 		end
 	end
-	-- removing pure comment lines
+
     if query then
         for i, j in ipairs(query) do
             query[i] = query[i]:gsub("[\r\n]", " ")

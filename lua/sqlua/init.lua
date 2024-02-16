@@ -15,18 +15,7 @@ DEFAULT_CONFIG = {
 	keybinds = {
 		execute_query = "<leader>r",
 		activate_db = "a",
-	},
-	ddl_colors = {
-		db = "",
-		buffers = "",
-		saved_queries = "",
-		schemas = "",
-		schema = "",
-		table = "",
-		saved_query = "",
-		new_query = "",
-		table_stmt = "",
-	},
+	}
 }
 
 M.setup = function(opts)
@@ -53,13 +42,11 @@ M.setup = function(opts)
 			dbs = utils.getDatabases(config.connections_save_location)
 			for _, db in pairs(dbs) do
 				Connection.connect(db.name)
-                UI:populateSavedQueries(db.name)
 			end
 		else
 			dbs = utils.splitString(args.args, " ")
 			for _, db in pairs(dbs) do
 				Connection.connect(db)
-                UI:populateSavedQueries(db)
 			end
 		end
 		UI.connections_loaded = true
@@ -67,6 +54,7 @@ M.setup = function(opts)
 		if UI.num_dbs > 0 then
 			vim.api.nvim_win_set_cursor(UI.windows.sidebar, { 2, 2 })
 		end
+        UI:refreshSidebar()
 	end, { nargs = "?" })
 
 	vim.api.nvim_create_user_command("SQLuaAddConnection", function()
