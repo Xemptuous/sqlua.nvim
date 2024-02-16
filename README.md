@@ -39,10 +39,10 @@ You can override the default settings by feeding the table as a table to the set
 {
     db_save_location = "~/.local/share/nvim/sqlua/dbs",
     connections_save_location = "~/.local/share/nvim/sqlua/connections.json"
-    default_limit = 200,
+    default_limit = 200, -- Not currently implemented
     keybinds = {
         execute_query = "<leader>r",
-        activate_db = "a"
+        activate_db = "<C-a>"
     }
 }
 ```
@@ -52,7 +52,7 @@ You can override the default settings by feeding the table as a table to the set
 Current commands include:
 ```
 :SQLua <dbname(s)> - launches the SQLua UI with the listed DB's
-:SQLuaExecute - executes the buffer (in normal mode) or selection (in a visual mode)
+:SQLuaExecute - (executed by keybind in buffer) executes the buffer (in normal mode) or selection (in a visual mode)
 :SQLuaAddConnection - prompts the user to add a connection to the connections file
 ```
 
@@ -85,8 +85,10 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [x] Make a functional NvimTree-sidebar for navigating the DB
 - [x] Implement multiple db's available in sidebar at once (easily jumping between them)
 - [x] Implement queries, ddl, and other template queries into the sidebar tree.
-- [ ] Create asynchronous jobs for queries and connections.
-- [ ] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
+- [x] Create asynchronous jobs for queries and connections.
+- [x] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
+- [ ] Implement Nvim-Tree QoL features into sidebar
+- [ ] Add default limit functionality
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
 - [ ] Integrate other databases
