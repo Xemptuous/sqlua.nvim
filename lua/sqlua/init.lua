@@ -14,7 +14,7 @@ DEFAULT_CONFIG = {
 	default_limit = 200,
 	keybinds = {
 		execute_query = "<leader>r",
-		activate_db = "a",
+		activate_db = "<C-a>",
 	}
 }
 

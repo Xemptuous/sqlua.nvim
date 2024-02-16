@@ -355,9 +355,10 @@ function UI:refreshSidebar()
     local hl = string.len(helptext) / 2
 	local helpTextTable = {
 		string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
-		" a - set the active db",
-		" <A-t> - toggle sidebar focus",
-		" <leader>r - run query",
+        " a - add a file in the selected dir",
+        " "..UI.options.keybinds.activate_db.." - set the active db",
+		" <C-t> - toggle sidebar focus",
+        " "..UI.options.keybinds.execute_query.." - run query",
 	}
 	local setCursor = UI.last_cursor_position.sidebar
 	local srow = 2
@@ -526,15 +527,22 @@ local function openFileInEditor(db, file)
         found.parents,
         found.name
     })
-    print(path)
-	local win = UI.windows.editors
-	for _, v in ipairs(win) do
-		local buf = vim.api.nvim_win_get_buf(v)
-		-- TODO: open file selected and put contents into buffer.
-		-- On write, save contents to file.
-		-- Add checks for multiple "splits" open; if so, do nvim-tree
-		-- esque thing to select (using statusline)
-	end
+    local existing_buf = nil
+    for _, buffer in pairs(UI.buffers.editors) do
+        local name = vim.api.nvim_buf_get_name(buffer)
+        if name == path then
+            existing_buf = buffer
+        end
+    end
+    if existing_buf then
+        vim.api.nvim_win_set_buf(UI.windows.editors[1], existing_buf)
+    else
+        local buf = vim.api.nvim_create_buf(true, false)
+        table.insert(UI.buffers.editors, buf)
+        vim.api.nvim_buf_set_name(buf, path)
+        vim.api.nvim_buf_call(buf, vim.cmd.edit)
+        vim.api.nvim_win_set_buf(UI.windows.editors[1], buf)
+    end
 end
 
 ---@return nil
@@ -557,7 +565,7 @@ local function createSidebar()
 	vim.cmd("syn match Boolean /[離]/")
 	vim.cmd("syn match Comment /[]/")
 	UI.buffers.sidebar = buf
-	vim.api.nvim_set_keymap("n", "<A-t>", "", {
+	vim.api.nvim_set_keymap("n", "<C-t>", "", {
 		callback = function()
 			local curbuf = vim.api.nvim_get_current_buf()
 			local sidebar_pos = UI.last_cursor_position.sidebar
@@ -603,6 +611,20 @@ local function createSidebar()
 			UI:refreshSidebar()
 		end,
 	})
+   --  vim.api.nvim_buf_set_keymap(buf, "n", "a", "", {
+   --      callback = function()
+   --          local pos = vim.api.nvim_win_get_cursor(0)
+   --          P(pos)
+			-- local text = vim.api.nvim_get_current_line()
+			-- text = text:gsub("%s+", "")
+   --          local is_folder, _ = string.find(text, "")
+   --          local is_file, _ = string.find(text, "")
+   --          text = text:gsub(ICONS_SUB, "")
+   --          P(text)
+   --          if text:match("Saved Queries") then
+   --          end
+   --      end
+   --  })
 	vim.api.nvim_buf_set_keymap(buf, "n", UI.options.keybinds.activate_db, "", {
 		callback = function()
 			vim.cmd("syn match Normal /" .. UI.active_db .. "$/")
@@ -687,9 +709,16 @@ end
 ---@param win window
 ---@return nil
 local function createEditor(win)
+    local name = Utils.concat({
+        vim.fn.stdpath("data"),
+        "sqlua",
+        "Editor_"..EDITOR_NUM
+    })
 	vim.api.nvim_set_current_win(win)
+    -- TODO: change scratch to False and add autocmd
+    -- to save the file
 	local buf = vim.api.nvim_create_buf(true, true)
-	vim.api.nvim_buf_set_name(buf, "Editor " .. EDITOR_NUM)
+	vim.api.nvim_buf_set_name(buf, name)
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_win_set_cursor(win, { 1, 0 })
 	vim.cmd("setfiletype sql")
