@@ -406,6 +406,7 @@ function UI:refreshSidebar()
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
+        UI.dbs[db].files:setup(db)
 		vim.api.nvim_buf_add_highlight(
             UI.buffers.sidebar,
             UI.sidebar_ns,
@@ -413,7 +414,6 @@ function UI:refreshSidebar()
             srow - 1, 10,
             string.len(db)
         )
-        -- UI:populateSavedQueries(db)
 	end
 	if not pcall(function()
 		vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)

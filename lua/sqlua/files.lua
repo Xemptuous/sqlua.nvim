@@ -50,6 +50,10 @@ end
 
 ---@param db_name string
 function Files:setup(db_name)
+    -- reset files
+    if next(self.files) ~= nil then
+        self.files = {}
+    end
     local parent = Utils.concat({ vim.fn.stdpath("data"), "sqlua", db_name })
     local content = vim.split(
         vim.fn.glob(parent .. "/*"), "\n", { trimempty = true }
