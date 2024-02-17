@@ -124,63 +124,6 @@ function Connection:getPostgresSchema(data)
 	end
 end
 
----@param data table
----@return nil
----Gets the schema & tables for refreshes and accounts for
----any changes or differences made since the last refresh
-function Connection:refreshPostgresSchema(data)
-	local schema = utils.shallowcopy(data)
-	table.remove(schema, 1)
-	table.remove(schema, 1)
-	table.remove(schema)
-	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "%s", "")
-		schema[i] = utils.splitString(schema[i], "|")
-
-		local schema_name = schema[i][1]
-		local table_name = schema[i][2]
-
-		if not self.schema[schema_name] then
-			self.schema[schema_name] = {
-				expanded = false,
-				num_tables = 0,
-				tables = {},
-			}
-            self.num_schema = self.num_schema + 1
-		end
-		if table_name ~= "-" then
-			if not self.schema[schema_name].tables[table_name] then
-				self.schema[schema_name].tables[table_name] = {
-					expanded = false,
-				}
-				self.schema[schema_name].num_tables =
-                    self.schema[schema_name].num_tables + 1
-			end
-		end
-	end
-	-- cleaner k:v version
-	local final_schema = {}
-	for _, tbl in ipairs(schema) do
-		if not final_schema[tbl[1]] then
-			final_schema[tbl[1]] = {}
-		end
-		final_schema[tbl[1]][tbl[2]] = ""
-	end
-	-- remove schema/tables that have been deleted since last refresh
-	for s, _ in pairs(self.schema) do
-		if s ~= "pg_catalog" and s ~= "information_schema" then
-			if final_schema[s] == nil then
-				self.schema[s] = nil
-			else
-				for t, _ in pairs(self.schema[s].tables) do
-					if final_schema[s][t] == nil then
-						self.schema[s].tables[t] = nil
-					end
-				end
-			end
-		end
-	end
-end
 
 ---@param query_type string
 ---@param query_data table<string>
@@ -215,7 +158,8 @@ function Connection:executeUv(query_type, query_data)
                     ui:addConnection(self)
                     ui:refreshSidebar()
                 elseif query_type == "refresh" then
-                    self:refreshPostgresSchema(final)
+                    self.schema = {}
+                    self:getPostgresSchema(final)
                     ui:refreshSidebar()
                 elseif query_type == "query" then
                     self:query(final)
