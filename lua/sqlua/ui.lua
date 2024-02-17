@@ -117,8 +117,8 @@ end
 local function toggleExpanded(table, search)
 	for key, value in pairs(table) do
 		if key == search then
-			table[search].expanded = not table[search].expanded
-			return
+            table[search].expanded = not table[search].expanded
+            return
 		elseif type(value) == "table" then
 			toggleExpanded(value, search)
 		end
@@ -185,71 +185,77 @@ end
 
 ---@param db string
 ---Populates files in the database local folder
-function UI:populateSavedQueries(db)
-	local File = {
-		name = "",
-		isdir = false,
-		expanded = false,
-		parents = {},
-		files = {},
-	}
-
-	local function iterateFiles(dir, parent)
-		for _, file in pairs(dir) do
-			local f = vim.deepcopy(File)
-			local fname = Utils.getFileName(file)
-			f.parents = vim.deepcopy(parent.parents)
-
-			table.insert(f.parents, parent.name)
-			if vim.fn.isdirectory(file) == 1 then
-				f.name = fname
-				f.isdir = true
-				parent.files[fname] = f
-				dir = vim.split(
-                    vim.fn.glob(file .. "/*"), "\n", {
-                        trimempty = true
-                    }
-                )
-				iterateFiles(dir, f)
-			else
-				f.name = fname
-				parent.files[f.name] = f
-			end
-		end
-	end
-
-	local parent = Utils.concat({
-        vim.fn.stdpath("data"),
-        "sqlua",
-        db
-    })
-	local content = vim.split(
-        vim.fn.glob(parent .. "/*"), "\n", {
-            trimempty = true
-        }
-    )
-
-	for _, file in pairs(content) do
-		local f = vim.deepcopy(File)
-		local fname = Utils.getFileName(file)
-
-		table.insert(f.parents, db)
-		if vim.fn.isdirectory(file) == 1 then
-			f.name = fname
-			f.isdir = true
-			UI.dbs[db].saved_queries[fname] = f
-			local dir = vim.split(
-                vim.fn.glob(file .. "/*"), "\n", {
-                    trimempty = true
-                }
-            )
-			iterateFiles(dir, f)
-		else
-			f.name = fname
-			UI.dbs[db].saved_queries[fname] = f
-		end
-	end
-end
+-- function UI:populateSavedQueries(db)
+-- 	local File = {
+-- 		name = "",
+-- 		isdir = false,
+-- 		expanded = false,
+-- 		parents = {},
+-- 		files = {},
+-- 	}
+--
+-- 	local function iterateFiles(dir, parent)
+-- 		for _, file in pairs(dir) do
+-- 			local f = vim.deepcopy(File)
+-- 			local fname = Utils.getFileName(file)
+-- 			f.parents = vim.deepcopy(parent.parents)
+--
+-- 			table.insert(f.parents, parent.name)
+-- 			if vim.fn.isdirectory(file) == 1 then
+-- 				f.name = fname
+-- 				f.isdir = true
+-- 				parent.files[fname] = f
+-- 				dir = vim.split(
+--                     vim.fn.glob(file .. "/*"), "\n", {
+--                         trimempty = true
+--                     }
+--                 )
+-- 				iterateFiles(dir, f)
+-- 			else
+-- 				f.name = fname
+-- 				parent.files[f.name] = f
+-- 			end
+-- 		end
+-- 	end
+--
+-- 	local parent = Utils.concat({
+--         vim.fn.stdpath("data"),
+--         "sqlua",
+--         db
+--     })
+-- 	local content = vim.split(
+--         vim.fn.glob(parent .. "/*"), "\n", {
+--             trimempty = true
+--         }
+--     )
+--
+--     -- iterate through db directory files
+-- 	for _, file in pairs(content) do
+--         -- print(file)
+-- 		local f = vim.deepcopy(File)
+-- 		local fname = Utils.getFileName(file)
+--
+-- 		table.insert(f.parents, db)
+-- 		if vim.fn.isdirectory(file) == 1 then
+-- 			f.name = fname
+-- 			f.isdir = true
+-- 			UI.dbs[db].files[fname] = f
+-- 			local dir = vim.split(
+--                 vim.fn.glob(file .. "/*"), "\n", {
+--                     trimempty = true
+--                 }
+--             )
+-- 			iterateFiles(dir, f)
+-- 		else
+-- 			f.name = fname
+-- 			UI.dbs[db].files[fname] = f
+-- 		end
+-- 	end
+--
+--     -- remove files that have been deleted
+--     for s, _ in pairs(UI.dbs[db].files) do
+--     end
+-- end
 
 function UI:refreshSidebar()
 	---@param buf buffer
@@ -282,23 +288,25 @@ function UI:refreshSidebar()
 	---@param srow integer
 	---@param sep string
 	---@return integer srow
-	local function refreshSavedQueries(buf, dir, srow, sep)
-		for _, file in Utils.pairsByKeys(dir) do
-			if file.isdir then
-				local text = UI_ICONS.folder .. file.name
-				if file.expanded then
-					srow = printSidebarExpanded(buf, srow, text, sep)
-					srow = refreshSavedQueries(
-                        buf, file.files, srow, sep .. "  "
-                    )
-				else
-					srow = printSidebarCollapsed(buf, srow, text, sep)
-				end
-			else
-				local text = UI_ICONS.file .. file.name
-				srow = printSidebarEmpty(buf, srow, sep .. "  " .. text)
-			end
-		end
+	local function refreshSavedQueries(buf, file, srow, sep)
+        if file.isdir then
+            local text = UI_ICONS.folder .. file.name
+            if file.expanded then
+                srow = printSidebarExpanded(buf, srow, text, sep)
+                if next(file.files) ~= nil then
+                    for _, f in pairs(file.files) do
+                        srow = refreshSavedQueries(
+                            buf, f, srow, sep .. "  "
+                        )
+                    end
+                end
+            else
+                srow = printSidebarCollapsed(buf, srow, text, sep)
+            end
+        else
+            local text = UI_ICONS.file .. file.name
+            srow = printSidebarEmpty(buf, srow, sep .. "  " .. text)
+        end
 		return srow
 	end
 
@@ -331,11 +339,13 @@ function UI:refreshSidebar()
 	local function refreshOverview(buf, db, srow)
 		local sep = "   "
 		local text = UI_ICONS.folder .. "Saved Queries"
-		if UI.dbs[db].saved_queries_expanded then
+		if UI.dbs[db].files_expanded then
 			srow = printSidebarExpanded(buf, srow, text, sep)
-			srow = refreshSavedQueries(
-                buf, UI.dbs[db].saved_queries, srow, sep .. "  "
-            )
+            for _, file in pairs(UI.dbs[db].files.files) do
+                srow = refreshSavedQueries(
+                    buf, file, srow, sep .. "  "
+                )
+            end
 			srow = refreshSchema(buf, db, srow)
 		else
 			srow = printSidebarCollapsed(buf, srow, text, sep)
@@ -403,6 +413,7 @@ function UI:refreshSidebar()
             srow - 1, 10,
             string.len(db)
         )
+        -- UI:populateSavedQueries(db)
 	end
 	if not pcall(function()
 		vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
@@ -425,12 +436,10 @@ function UI:addConnection(con)
 		UI.active_db = db
 	end
 	UI.dbs[db] = con
-	-- for _ in pairs(UI.dbs[con.name].schema) do
-	-- 	UI.dbs[db].num_schema = UI.dbs[db].num_schema + 1
-	-- end
+    UI.dbs[db].files = require("sqlua.files"):setup(db)
 	UI.num_dbs = UI.num_dbs + 1
 	setSidebarModifiable(UI.buffers.sidebar, false)
-	UI:populateSavedQueries(db)
+	-- UI:populateSavedQueries(db)
 end
 
 ---@param type string the type to search for
@@ -503,30 +512,9 @@ local function sidebarFind(type, num)
 	end
 end
 
-local function openFileInEditor(db, file)
-	local function findFile(table, search)
-		for key, value in pairs(table) do
-			if key == "parents" and type(value) == "table" then
-			elseif type(value) == "table" then
-				if key == search then
-					return value
-				else
-					local recursed = findFile(value, search)
-					if recursed ~= nil then
-						return recursed
-					end
-				end
-			end
-		end
-	end
-	local files = UI.dbs[db].saved_queries
-	local found = findFile(files, file)
-    local path = Utils.concat({
-        vim.fn.stdpath("data"),
-        "sqlua",
-        found.parents,
-        found.name
-    })
+local function openFileInEditor(db, filename)
+    local path = UI.dbs[db].files:find(filename).path
+    print(path)
     local existing_buf = nil
     for _, buffer in pairs(UI.buffers.editors) do
         local name = vim.api.nvim_buf_get_name(buffer)
@@ -659,14 +647,17 @@ local function createSidebar()
 			local is_collapsed, _ = string.find(val, "")
 			local is_expanded, _ = string.find(val, "")
 			if is_collapsed or is_expanded then
+                local is_folder, _ = string.find(val, "")
 				local db = nil
 				db, _ = sidebarFind("database", num)
 				val = val:gsub(ICONS_SUB, "")
 				if db and db == val then
 					toggleExpanded(UI.dbs, val)
 				elseif val == "SavedQueries" then
-					UI.dbs[db].saved_queries_expanded =
-                        not UI.dbs[db].saved_queries_expanded
+					UI.dbs[db].files_expanded =
+                        not UI.dbs[db].files_expanded
+                elseif is_folder then
+                    toggleExpanded(UI.dbs[db].files, val)
 				else
 					toggleExpanded(UI.dbs[db], val)
 				end
@@ -677,6 +668,7 @@ local function createSidebar()
 				if is_file then
 					local file = val:gsub(ICONS_SUB, "")
 					local db, _ = sidebarFind("database", num)
+                    -- UI.dbs[db].files:find(file):open(buf)
 					openFileInEditor(db, file)
 				else
 					local tbl = nil

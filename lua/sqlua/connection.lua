@@ -10,24 +10,24 @@ local Schema = {
 }
 
 ---@class Connection
----@field saved_queries_expanded boolean sidebar expansion flag
+---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
 ---@field cmd string query to execute
 ---@field rdbms string actual db name according to the url
 ---@field schema Schema nested schema design for this db
----@field saved_queries table all saved files in the local dir
+---@field files table all saved files in the local dir
 ---The primary object representing a single connection to a rdbms by url
 local Connection = {
-	saved_queries_expanded = false,
+	files_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
 	cmd = "",
 	rdbms = "",
 	schema = {},
-	saved_queries = {},
+	files = {},
 }
 
 ---@param data string
