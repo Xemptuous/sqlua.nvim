@@ -14,7 +14,7 @@ local File = {
 
 
 local function iterateFiles(dir, parent)
-    for _, file in pairs(dir) do
+    for _, file in Utils.pairsByKeys(dir) do
         local f = vim.deepcopy(File)
         local fname = Utils.getFileName(file)
         f.parents = vim.deepcopy(parent.parents)
@@ -44,23 +44,16 @@ local function iterateFiles(dir, parent)
 end
 
 
-function Files:refresh()
-end
-
-
 ---@param db_name string
+---Populates the files in the given db's directory
 function Files:setup(db_name)
-    -- reset files
-    if next(self.files) ~= nil then
-        self.files = {}
-    end
     local parent = Utils.concat({ vim.fn.stdpath("data"), "sqlua", db_name })
     local content = vim.split(
         vim.fn.glob(parent .. "/*"), "\n", { trimempty = true }
     )
 
     -- iterate through db directory files
-    for _, file in pairs(content) do
+    for _, file in Utils.pairsByKeys(content) do
         local f = vim.deepcopy(File)
         local fname = Utils.getFileName(file)
 
@@ -87,6 +80,16 @@ function Files:setup(db_name)
     end
     return self
 end
+
+function Files:refresh(db_name)
+    local old_files = self.files
+    self.files = {}
+    local f = vim.deepcopy(self)
+    f:setup(db_name)
+    local new_files = f.files
+    self.files = vim.tbl_deep_extend("keep", old_files, new_files)
+end
+
 
 local function recurse(table, search)
     for name, file in pairs(table) do

@@ -20,6 +20,7 @@ local Schema = {
 ---@field files table all saved files in the local dir
 ---The primary object representing a single connection to a rdbms by url
 local Connection = {
+    expanded = false,
 	files_expanded = false,
 	num_schema = 0,
 	name = "",
@@ -158,8 +159,13 @@ function Connection:executeUv(query_type, query_data)
                     ui:addConnection(self)
                     ui:refreshSidebar()
                 elseif query_type == "refresh" then
+                    local old_schema = self.schema
                     self.schema = {}
-                    self:getPostgresSchema(final)
+                    local con = vim.deepcopy(self)
+                    con:getPostgresSchema(final)
+                    local new_schema = con.schema
+                    self.schema = vim.tbl_deep_extend(
+                        "force", old_schema, new_schema)
                     ui:refreshSidebar()
                 elseif query_type == "query" then
                     self:query(final)
