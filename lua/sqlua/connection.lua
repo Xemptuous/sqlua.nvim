@@ -10,24 +10,25 @@ local Schema = {
 }
 
 ---@class Connection
----@field saved_queries_expanded boolean sidebar expansion flag
+---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
 ---@field cmd string query to execute
 ---@field rdbms string actual db name according to the url
 ---@field schema Schema nested schema design for this db
----@field saved_queries table all saved files in the local dir
+---@field files table all saved files in the local dir
 ---The primary object representing a single connection to a rdbms by url
 local Connection = {
-	saved_queries_expanded = false,
+    expanded = false,
+	files_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
 	cmd = "",
 	rdbms = "",
 	schema = {},
-	saved_queries = {},
+	files = {},
 }
 
 ---@param data string
@@ -100,6 +101,13 @@ function Connection:getPostgresSchema(data)
 	table.remove(schema, 1)
 	table.remove(schema)
 
+    local old_schema = nil
+    if next(self.schema) ~= nil then
+        old_schema = vim.deepcopy(self.schema)
+    end
+    self.num_schema = 0
+    self.schema = {}
+
 	for i, _ in ipairs(schema) do
 		schema[i] = string.gsub(schema[i], "%s", "")
 		schema[i] = utils.splitString(schema[i], "|")
@@ -122,65 +130,29 @@ function Connection:getPostgresSchema(data)
                 self.schema[schema_name].num_tables + 1
 		end
 	end
+    if old_schema ~= nil then
+        for s, st in pairs(self.schema) do
+            local os, ns = old_schema[s], self.schema[s]
+            if os ~= nil and ns == nil then
+                self.schema[s] = st
+            elseif os == nil and ns ~= nil then
+                old_schema[s] = st
+            end
+            self.schema[s].expanded = old_schema[s].expanded
+            if next(self.schema) ~= nil then
+                for t, tt in pairs(self.schema[s]) do
+                    local ost, nst = old_schema[s][t], self.schema[s][t]
+                    if ost ~= nil and nst == nil then
+                        self.schema[s][t] = tt
+                    elseif ost == nil and nst ~= nil then
+                        old_schema[s][t] = tt
+                    end
+                end
+            end
+        end
+    end
 end
 
----@param data table
----@return nil
----Gets the schema & tables for refreshes and accounts for
----any changes or differences made since the last refresh
-function Connection:refreshPostgresSchema(data)
-	local schema = utils.shallowcopy(data)
-	table.remove(schema, 1)
-	table.remove(schema, 1)
-	table.remove(schema)
-	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "%s", "")
-		schema[i] = utils.splitString(schema[i], "|")
-
-		local schema_name = schema[i][1]
-		local table_name = schema[i][2]
-
-		if not self.schema[schema_name] then
-			self.schema[schema_name] = {
-				expanded = false,
-				num_tables = 0,
-				tables = {},
-			}
-            self.num_schema = self.num_schema + 1
-		end
-		if table_name ~= "-" then
-			if not self.schema[schema_name].tables[table_name] then
-				self.schema[schema_name].tables[table_name] = {
-					expanded = false,
-				}
-				self.schema[schema_name].num_tables =
-                    self.schema[schema_name].num_tables + 1
-			end
-		end
-	end
-	-- cleaner k:v version
-	local final_schema = {}
-	for _, tbl in ipairs(schema) do
-		if not final_schema[tbl[1]] then
-			final_schema[tbl[1]] = {}
-		end
-		final_schema[tbl[1]][tbl[2]] = ""
-	end
-	-- remove schema/tables that have been deleted since last refresh
-	for s, _ in pairs(self.schema) do
-		if s ~= "pg_catalog" and s ~= "information_schema" then
-			if final_schema[s] == nil then
-				self.schema[s] = nil
-			else
-				for t, _ in pairs(self.schema[s].tables) do
-					if final_schema[s][t] == nil then
-						self.schema[s].tables[t] = nil
-					end
-				end
-			end
-		end
-	end
-end
 
 ---@param query_type string
 ---@param query_data table<string>
@@ -215,8 +187,16 @@ function Connection:executeUv(query_type, query_data)
                     ui:addConnection(self)
                     ui:refreshSidebar()
                 elseif query_type == "refresh" then
-                    self:refreshPostgresSchema(final)
+                    self:getPostgresSchema(final)
                     ui:refreshSidebar()
+                    -- local old_schema = self.schema
+                    -- self.schema = {}
+                    -- local con = vim.deepcopy(self)
+                    -- con:getPostgresSchema(final)
+                    -- local new_schema = con.schema
+                    -- self.schema = vim.tbl_deep_extend(
+                    --     "force", old_schema, new_schema)
+                    -- ui:refreshSidebar()
                 elseif query_type == "query" then
                     self:query(final)
                 end
