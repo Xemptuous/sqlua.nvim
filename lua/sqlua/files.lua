@@ -69,6 +69,7 @@ function Files:setup(db_name)
     if next(self.files) ~= nil then
         old_files = vim.deepcopy(self.files)
     end
+    self.db_name = db_name
     self.files = {}
 
     -- iterate through db directory files
@@ -116,15 +117,8 @@ function Files:setup(db_name)
     return self
 end
 
-function Files:refresh(db_name)
-    self:setup(db_name)
-    -- --TODO: file deletions not being removed
-    -- local old_files = vim.deepcopy(self.files)
-    -- self.files = {}
-    -- local f = vim.deepcopy(self)
-    -- f:setup(db_name)
-    -- local new_files = f.files
-    -- self.files = vim.tbl_deep_extend("keep", old_files, new_files)
+function Files:refresh()
+    self:setup(self.db_name)
 end
 
 

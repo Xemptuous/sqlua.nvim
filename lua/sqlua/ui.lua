@@ -404,7 +404,6 @@ function UI:refreshSidebar()
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
-        -- UI.dbs[db].files:refresh(db)
 		vim.api.nvim_buf_add_highlight(
             UI.buffers.sidebar,
             UI.sidebar_ns,
@@ -522,7 +521,7 @@ local function createSidebar()
                 local queries = require('sqlua.queries.postgres')
                 local query = string.gsub(queries.SchemaQuery, "\n", " ")
                 con:executeUv("refresh", query)
-                con.files:refresh(con.name)
+                con.files:refresh()
 			end
 			UI:refreshSidebar()
 		end,
@@ -559,6 +558,7 @@ local function createSidebar()
             local newfile = vim.fn.input("Create file: "..show_path.."/")
             local save_path = Utils.concat({parent_path, newfile})
             vim.fn.writefile({}, save_path)
+            UI.dbs[db].files:refresh()
             UI:refreshSidebar()
         end
     })
@@ -583,6 +583,7 @@ local function createSidebar()
             local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
             if response == "Y" then
                 assert(os.remove(file.path))
+                UI.dbs[db].files:refresh()
                 UI:refreshSidebar()
             end
         end
