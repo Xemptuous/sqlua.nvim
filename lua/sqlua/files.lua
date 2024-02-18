@@ -61,6 +61,7 @@ function Files:setup(db_name)
         if vim.fn.isdirectory(file) == 1 then
             f.name = fname
             f.isdir = true
+            f.expanded = false
             f.path = Utils.concat({
                 vim.fn.stdpath("data"), "sqlua", f.parents, f.name
             })
@@ -72,6 +73,7 @@ function Files:setup(db_name)
         else
             f.name = fname
             f.isdir = false
+            f.expanded = false
             f.path = Utils.concat({
                 vim.fn.stdpath("data"), "sqlua", f.parents, f.name
             })
@@ -82,7 +84,8 @@ function Files:setup(db_name)
 end
 
 function Files:refresh(db_name)
-    local old_files = self.files
+    --TODO: file deletions not being removed
+    local old_files = vim.deepcopy(self.files)
     self.files = {}
     local f = vim.deepcopy(self)
     f:setup(db_name)
@@ -91,12 +94,12 @@ function Files:refresh(db_name)
 end
 
 
-local function recurse(table, search)
+local function recurseFind(table, search)
     for name, file in pairs(table) do
         if name == search then
             return file
         elseif file.isdir then
-            local found = recurse(file.files, search)
+            local found = recurseFind(file.files, search)
             if found ~= nil and found.name == search then
                 return found
             end
@@ -110,7 +113,7 @@ function Files:find(search)
             return file
         elseif file.isdir then
             if next(file.files) ~= nil then
-                local found = recurse(file.files, search)
+                local found = recurseFind(file.files, search)
                 if found ~= nil and found.name == search then
                     return found
                 end
@@ -118,7 +121,6 @@ function Files:find(search)
         end
     end
 end
-
 
 
 return Files

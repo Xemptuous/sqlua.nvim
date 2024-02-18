@@ -362,7 +362,8 @@ function UI:refreshSidebar()
     local hl = string.len(helptext) / 2
 	local helpTextTable = {
 		string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
-        " a - add a file in the selected dir",
+        " a - add a file in the select dir",
+        " d - delete the select file",
         " "..UI.options.keybinds.activate_db.." - set the active db",
 		" <C-t> - toggle sidebar focus",
         " "..UI.options.keybinds.execute_query.." - run query",
@@ -526,17 +527,63 @@ local function createSidebar()
 		end,
 	})
     vim.api.nvim_buf_set_keymap(buf, "n", "a", "", {
+        nowait = true,
+        callback = function()
+            local pos = vim.api.nvim_win_get_cursor(0)
+			local text = vim.api.nvim_get_current_line()
+            local is_folder = text:match("") ~= nil
+            local is_file = text:match("") ~= nil
+            if not is_folder and not is_file then
+                return
+            end
+            local db, _ = sidebarFind("database", pos[1])
+			text = text:gsub("%s+", "")
+            text = text:gsub(ICONS_SUB, "")
+            print(text)
+            local file = UI.dbs[db].files:find(text)
+            local parent_path = ""
+            local show_path = ""
+            if file == nil and text == "SavedQueries" then
+                parent_path = Utils.concat({
+                    vim.fn.stdpath("data"), "sqlua", db
+                })
+                show_path = parent_path
+            else
+                if file.isdir then
+                    parent_path = file.path
+                else
+                    parent_path = file.path:match(".*/"):sub(1, -2)
+                end
+                show_path = parent_path:match(db..".*")
+            end
+            local newfile = vim.fn.input("Create file: "..show_path.."/")
+            local save_path = Utils.concat({parent_path, newfile})
+            vim.fn.writefile({}, save_path)
+            UI:refreshSidebar()
+        end
+    })
+    vim.api.nvim_buf_set_keymap(buf, "n", "d", "", {
+        nowait = true,
         callback = function()
             local pos = vim.api.nvim_win_get_cursor(0)
 			local text = vim.api.nvim_get_current_line()
             local db, _ = sidebarFind("database", pos[1])
+            local is_folder = text:match("") ~= nil
+            local is_file = text:match("") ~= nil
+            if not is_folder and not is_file then
+                return
+            end
 			text = text:gsub("%s+", "")
-            local is_folder, _ = string.find(text, "")
-            local is_file, _ = string.find(text, "")
             text = text:gsub(ICONS_SUB, "")
-            print(db)
-            P(text)
-            if text:match("Saved Queries") then
+            if text == "SavedQueries" then
+                return
+            end
+            local file = UI.dbs[db].files:find(text)
+            local show_path = file.path:match(db..".*")
+            local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
+            if response == "Y" then
+                assert(os.remove(file.path))
+                UI:refreshSidebar()
             end
         end
     })
