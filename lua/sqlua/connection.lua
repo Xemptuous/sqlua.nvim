@@ -101,6 +101,13 @@ function Connection:getPostgresSchema(data)
 	table.remove(schema, 1)
 	table.remove(schema)
 
+    local old_schema = nil
+    if next(self.schema) ~= nil then
+        old_schema = vim.deepcopy(self.schema)
+    end
+    self.num_schema = 0
+    self.schema = {}
+
 	for i, _ in ipairs(schema) do
 		schema[i] = string.gsub(schema[i], "%s", "")
 		schema[i] = utils.splitString(schema[i], "|")
@@ -123,6 +130,27 @@ function Connection:getPostgresSchema(data)
                 self.schema[schema_name].num_tables + 1
 		end
 	end
+    if old_schema ~= nil then
+        for s, st in pairs(self.schema) do
+            local os, ns = old_schema[s], self.schema[s]
+            if os ~= nil and ns == nil then
+                self.schema[s] = st
+            elseif os == nil and ns ~= nil then
+                old_schema[s] = st
+            end
+            self.schema[s].expanded = old_schema[s].expanded
+            if next(self.schema) ~= nil then
+                for t, tt in pairs(self.schema[s]) do
+                    local ost, nst = old_schema[s][t], self.schema[s][t]
+                    if ost ~= nil and nst == nil then
+                        self.schema[s][t] = tt
+                    elseif ost == nil and nst ~= nil then
+                        old_schema[s][t] = tt
+                    end
+                end
+            end
+        end
+    end
 end
 
 
@@ -159,14 +187,16 @@ function Connection:executeUv(query_type, query_data)
                     ui:addConnection(self)
                     ui:refreshSidebar()
                 elseif query_type == "refresh" then
-                    local old_schema = self.schema
-                    self.schema = {}
-                    local con = vim.deepcopy(self)
-                    con:getPostgresSchema(final)
-                    local new_schema = con.schema
-                    self.schema = vim.tbl_deep_extend(
-                        "force", old_schema, new_schema)
+                    self:getPostgresSchema(final)
                     ui:refreshSidebar()
+                    -- local old_schema = self.schema
+                    -- self.schema = {}
+                    -- local con = vim.deepcopy(self)
+                    -- con:getPostgresSchema(final)
+                    -- local new_schema = con.schema
+                    -- self.schema = vim.tbl_deep_extend(
+                    --     "force", old_schema, new_schema)
+                    -- ui:refreshSidebar()
                 elseif query_type == "query" then
                     self:query(final)
                 end
