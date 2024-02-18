@@ -44,6 +44,20 @@ local function iterateFiles(dir, parent)
 end
 
 
+local function recursiveRefresh(of, nf)
+    for fname, file in pairs(nf.files) do
+        if of.files[fname] ~= nil and nf.files[fname] == nil then
+            nf.files[fname] = file
+        elseif of.files[fname] == nil and nf.files[fname] ~= nil then
+            of.files[fname] = file
+        end
+        nf.files[fname].expanded = of.files[fname].expanded
+        if next(nf.files) ~= nil then
+            recursiveRefresh(of.files[fname], nf.files[fname])
+        end
+    end
+end
+
 ---@param db_name string
 ---Populates the files in the given db's directory
 function Files:setup(db_name)
@@ -51,6 +65,11 @@ function Files:setup(db_name)
     local content = vim.split(
         vim.fn.glob(parent .. "/*"), "\n", { trimempty = true }
     )
+    local old_files = nil
+    if next(self.files) ~= nil then
+        old_files = vim.deepcopy(self.files)
+    end
+    self.files = {}
 
     -- iterate through db directory files
     for _, file in Utils.pairsByKeys(content) do
@@ -80,17 +99,32 @@ function Files:setup(db_name)
             self.files[fname] = f
         end
     end
+    if old_files ~= nil then
+        for fname, file in pairs(self.files) do
+            if old_files[fname] ~= nil and self.files[fname] == nil then
+                self.files[fname] = file
+            elseif old_files[fname] == nil and self.files[fname] ~= nil then
+                old_files[fname] = file
+            end
+            self.files[fname].expanded = old_files[fname].expanded
+            if next(self.files) ~= nil then
+                recursiveRefresh(old_files[fname], self.files[fname])
+            end
+        end
+    end
+
     return self
 end
 
 function Files:refresh(db_name)
-    --TODO: file deletions not being removed
-    local old_files = vim.deepcopy(self.files)
-    self.files = {}
-    local f = vim.deepcopy(self)
-    f:setup(db_name)
-    local new_files = f.files
-    self.files = vim.tbl_deep_extend("keep", old_files, new_files)
+    self:setup(db_name)
+    -- --TODO: file deletions not being removed
+    -- local old_files = vim.deepcopy(self.files)
+    -- self.files = {}
+    -- local f = vim.deepcopy(self)
+    -- f:setup(db_name)
+    -- local new_files = f.files
+    -- self.files = vim.tbl_deep_extend("keep", old_files, new_files)
 end
 
 

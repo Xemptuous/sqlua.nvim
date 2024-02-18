@@ -404,7 +404,7 @@ function UI:refreshSidebar()
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
-        UI.dbs[db].files:refresh(db)
+        -- UI.dbs[db].files:refresh(db)
 		vim.api.nvim_buf_add_highlight(
             UI.buffers.sidebar,
             UI.sidebar_ns,
@@ -522,6 +522,7 @@ local function createSidebar()
                 local queries = require('sqlua.queries.postgres')
                 local query = string.gsub(queries.SchemaQuery, "\n", " ")
                 con:executeUv("refresh", query)
+                con.files:refresh(con.name)
 			end
 			UI:refreshSidebar()
 		end,
@@ -539,7 +540,6 @@ local function createSidebar()
             local db, _ = sidebarFind("database", pos[1])
 			text = text:gsub("%s+", "")
             text = text:gsub(ICONS_SUB, "")
-            print(text)
             local file = UI.dbs[db].files:find(text)
             local parent_path = ""
             local show_path = ""
