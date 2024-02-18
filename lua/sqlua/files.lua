@@ -57,7 +57,6 @@ local function recursiveRefresh(of, nf)
         end
     end
 end
-
 ---@param db_name string
 ---Populates the files in the given db's directory
 function Files:setup(db_name)
@@ -117,6 +116,7 @@ function Files:setup(db_name)
     return self
 end
 
+
 function Files:refresh()
     self:setup(self.db_name)
 end
@@ -134,7 +134,6 @@ local function recurseFind(table, search)
         end
     end
 end
-
 function Files:find(search)
     for name, file in pairs(self.files) do
         if name == search then
