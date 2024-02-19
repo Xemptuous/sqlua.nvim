@@ -28,7 +28,7 @@ local UI = {
 	buffers = {
 		sidebar = 0,
 		editors = {},
-		results = {},
+		results = nil,
 	},
 	windows = {
 		sidebar = 0,
@@ -101,11 +101,9 @@ local function getBufferType(buf)
 			return "editor", v
 		end
 	end
-	for _, v in pairs(UI.buffers.results) do
-		if v == buf then
-			return "result", v
-		end
-	end
+    if UI.buffers.results == buf then
+        return "result", buf
+    end
 end
 
 ---@param table table table to begin the search at

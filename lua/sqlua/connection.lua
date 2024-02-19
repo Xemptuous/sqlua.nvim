@@ -29,7 +29,17 @@ local Connection = {
 	rdbms = "",
 	schema = {},
 	files = {},
+    query_results = {}
 }
+
+
+---@param buf buffer
+---@param val boolean
+---@return nil
+local function setSidebarModifiable(buf, val)
+	vim.api.nvim_set_option_value("modifiable", val, { buf = buf })
+end
+
 
 ---@param data string
 ---@return table
@@ -50,20 +60,20 @@ end
 local function createResultsPane(data)
 	vim.cmd("split")
 	local win = vim.api.nvim_get_current_win()
-	--TODO: new result window increments by 1 each time
-	-- consider reusing same one per window
 	local buf = vim.api.nvim_create_buf(true, true)
 	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
 	vim.api.nvim_win_set_buf(win, buf)
-	vim.api.nvim_win_set_height(0, 10)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
+    vim.cmd(":wincmd J")
+	vim.api.nvim_win_set_height(0, 10)
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_set_option_value("wrap", false, { win = win })
 	vim.api.nvim_set_option_value("number", false, { win = win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
-	table.insert(require("sqlua.ui").buffers.results, buf)
-	table.insert(require("sqlua.ui").windows.results, win)
+    local ui = require("sqlua.ui")
+    ui.buffers.results = buf
+	table.insert(ui.windows.results, win)
 end
 
 ---@param data table
@@ -75,17 +85,17 @@ function Connection:query(data)
     if data[1] == "" then
         return
     end
-    if vim.fn.bufexists("ResultsBuf") == 1 then
-        for _, buffer in pairs(vim.api.nvim_list_bufs()) do
-            if vim.fn.bufname(buffer) == "ResultsBuf" then
-                vim.api.nvim_buf_delete(buffer, {
-                    force = true,
-                    unload = false
-                })
-            end
-        end
+
+    table.insert(self.query_results, data)
+
+    local ui = require("sqlua.ui")
+    if ui.buffers.results ~= nil then
+        setSidebarModifiable(ui.buffers.results, true)
+        vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
+        setSidebarModifiable(ui.buffers.results, false)
+    else
+        createResultsPane(data)
     end
-    createResultsPane(data)
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_cursor(win, pos)
