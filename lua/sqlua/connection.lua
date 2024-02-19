@@ -54,27 +54,6 @@ local function cleanData(data)
     return result
 end
 
----@param data table
----@return nil
----Takes query output and creates a 'Results' window & buffer
-local function createResultsPane(data)
-	vim.cmd("split")
-	local win = vim.api.nvim_get_current_win()
-	local buf = vim.api.nvim_create_buf(true, true)
-	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
-	vim.api.nvim_win_set_buf(win, buf)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
-    vim.cmd(":wincmd J")
-	vim.api.nvim_win_set_height(0, 10)
-	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-	vim.api.nvim_set_option_value("wrap", false, { win = win })
-	vim.api.nvim_set_option_value("number", false, { win = win })
-	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
-	vim.cmd("goto 1")
-    local ui = require("sqlua.ui")
-    ui.buffers.results = buf
-	table.insert(ui.windows.results, win)
-end
 
 ---@param data table
 ---@return nil
@@ -94,7 +73,7 @@ function Connection:query(data)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
         setSidebarModifiable(ui.buffers.results, false)
     else
-        createResultsPane(data)
+        ui.createResultsPane(data)
     end
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)

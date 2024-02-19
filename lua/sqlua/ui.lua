@@ -26,14 +26,14 @@ local UI = {
 	dbs = {},
 	num_dbs = 0,
 	buffers = {
-		sidebar = 0,
-		editors = {},
+		sidebar = nil,
 		results = nil,
+		editors = {},
 	},
 	windows = {
-		sidebar = 0,
+		sidebar = nil,
+		results = nil,
 		editors = {},
-		results = {},
 	},
 	last_cursor_position = {
 		sidebar = {},
@@ -457,14 +457,40 @@ local function openFileInEditor(db, filename)
     end
 end
 
+
+---@param data table
+---@return nil
+---Takes query output and creates a 'Results' window & buffer
+function UI.createResultsPane(data)
+	vim.cmd("split")
+	local win = vim.api.nvim_get_current_win()
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
+	vim.api.nvim_win_set_buf(win, buf)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
+    vim.cmd(":wincmd J")
+	vim.api.nvim_win_set_height(0, 10)
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("number", false, { win = win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
+	vim.cmd("goto 1")
+    UI.buffers.results = buf
+	UI.windows.results = win
+end
+
 ---@return nil
 local function createSidebar()
 	local win = UI.windows.sidebar
-	local buf = vim.api.nvim_create_buf(true, true)
+	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_name(buf, "Sidebar")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_set_current_win(win)
 	vim.api.nvim_win_set_width(0, 40)
+    vim.api.nvim_clear_autocmds({
+        event={"BufWinEnter", "BufWinLeave", "BufEnter", "BufLeave"},
+        buffer=buf
+    })
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_set_option_value("wfw", true, { win = win })
 	vim.api.nvim_set_option_value("wrap", false, { win = win })
@@ -498,8 +524,10 @@ local function createSidebar()
 				end
 			elseif _type == "editor" or _type == "result" then
 				local sidebarwin = UI.windows.sidebar
-				vim.api.nvim_set_current_win(sidebarwin)
-				vim.api.nvim_win_set_cursor(sidebarwin, sidebar_pos)
+                if sidebarwin ~= nil then
+                    vim.api.nvim_set_current_win(sidebarwin)
+                    vim.api.nvim_win_set_cursor(sidebarwin, sidebar_pos)
+                end
 			end
 		end,
 	})
@@ -679,12 +707,10 @@ local function createEditor(win)
     local name = Utils.concat({
         vim.fn.stdpath("data"),
         "sqlua",
-        "Editor_"..EDITOR_NUM
+        "Editor_"..EDITOR_NUM..".sql"
     })
 	vim.api.nvim_set_current_win(win)
-    -- TODO: change scratch to False and add autocmd
-    -- to save the file
-	local buf = vim.api.nvim_create_buf(true, true)
+	local buf = vim.api.nvim_create_buf(true, false)
 	vim.api.nvim_buf_set_name(buf, name)
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_win_set_cursor(win, { 1, 0 })
@@ -767,6 +793,23 @@ function UI:setup(config)
 			end
 		end,
 	})
+    vim.api.nvim_create_autocmd({ "BufEnter" }, {
+        callback = function()
+			local curwin = vim.api.nvim_get_current_win()
+			local curbuf = vim.api.nvim_get_current_buf()
+            if curwin == UI.windows.sidebar then
+                if UI.buffers.sidebar == nil then
+                    return
+                end
+                vim.api.nvim_win_set_buf(curwin, UI.buffers.sidebar)
+            elseif curwin == UI.windows.results then
+                if UI.buffers.results == nil then
+                    return
+                end
+                vim.api.nvim_win_set_buf(curwin, UI.buffers.results)
+            end
+        end
+    })
 	vim.api.nvim_create_autocmd({ "WinNew" }, {
 		callback = function(ev)
 			local sidebar, _ = string.find(ev.file, "Sidebar")
@@ -817,6 +860,7 @@ function UI:setup(config)
 
 	createSidebar()
 	createEditor(editor_win)
+    vim.api.nvim_buf_delete(1, {})
 end
 
 return UI
