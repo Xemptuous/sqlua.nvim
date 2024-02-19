@@ -88,6 +88,8 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [x] Create asynchronous jobs for queries and connections.
 - [x] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
 - [ ] Implement Nvim-Tree QoL features into sidebar
+- [ ] Add DB Inspection + nvim-cmp completions
+- [ ] Implement active connection variables to be set for the connections' lifetimes
 - [ ] Add default limit functionality
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
