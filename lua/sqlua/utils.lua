@@ -17,7 +17,7 @@ R = function(name)
 	return require(name)
 end
 
-local sep = (function()
+M.sep = (function()
 	---@diagnostic disable-next-line: undefined-global
 	if jit then
 		---@diagnostic disable-next-line: undefined-global
@@ -45,7 +45,7 @@ function M.concat(...)
             table.insert(result, i)
         end
     end
-    return table.concat(result, sep)
+    return table.concat(result, M.sep)
 end
 
 ---@param orig table
