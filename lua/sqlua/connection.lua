@@ -9,6 +9,14 @@ local Schema = {
     num_tables = 0
 }
 
+---@class Query
+---@field statement string|table
+---@field results table
+local Query = {
+    statement = "",
+    results = {}
+}
+
 ---@class Connection
 ---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
@@ -22,6 +30,8 @@ local Schema = {
 local Connection = {
     expanded = false,
 	files_expanded = false,
+    results_expanded = false,
+    buffers_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
@@ -29,7 +39,7 @@ local Connection = {
 	rdbms = "",
 	schema = {},
 	files = {},
-    query_results = {}
+    queries = {}
 }
 
 
@@ -57,7 +67,7 @@ end
 
 ---@param data table
 ---@return nil
-function Connection:query(data)
+function Connection:query(query, data)
 	local win = vim.api.nvim_get_current_win()
 	local pos = vim.api.nvim_win_get_cursor(win)
 	local buf = vim.api.nvim_win_get_buf(win)
@@ -65,7 +75,10 @@ function Connection:query(data)
         return
     end
 
-    table.insert(self.query_results, data)
+    local q = vim.deepcopy(Query)
+    q.statement = query
+    q.results = data
+    table.insert(self.queries, q)
 
     local ui = require("sqlua.ui")
     if ui.buffers.results ~= nil then
@@ -178,16 +191,9 @@ function Connection:executeUv(query_type, query_data)
                 elseif query_type == "refresh" then
                     self:getPostgresSchema(final)
                     ui:refreshSidebar()
-                    -- local old_schema = self.schema
-                    -- self.schema = {}
-                    -- local con = vim.deepcopy(self)
-                    -- con:getPostgresSchema(final)
-                    -- local new_schema = con.schema
-                    -- self.schema = vim.tbl_deep_extend(
-                    --     "force", old_schema, new_schema)
-                    -- ui:refreshSidebar()
                 elseif query_type == "query" then
-                    self:query(final)
+                    self:query(query_data, final)
+                    ui:refreshSidebar()
                 end
             end
         end
@@ -206,7 +212,7 @@ function Connection:executeUv(query_type, query_data)
                 local final = cleanData(table.concat(stderr_results, ""))
                 if next(final) ~= nil then
                     if query_type ~= "refresh" then
-                        self:query(final)
+                        self:query(query_data, final)
                     end
                 end
             end

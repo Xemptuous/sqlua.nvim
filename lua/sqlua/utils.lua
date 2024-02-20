@@ -32,6 +32,15 @@ M.sep = (function()
 	end
 end)()
 
+---@param tbl table
+---@return table
+function M.reverse(tbl)
+    for i = 1, math.floor(#tbl/2), 1 do
+        tbl[i], tbl[#tbl-i+1] = tbl[#tbl-i+1], tbl[i]
+    end
+    return tbl
+end
+
 ---@param ... table<string|string[]>
 ---@return string
 function M.concat(...)

@@ -49,20 +49,22 @@ local UI = {
 local Utils = require("sqlua.utils")
 
 local UI_ICONS = {
-	db = " ",
-	buffers = " ",
-	folder = " ",
-	schemas = " ",
-	schema = "פּ ",
+	db = "",
+	buffers = "",
+	folder = "",
+	schemas = "",
+	schema = "פּ",
 	-- schema = '󱁊 ',
 	table = "藺",
-	file = " ",
+	file = "",
+    results = "",
+    dbout = "󰦨",
 	new_query = "璘",
-	table_stmt = "離 ",
+	table_stmt = "離",
 	-- table = ' ',
 }
 
-local ICONS_SUB = "[פּ󱁊藺璘離]"
+local ICONS_SUB = "[פּ󱁊藺璘離󰦨]"
 local EDITOR_NUM = 1
 
 ---@param buf buffer
@@ -263,12 +265,12 @@ function UI:refreshSidebar()
 		local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
 		local statements = queries.ddl
 		for table, _ in Utils.pairsByKeys(tables) do
-			local text = UI_ICONS.table .. table
+			local text = UI_ICONS.table.." "..table
 			if tables[table].expanded then
 				srow = printSidebarExpanded(buf, srow, text, sep)
 
 				for _, stmt in Utils.pairsByKeys(statements) do
-					text = UI_ICONS.table_stmt .. stmt
+					text = UI_ICONS.table_stmt.." "..stmt
 					srow = printSidebarEmpty(buf, srow, sep .. "    " .. text)
 				end
 			else
@@ -284,7 +286,7 @@ function UI:refreshSidebar()
 	---@return integer srow
 	local function refreshSavedQueries(buf, file, srow, sep)
         if file.isdir then
-            local text = UI_ICONS.folder .. file.name
+            local text = UI_ICONS.folder.. " " .. file.name
             if file.expanded then
                 srow = printSidebarExpanded(buf, srow, text, sep)
                 if next(file.files) ~= nil then
@@ -298,7 +300,7 @@ function UI:refreshSidebar()
                 srow = printSidebarCollapsed(buf, srow, text, sep)
             end
         else
-            local text = UI_ICONS.file .. file.name
+            local text = UI_ICONS.file.. " " .. file.name
             srow = printSidebarEmpty(buf, srow, sep .. "  " .. text)
         end
 		return srow
@@ -310,7 +312,7 @@ function UI:refreshSidebar()
 	local function refreshSchema(buf, db, srow)
 		local sep = "   "
 		for schema, _ in Utils.pairsByKeys(UI.dbs[db].schema) do
-			local text = UI_ICONS.schema .. schema .. " (" ..
+			local text = UI_ICONS.schema.. " " .. schema .. " (" ..
                 UI.dbs[db].schema[schema].num_tables .. ")"
 			if UI.dbs[db].schema[schema].expanded then
 				if type(UI.dbs[db].schema[schema]) == "table" then
@@ -331,24 +333,25 @@ function UI:refreshSidebar()
 	local function refreshOverview(buf, db, srow)
 		local sep = "   "
 
-        local new_query_text = UI_ICONS.new_query .. "New Editor"
+        local new_query_text = UI_ICONS.new_query.. " " .. "New Editor"
         printSidebarEmpty(buf, srow, sep..new_query_text)
         srow = srow + 1
 
-        local buffers_text = UI_ICONS.schemas.. "Active Buffers"
-        if UI.dbs[db].new_query_expanded then
+        local buffers_text = UI_ICONS.schemas.. " " .. "Buffers"
+        buffers_text = buffers_text.." ("..#UI.buffers.editors..")"
+        if UI.dbs[db].buffers_expanded then
             srow = printSidebarExpanded(buf, srow, buffers_text, sep)
             for _, ebuf in Utils.pairsByKeys(UI.buffers.editors) do
                 local editor_name = vim.api.nvim_buf_get_name(ebuf)
                 local split = Utils.splitString(editor_name, Utils.sep)
-                local text = sep.."    "..UI_ICONS.buffers..split[#split]
+                local text = sep.."    "..UI_ICONS.buffers.." "..split[#split]
                 srow = printSidebarEmpty(buf, srow, text)
             end
         else
             srow = printSidebarCollapsed(buf, srow, buffers_text, sep)
 		end
 
-		local queries_text = UI_ICONS.folder .. "Saved Queries"
+		local queries_text = UI_ICONS.folder.. " " .. "Queries"
 		if UI.dbs[db].files_expanded then
 			srow = printSidebarExpanded(buf, srow, queries_text, sep)
             for _, file in Utils.pairsByKeys(UI.dbs[db].files.files) do
@@ -359,7 +362,26 @@ function UI:refreshSidebar()
         else
 			srow = printSidebarCollapsed(buf, srow, queries_text, sep)
         end
+
         srow = refreshSchema(buf, db, srow)
+
+        local dbout_text = UI_ICONS.results .. " " .. "Results"
+        local len = " ("..#UI.dbs[db].queries..")"
+        if UI.dbs[db].results_expanded then
+			srow = printSidebarExpanded(buf, srow, dbout_text..len, sep)
+            local query_results = {}
+            for i, tbl in ipairs(UI.dbs[db].queries) do
+                local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
+                local stmt = table.concat(tbl.statement, "")
+                table.insert(query_results, text.." ("..stmt..")")
+            end
+            for _, q in ipairs(Utils.reverse(query_results)) do
+                srow = printSidebarEmpty(buf, srow, q)
+            end
+        else
+			srow = printSidebarCollapsed(buf, srow, dbout_text..len, sep)
+        end
+
 		return srow
 	end
 
@@ -404,9 +426,8 @@ function UI:refreshSidebar()
         )
 	end
 
-	vim.api.nvim_set_current_win(UI.windows.sidebar)
 	for db, _ in Utils.pairsByKeys(UI.dbs) do
-		local text = UI_ICONS.db .. db .. " (" .. UI.dbs[db].num_schema .. ")"
+		local text = UI_ICONS.db.. " " .. db .. " (" .. UI.dbs[db].num_schema .. ")"
 		if UI.dbs[db].expanded then
 			printSidebarExpanded(buf, srow - 1, text, sep)
 			srow = refreshOverview(buf, db, srow)
@@ -691,18 +712,21 @@ local function createSidebar()
 			local is_collapsed, _ = string.find(val, "")
 			local is_expanded, _ = string.find(val, "")
 			if is_collapsed or is_expanded then
-                local is_folder, _ = string.find(val, "")
+                local is_folder, _ = string.find(val, UI_ICONS.folder)
 				local db = nil
 				db, _ = sidebarFind("database", num)
 				val = val:gsub(ICONS_SUB, "")
 				if db and db == val then
 					toggleExpanded(UI.dbs, val)
-				elseif val == "SavedQueries" then
+				elseif val == "Queries" then
 					UI.dbs[db].files_expanded = not
                         UI.dbs[db].files_expanded
-                elseif val == "ActiveBuffers" then
-                    UI.dbs[db].new_query_expanded = not
-                        UI.dbs[db].new_query_expanded
+                elseif val == "Buffers" then
+                    UI.dbs[db].buffers_expanded = not
+                        UI.dbs[db].buffers_expanded
+                elseif val == "Results" then
+                    UI.dbs[db].results_expanded = not
+                        UI.dbs[db].results_expanded
                 elseif is_folder then
                     toggleExpanded(UI.dbs[db].files, val)
 				else
@@ -711,14 +735,12 @@ local function createSidebar()
 				UI:refreshSidebar()
 				vim.api.nvim_win_set_cursor(0, cursorPos)
 			else
-				local is_file, _ = string.find(val, "")
-                local is_buffer, _ = string.find(val, "")
-				if is_file then
+				if string.find(val, UI_ICONS.file) then
 					local file = val:gsub(ICONS_SUB, "")
 					local db, _ = sidebarFind("database", num)
                     -- UI.dbs[db].files:find(file):open(buf)
 					openFileInEditor(db, file)
-                elseif is_buffer then
+                elseif string.find(val, UI_ICONS.buffers) then
 					local bufname = val:gsub(ICONS_SUB, "")
                     for _, ebuf in pairs(UI.buffers.editors) do
                         local editor_name = vim.api.nvim_buf_get_name(ebuf)
@@ -729,12 +751,27 @@ local function createSidebar()
                             vim.api.nvim_set_current_win(ewin)
                         end
                     end
-                elseif string.find(val, "璘") then
-                    local buf = createEditor(UI.windows.editors[1])
+                elseif string.find(val, UI_ICONS.new_query) then
+                    local buffer = createEditor(UI.windows.editors[1])
                     UI:refreshSidebar()
                     vim.api.nvim_set_current_win(UI.windows.editors[1])
-                    vim.api.nvim_set_current_buf(buf)
+                    vim.api.nvim_set_current_buf(buffer)
+                elseif string.find(val, UI_ICONS.dbout) then
+                    print("IS DBOUT")
+                    local rbuf= UI.buffers.results
+                    if rbuf == nil then
+                        return
+                    end
+                    local qnum = tonumber(string.match(val, "%d"))
+					local db, _ = sidebarFind("database", num)
+                    setSidebarModifiable(rbuf, true)
+                    vim.api.nvim_buf_set_lines(rbuf,
+                        0, -1, false,
+                        UI.dbs[db].queries[qnum].results
+                    )
+                    setSidebarModifiable(rbuf, false)
 				else
+                    print(val)
 					local tbl = nil
 					local schema = nil
 					local db = nil
@@ -794,6 +831,7 @@ function UI:setup(config)
                 print("No Active Connection")
             end
             db:execute(mode)
+            self:refreshSidebar()
 		end,
 	})
 
@@ -881,7 +919,6 @@ function UI:setup(config)
             end
 		end,
 	})
-    P(vim.api.nvim_get_hl(0, {}))
 
 	UI.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
@@ -903,8 +940,8 @@ function UI:setup(config)
 	local editor_win = vim.api.nvim_get_current_win()
 	table.insert(UI.windows.editors, editor_win)
 
-	createSidebar()
 	createEditor(editor_win)
+	createSidebar()
     vim.api.nvim_buf_delete(1, {})
 end
 
