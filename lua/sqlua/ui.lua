@@ -54,14 +54,12 @@ local UI_ICONS = {
 	folder = "",
 	schemas = "",
 	schema = "פּ",
-	-- schema = '󱁊 ',
 	table = "藺",
 	file = "",
     results = "",
     dbout = "󰦨",
 	new_query = "璘",
 	table_stmt = "離",
-	-- table = ' ',
 }
 
 local ICONS_SUB = "[פּ󱁊藺璘離󰦨]"
@@ -97,15 +95,14 @@ end
 local function getBufferType(buf)
 	if UI.buffers.sidebar == buf then
 		return "sidebar", UI.buffers.sidebar
-	end
+    elseif UI.buffers.results == buf then
+        return "result", buf
+    end
 	for _, v in pairs(UI.buffers.editors) do
 		if v == buf then
 			return "editor", v
 		end
 	end
-    if UI.buffers.results == buf then
-        return "result", buf
-    end
 end
 
 ---@param table table table to begin the search at
@@ -129,6 +126,7 @@ end
 ---@param srow integer
 ---@param text string
 ---@param sep string
+---@return integer
 local function printSidebarExpanded(buf, srow, text, sep)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { sep .. " " .. text })
 	return srow + 1
@@ -138,6 +136,7 @@ end
 ---@param srow integer
 ---@param text string
 ---@param sep string
+---@return integer
 local function printSidebarCollapsed(buf, srow, text, sep)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { sep .. " " .. text })
 	return srow + 1
@@ -146,6 +145,7 @@ end
 ---@param buf buffer
 ---@param srow integer
 ---@param text string
+---@return integer
 local function printSidebarEmpty(buf, srow, text)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { text })
 	return srow + 1
@@ -385,52 +385,51 @@ function UI:refreshSidebar()
 		return srow
 	end
 
-
+	local sep = " "
+    local setCursor = UI.last_cursor_position.sidebar
+    local srow = 2
 	local buf = UI.buffers.sidebar
+
     if buf == nil then
         return
     end
-	local sep = " "
+
+    local winwidth = vim.api.nvim_win_get_width(UI.windows.sidebar)
+    local helptext = "press ? to toggle help"
+    local hl = string.len(helptext) / 2
+    local helpTextTable = {
+        string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
+        " a - add a file in the select dir",
+        " d - delete the select file",
+        " "..UI.options.keybinds.activate_db.." - set the active db",
+        " <C-t> - toggle sidebar focus",
+        " "..UI.options.keybinds.execute_query.." - run query",
+    }
 
 	setSidebarModifiable(buf, true)
 	vim.api.nvim_buf_set_lines(UI.buffers.sidebar, 0, -1, false, {})
 
-	local winwidth = vim.api.nvim_win_get_width(UI.windows.sidebar)
-	local helptext = "press ? to toggle help"
-    local hl = string.len(helptext) / 2
-	local helpTextTable = {
-		string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
-        " a - add a file in the select dir",
-        " d - delete the select file",
-        " "..UI.options.keybinds.activate_db.." - set the active db",
-		" <C-t> - toggle sidebar focus",
-        " "..UI.options.keybinds.execute_query.." - run query",
-	}
-	local setCursor = UI.last_cursor_position.sidebar
-	local srow = 2
-
-
-	if UI.help_toggled then
-		vim.cmd("syn match SQLuaHelpKey /.*\\( -\\)\\@=/")
-		vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
-		vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
-		vim.cmd("syn match SQLuaHelpText /^$/")
-		srow = srow + #helpTextTable
-		vim.api.nvim_buf_add_highlight(
+    if UI.help_toggled then
+        vim.cmd("syn match SQLuaHelpKey /.*\\( -\\)\\@=/")
+        vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
+        vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
+        vim.cmd("syn match SQLuaHelpText /^$/")
+        srow = srow + #helpTextTable
+        vim.api.nvim_buf_add_highlight(
             UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth
         )
-		setCursor[1] = setCursor[1] + #helpTextTable
-	else
-		vim.api.nvim_buf_set_lines(buf, 0, 0, false, {
-			string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
-		})
-		vim.api.nvim_buf_add_highlight(
+        setCursor[1] = setCursor[1] + #helpTextTable
+    else
+        vim.api.nvim_buf_set_lines(buf, 0, 0, false, {
+            string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
+        })
+        vim.api.nvim_buf_add_highlight(
             UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth
         )
-	end
+    end
 
 	for db, _ in Utils.pairsByKeys(UI.dbs) do
-		local text = UI_ICONS.db.. " " .. db .. " (" .. UI.dbs[db].num_schema .. ")"
+		local text = UI_ICONS.db.." "..db.." (".. UI.dbs[db].num_schema..")"
 		if UI.dbs[db].expanded then
 			printSidebarExpanded(buf, srow - 1, text, sep)
 			srow = refreshOverview(buf, db, srow)
