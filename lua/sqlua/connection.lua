@@ -157,7 +157,7 @@ end
 
 
 ---@param query_type string
----@param query_data table<string>
+---@param query_data string|table<string>
 ---The main query execution wrapper.
 ---Takes 3 types of arguments for `query_type`:
 ---  - connect

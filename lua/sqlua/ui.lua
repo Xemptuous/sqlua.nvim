@@ -280,7 +280,7 @@ function UI:refreshSidebar()
 		return srow
 	end
 	---@param buf buffer
-	---@param dir table
+	---@param file table
 	---@param srow integer
 	---@param sep string
 	---@return integer srow
@@ -387,6 +387,9 @@ function UI:refreshSidebar()
 
 
 	local buf = UI.buffers.sidebar
+    if buf == nil then
+        return
+    end
 	local sep = " "
 
 	setSidebarModifiable(buf, true)
@@ -535,6 +538,9 @@ end
 local function createSidebar()
 	local win = UI.windows.sidebar
 	local buf = vim.api.nvim_create_buf(false, true)
+    if win == nil then
+        return
+    end
 	vim.api.nvim_buf_set_name(buf, "Sidebar")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_set_current_win(win)
@@ -866,7 +872,6 @@ function UI:setup(config)
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         callback = function()
 			local curwin = vim.api.nvim_get_current_win()
-			local curbuf = vim.api.nvim_get_current_buf()
             if curwin == UI.windows.sidebar then
                 if UI.buffers.sidebar == nil then
                     return
