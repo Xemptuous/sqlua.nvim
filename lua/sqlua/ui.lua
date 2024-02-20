@@ -371,9 +371,6 @@ function UI:refreshSidebar()
 
 
 	if UI.help_toggled then
-		UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
-            UI.windows.sidebar
-        )
 		vim.cmd("syn match SQLuaHelpKey /.*\\( -\\)\\@=/")
 		vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
 		vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
@@ -411,13 +408,14 @@ function UI:refreshSidebar()
         )
 	end
 	if not pcall(function()
-		vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
-	end) then
-		vim.api.nvim_win_set_cursor(UI.windows.sidebar, {
-			math.min(srow, UI.last_cursor_position.sidebar[1] - #helpTextTable),
-			math.max(2, UI.last_cursor_position.sidebar[2]),
-		})
-	end
+        vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
+    end) then
+        local min = math.min(srow,
+            UI.last_cursor_position.sidebar[1] - #helpTextTable
+        )
+        local max = math.max(2, UI.last_cursor_position.sidebar[2])
+        if min <= 0 then min = 1 end
+		vim.api.nvim_win_set_cursor(UI.windows.sidebar, { min, max }) end
 	highlightSidebarNumbers()
 	setSidebarModifiable(buf, false)
 end
@@ -533,9 +531,11 @@ local function createSidebar()
 	})
 	vim.api.nvim_buf_set_keymap(buf, "n", "?", "", {
 		callback = function()
-			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
-                UI.windows.sidebar
-            )
+            if not UI.help_toggled then
+                UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
+                    UI.windows.sidebar
+                )
+            end
 			UI.help_toggled = not UI.help_toggled
 			UI:refreshSidebar()
 		end,
