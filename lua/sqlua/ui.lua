@@ -435,13 +435,7 @@ function UI:refreshSidebar()
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
-		vim.api.nvim_buf_add_highlight(
-            UI.buffers.sidebar,
-            UI.sidebar_ns,
-            "active_db",
-            srow - 1, 10,
-            string.len(db)
-        )
+        vim.cmd("syn match SQLua_active_db /"..UI.active_db..".*$/")
 	end
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
@@ -682,7 +676,6 @@ local function createSidebar()
 			local num = cursorPos[1]
 			local db, _ = sidebarFind("database", num)
 			UI.active_db = db
-			vim.cmd("syn match SQLua_active_db /"..UI.active_db..".*$/")
 			UI:refreshSidebar()
 			vim.api.nvim_win_set_cursor(0, cursorPos)
 		end,
