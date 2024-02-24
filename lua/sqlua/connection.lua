@@ -175,26 +175,24 @@ function Connection:executeUv(query_type, query_data)
         stdio = {stdin, stdout, stderr}
     })
 
-    local stdout_results = {}
+    local results = {}
+    local ui = require("sqlua.ui")
     uv.read_start(stdout, vim.schedule_wrap(function(err, data)
         assert(not err, err)
-        local ui = require("sqlua.ui")
         if data then
-            table.insert(stdout_results, data)
+            table.insert(results, data)
         else
-            local final = cleanData(table.concat(stdout_results, ""))
+            local final = cleanData(table.concat(results, ""))
             if next(final) ~= nil then
                 if query_type == "connect" then
                     self:getPostgresSchema(final)
                     ui:addConnection(self)
-                    ui:refreshSidebar()
                 elseif query_type == "refresh" then
                     self:getPostgresSchema(final)
-                    ui:refreshSidebar()
                 elseif query_type == "query" then
                     self:query(query_data, final)
-                    ui:refreshSidebar()
                 end
+                ui:refreshSidebar()
             end
         end
     end))
@@ -206,13 +204,14 @@ function Connection:executeUv(query_type, query_data)
             if not stderr_results then
                 stderr_results = {}
             end
-            table.insert(stderr_results, data)
+            table.insert(results, data)
         else
             if stderr_results then
-                local final = cleanData(table.concat(stderr_results, ""))
+                local final = cleanData(table.concat(results, ""))
                 if next(final) ~= nil then
                     if query_type ~= "refresh" then
                         self:query(query_data, final)
+                        ui:refreshSidebar()
                     end
                 end
             end
