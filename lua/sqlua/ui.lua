@@ -28,11 +28,13 @@ local UI = {
 	buffers = {
 		sidebar = nil,
 		results = nil,
+        query_float = nil,
 		editors = {},
 	},
 	windows = {
 		sidebar = nil,
 		results = nil,
+        query_float = nil,
 		editors = {},
 	},
 	last_cursor_position = {
@@ -80,7 +82,7 @@ local function highlightSidebarNumbers()
     )
 	for line, text in ipairs(lines) do
 		local s = text:find("%s%(")
-		local e = text:find("%)")
+		local e = text:find("%)$")
 		if s and e then
 			vim.api.nvim_buf_add_highlight(
                 UI.buffers.sidebar, UI.sidebar_ns, "Comment", line - 1, s, e
@@ -800,7 +802,7 @@ end
 ---@param config table
 ---@return nil
 function UI:setup(config)
-	UI.options = config
+	self.options = config
 	for _, buf in pairs(vim.api.nvim_list_bufs()) do
 		vim.api.nvim_buf_delete(buf, { force = true, unload = false })
 	end
@@ -810,13 +812,13 @@ function UI:setup(config)
             -- return if in sidebar or results
             local win = vim.api.nvim_get_current_win()
             local tobreak = true
-            for _, w in pairs(UI.windows.editors) do
+            for _, w in pairs(self.windows.editors) do
                 if win == w then
                     tobreak = false
                 end
             end
             local buf = vim.api.nvim_get_current_buf()
-            for _, b in pairs(UI.buffers.editors) do
+            for _, b in pairs(self.buffers.editors) do
                 if buf == b then
                     tobreak = false
                 end
@@ -824,7 +826,7 @@ function UI:setup(config)
             if tobreak then return end
 
 			local mode = vim.api.nvim_get_mode().mode
-            local db = UI.dbs[UI.active_db]
+            local db = self.dbs[self.active_db]
             if not db then
                 print("No Active Connection")
             end
@@ -836,7 +838,7 @@ function UI:setup(config)
 	vim.api.nvim_create_autocmd({ "BufDelete", "BufHidden" }, {
 		callback = function()
 			local closed_buf = vim.api.nvim_get_current_buf()
-			if not closed_buf == UI.buffers.sidebar then
+			if not closed_buf == self.buffers.sidebar then
 				local bufs = vim.api.nvim_list_bufs()
 				for _, buf in pairs(bufs) do
 					if buf == closed_buf then
@@ -851,18 +853,18 @@ function UI:setup(config)
 		callback = function()
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
-			if UI.connections_loaded and UI.initial_layout_loaded then
-				UI.last_active_buffer = curbuf
-				UI.last_active_window = curwin
+			if self.connections_loaded and self.initial_layout_loaded then
+				self.last_active_buffer = curbuf
+				self.last_active_window = curwin
 				local _type, _ = getBufferType(curbuf)
 				if _type == nil then
 					return
 				end
-				UI.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(
+				self.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(
                     curwin
                 )
 			else
-				UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
+				self.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
                     curwin
                 )
 			end
@@ -871,45 +873,31 @@ function UI:setup(config)
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         callback = function()
 			local curwin = vim.api.nvim_get_current_win()
-            if curwin == UI.windows.sidebar then
-                if UI.buffers.sidebar == nil then
+            if curwin == self.windows.sidebar then
+                if self.buffers.sidebar == nil then
                     return
                 end
-                vim.api.nvim_win_set_buf(curwin, UI.buffers.sidebar)
-            elseif curwin == UI.windows.results then
-                if UI.buffers.results == nil then
+                vim.api.nvim_win_set_buf(curwin, self.buffers.sidebar)
+            elseif curwin == self.windows.results then
+                if self.buffers.results == nil then
                     return
                 end
-                vim.api.nvim_win_set_buf(curwin, UI.buffers.results)
+                vim.api.nvim_win_set_buf(curwin, self.buffers.results)
             end
         end
     })
-	vim.api.nvim_create_autocmd({ "WinNew" }, {
-		callback = function(ev)
-			local sidebar, _ = string.find(ev.file, "Sidebar")
-			if ev.buf == 1 or sidebar then
-				return
-			end
-			for _, value in pairs(UI.buffers.editors) do
-				if value == ev.buf then
-					return
-				end
-			end
-			createEditor(vim.api.nvim_get_current_win())
-		end,
-	})
 	vim.api.nvim_create_autocmd({ "CursorMoved" }, {
 		callback = function(ev)
-			if ev.buf ~= UI.buffers.sidebar then
+			if ev.buf ~= self.buffers.sidebar then
 				return
 			end
-			if not UI.initial_layout_loaded then
+			if not self.initial_layout_loaded then
 				return
 			end
 			local pos = vim.api.nvim_win_get_cursor(0)
 			pos[1] = math.max(pos[1], 2)
 			pos[2] = math.max(pos[2], 1)
-            if next(UI.dbs) == nil then
+            if next(self.dbs) == nil then
                 vim.api.nvim_win_set_cursor(0, {1, 0})
             else
                 vim.api.nvim_win_set_cursor(0, pos)
@@ -917,7 +905,7 @@ function UI:setup(config)
 		end,
 	})
 
-	UI.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
+	self.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
     local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
     local keyword_hl = vim.api.nvim_get_hl(0, { name = "Keyword" })
@@ -932,10 +920,10 @@ function UI:setup(config)
 	})
 
 	local sidebar_win = vim.api.nvim_get_current_win()
-	UI.windows.sidebar = sidebar_win
+	self.windows.sidebar = sidebar_win
 	vim.cmd("vsplit")
 	local editor_win = vim.api.nvim_get_current_win()
-	table.insert(UI.windows.editors, editor_win)
+	table.insert(self.windows.editors, editor_win)
 
 	createEditor(editor_win)
 	createSidebar()

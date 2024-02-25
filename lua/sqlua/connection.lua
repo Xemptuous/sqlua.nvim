@@ -164,6 +164,9 @@ end
 ---  - refresh
 ---  - query
 function Connection:executeUv(query_type, query_data)
+    if #query_data == 1 and query_data[1] == " " then
+        return
+    end
     local uv = vim.uv
 
     local stdin = uv.new_pipe()
@@ -191,20 +194,24 @@ function Connection:executeUv(query_type, query_data)
                     self:getPostgresSchema(final)
                 elseif query_type == "query" then
                     self:query(query_data, final)
+                    vim.api.nvim_win_close(ui.windows.query_float, true)
+                    ui.windows.query_float = nil
                 end
                 ui:refreshSidebar()
+            else
+                vim.api.nvim_win_close(ui.windows.query_float, true)
+                ui.windows.query_float = nil
             end
         end
     end))
 
-    local stderr_results = nil
+
+    local stderr_results = false
     uv.read_start(stderr, vim.schedule_wrap(function(err, data)
         assert(not err, err)
         if data then
-            if not stderr_results then
-                stderr_results = {}
-            end
             table.insert(results, data)
+            stderr_results = true
         else
             if stderr_results then
                 local final = cleanData(table.concat(results, ""))
@@ -218,12 +225,66 @@ function Connection:executeUv(query_type, query_data)
         end
     end))
 
-    uv.write(stdin, query_data)
-    uv.shutdown(stdin, function()
-        if handle then
+    uv.write(stdin, query_data, function()
+    end)
+
+
+    uv.shutdown(stdin, vim.schedule_wrap(function()
+        if query_type == "query" then
+            setSidebarModifiable(ui.buffers.results, true)
+            if ui.buffers.results ~= nil then
+                vim.api.nvim_buf_set_lines(
+                    ui.buffers.results, 0, -1, false, {})
+            else
+                ui.createResultsPane({})
+            end
+            if not ui.windows.query_float then
+                local w = vim.api.nvim_win_get_width(ui.windows.results)
+                local h = vim.api.nvim_win_get_height(ui.windows.results)
+                local b = vim.api.nvim_create_buf(false, true)
+                ui.buffers.query_float = b
+                local fwin = vim.api.nvim_open_win(
+                    b, false, {
+                        relative='win',
+                        win=ui.windows.results,
+                        row=h/2 - 1,
+                        col=w/2 - math.floor(w/3) / 2,
+                        width=math.floor(w/3), height=1,
+                        border="single", title="Querying", title_pos="center",
+                        style="minimal",
+                        focusable=false,
+                })
+                ui.windows.query_float = fwin
+                local sep = string.rep(" ",
+                    math.floor(w / 3 / 2) -
+                        math.ceil(string.len("Executing Query") / 2))
+                vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+                    sep.."Executing Query"
+                })
+            end
+            setSidebarModifiable(ui.buffers.results, false)
             uv.close(handle)
         end
-    end)
+    end))
+    -- TODO: implement async "time elapsed" for query.
+    -- below was an attempt, but can't use vim.api or globals
+    -- inside of uv.new_thread()
+
+    -- local start_time = os.clock() * 100
+    -- local query_thread
+    -- query_thread = uv.new_thread(function(...)
+    --     local se, so, stime, rbuf = ...
+    --     print(se, so)
+    --     print("//////////// LOOP START")
+    --     while(se:is_active()) do
+    --         -- vim.api.nvim_buf_set_lines(
+    --         --     rbuf, 0, -1, false, {
+    --         --         "Fetching ",
+    --         --         tostring(stime - os.clock() * 100)
+    --         -- })
+    --     end
+    --     print("//////////// LOOP DONE")
+    -- end, stdout, stderr, start_time, ui.buffers.results)
 end
 
 
