@@ -631,7 +631,7 @@ local function createSidebar()
             local file = UI.dbs[db].files:find(text)
             local parent_path = ""
             local show_path = ""
-            if file == nil and text == "SavedQueries" then
+            if file == nil and text == "Queries" then
                 parent_path = Utils.concat({
                     vim.fn.stdpath("data"), "sqlua", db
                 })
@@ -644,6 +644,7 @@ local function createSidebar()
                 end
                 show_path = parent_path:match(db..".*")
             end
+            -- TODO: add floating win for input
             local newfile = vim.fn.input("Create file: "..show_path.."/")
             local save_path = Utils.concat({parent_path, newfile})
             vim.fn.writefile({}, save_path)
@@ -664,7 +665,7 @@ local function createSidebar()
             end
 			text = text:gsub("%s+", "")
             text = text:gsub(ICONS_SUB, "")
-            if text == "SavedQueries" then
+            if text == "Queries" then
                 return
             end
             local file = UI.dbs[db].files:find(text)

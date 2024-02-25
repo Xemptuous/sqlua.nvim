@@ -243,16 +243,15 @@ function Connection:executeUv(query_type, query_data)
                 local h = vim.api.nvim_win_get_height(ui.windows.results)
                 local b = vim.api.nvim_create_buf(false, true)
                 ui.buffers.query_float = b
-                local fwin = vim.api.nvim_open_win(
-                    b, false, {
-                        relative='win',
-                        win=ui.windows.results,
-                        row=h/2 - 1,
-                        col=w/2 - math.floor(w/3) / 2,
-                        width=math.floor(w/3), height=1,
-                        border="single", title="Querying", title_pos="center",
-                        style="minimal",
-                        focusable=false,
+                local fwin = vim.api.nvim_open_win(b, false, {
+                    relative='win',
+                    win=ui.windows.results,
+                    row=h/2 - 1,
+                    col=w/2 - math.floor(w/3) / 2,
+                    width=math.floor(w/3), height=1,
+                    border="single", title="Querying", title_pos="center",
+                    style="minimal",
+                    focusable=false,
                 })
                 ui.windows.query_float = fwin
                 local sep = string.rep(" ",
