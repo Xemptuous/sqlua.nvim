@@ -22,6 +22,9 @@ local UI = {
 	initial_layout_loaded = false,
 	help_toggled = false,
 	sidebar_ns = 0,
+	files_expanded = false,
+    results_expanded = false,
+    buffers_expanded = false,
 	active_db = "",
 	dbs = {},
 	num_dbs = 0,
@@ -264,7 +267,7 @@ function UI:refreshSidebar()
 	---@return integer srow
 	local function refreshTables(buf, tables, srow, db)
 		local sep = "     "
-		local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
+		local queries = require("sqlua/queries." .. self.dbs[db].rdbms)
 		local statements = queries.ddl
 		for table, _ in Utils.pairsByKeys(tables) do
 			local text = UI_ICONS.table.." "..table
@@ -313,13 +316,13 @@ function UI:refreshSidebar()
 	---@return integer srow
 	local function refreshSchema(buf, db, srow)
 		local sep = "   "
-		for schema, _ in Utils.pairsByKeys(UI.dbs[db].schema) do
+		for schema, _ in Utils.pairsByKeys(self.dbs[db].schema) do
 			local text = UI_ICONS.schema.. " " .. schema .. " (" ..
-                UI.dbs[db].schema[schema].num_tables .. ")"
-			if UI.dbs[db].schema[schema].expanded then
-				if type(UI.dbs[db].schema[schema]) == "table" then
+                self.dbs[db].schema[schema].num_tables .. ")"
+			if self.dbs[db].schema[schema].expanded then
+				if type(self.dbs[db].schema[schema]) == "table" then
 					srow = printSidebarExpanded(buf, srow, text, sep)
-					local tables = UI.dbs[db].schema[schema].tables
+					local tables = self.dbs[db].schema[schema].tables
 					srow = refreshTables(buf, tables, srow, db)
 				end
 			else
@@ -335,28 +338,10 @@ function UI:refreshSidebar()
 	local function refreshOverview(buf, db, srow)
 		local sep = "   "
 
-        local new_query_text = UI_ICONS.new_query.. " " .. "New Editor"
-        printSidebarEmpty(buf, srow, sep..new_query_text)
-        srow = srow + 1
-
-        local buffers_text = UI_ICONS.schemas.. " " .. "Buffers"
-        buffers_text = buffers_text.." ("..#UI.buffers.editors..")"
-        if UI.dbs[db].buffers_expanded then
-            srow = printSidebarExpanded(buf, srow, buffers_text, sep)
-            for _, ebuf in Utils.pairsByKeys(UI.buffers.editors) do
-                local editor_name = vim.api.nvim_buf_get_name(ebuf)
-                local split = Utils.splitString(editor_name, Utils.sep)
-                local text = sep.."    "..UI_ICONS.buffers.." "..split[#split]
-                srow = printSidebarEmpty(buf, srow, text)
-            end
-        else
-            srow = printSidebarCollapsed(buf, srow, buffers_text, sep)
-		end
-
 		local queries_text = UI_ICONS.folder.. " " .. "Queries"
-		if UI.dbs[db].files_expanded then
+		if self.dbs[db].files_expanded then
 			srow = printSidebarExpanded(buf, srow, queries_text, sep)
-            for _, file in Utils.pairsByKeys(UI.dbs[db].files.files) do
+            for _, file in Utils.pairsByKeys(self.dbs[db].files.files) do
                 srow = refreshSavedQueries(
                     buf, file, srow, sep .. "  "
                 )
@@ -368,11 +353,11 @@ function UI:refreshSidebar()
         srow = refreshSchema(buf, db, srow)
 
         local dbout_text = UI_ICONS.results .. " " .. "Results"
-        local len = " ("..#UI.dbs[db].queries..")"
-        if UI.dbs[db].results_expanded then
+        local len = " ("..#self.dbs[db].queries..")"
+        if self.dbs[db].results_expanded then
 			srow = printSidebarExpanded(buf, srow, dbout_text..len, sep)
             local query_results = {}
-            for i, tbl in ipairs(UI.dbs[db].queries) do
+            for i, tbl in ipairs(self.dbs[db].queries) do
                 local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
                 local stmt = table.concat(tbl.statement, "")
                 table.insert(query_results, text.." ("..stmt..")")
@@ -388,37 +373,37 @@ function UI:refreshSidebar()
 	end
 
 	local sep = " "
-    local setCursor = UI.last_cursor_position.sidebar
+    local setCursor = self.last_cursor_position.sidebar
     local srow = 2
-	local buf = UI.buffers.sidebar
+	local buf = self.buffers.sidebar
 
     if buf == nil then
         return
     end
 
-    local winwidth = vim.api.nvim_win_get_width(UI.windows.sidebar)
+    local winwidth = vim.api.nvim_win_get_width(self.windows.sidebar)
     local helptext = "press ? to toggle help"
     local hl = string.len(helptext) / 2
     local helpTextTable = {
         string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
         " a - add a file in the select dir",
         " d - delete the select file",
-        " "..UI.options.keybinds.activate_db.." - set the active db",
+        " "..self.options.keybinds.activate_db.." - set the active db",
         " <C-t> - toggle sidebar focus",
-        " "..UI.options.keybinds.execute_query.." - run query",
+        " "..self.options.keybinds.execute_query.." - run query",
     }
 
 	setSidebarModifiable(buf, true)
-	vim.api.nvim_buf_set_lines(UI.buffers.sidebar, 0, -1, false, {})
+	vim.api.nvim_buf_set_lines(self.buffers.sidebar, 0, -1, false, {})
 
-    if UI.help_toggled then
+    if self.help_toggled then
         vim.cmd("syn match SQLuaHelpKey /.*\\( -\\)\\@=/")
         vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
         vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
         vim.cmd("syn match SQLuaHelpText /^$/")
         srow = srow + #helpTextTable
         vim.api.nvim_buf_add_highlight(
-            UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth
+            self.buffers.sidebar, self.sidebar_ns, "Comment", 0, 0, winwidth
         )
         setCursor[1] = setCursor[1] + #helpTextTable
     else
@@ -426,34 +411,53 @@ function UI:refreshSidebar()
             string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
         })
         vim.api.nvim_buf_add_highlight(
-            UI.buffers.sidebar, UI.sidebar_ns, "Comment", 0, 0, winwidth
+            self.buffers.sidebar, self.sidebar_ns, "Comment", 0, 0, winwidth
         )
     end
 
-	for db, _ in Utils.pairsByKeys(UI.dbs) do
-		local text = UI_ICONS.db.." "..db.." (".. UI.dbs[db].num_schema..")"
-		if UI.dbs[db].expanded then
+    local new_query_text = UI_ICONS.new_query.. " " .. "New Editor"
+    printSidebarEmpty(buf, srow - 1, sep..new_query_text)
+
+    local buffers_text = UI_ICONS.schemas.. " " .. "Buffers"
+    buffers_text = buffers_text.." ("..#self.buffers.editors..")"
+    if self.buffers_expanded then
+        srow = printSidebarExpanded(buf, srow, buffers_text, sep)
+        for _, ebuf in Utils.pairsByKeys(self.buffers.editors) do
+            local editor_name = vim.api.nvim_buf_get_name(ebuf)
+            local split = Utils.splitString(editor_name, Utils.sep)
+            local text = sep.."    "..UI_ICONS.buffers.." "..split[#split]
+            srow = printSidebarEmpty(buf, srow, text)
+        end
+    else
+        srow = printSidebarCollapsed(buf, srow, buffers_text, sep)
+    end
+    srow = srow + 1
+
+
+	for db, _ in Utils.pairsByKeys(self.dbs) do
+		local text = UI_ICONS.db.." "..db.." (".. self.dbs[db].num_schema..")"
+		if self.dbs[db].expanded then
 			printSidebarExpanded(buf, srow - 1, text, sep)
 			srow = refreshOverview(buf, db, srow)
 		else
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
-        if db == UI.active_db then
+        if db == self.active_db then
             vim.cmd("syn match SQLua_active_db /"..db..".*$/")
         else
             vim.cmd("syn match Normal /"..db..".*$/")
         end
 	end
 	if not pcall(function()
-        vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
+        vim.api.nvim_win_set_cursor(self.windows.sidebar, setCursor)
     end) then
         local min = math.min(srow,
-            UI.last_cursor_position.sidebar[1] - #helpTextTable
+            self.last_cursor_position.sidebar[1] - #helpTextTable
         )
-        local max = math.max(2, UI.last_cursor_position.sidebar[2])
+        local max = math.max(2, self.last_cursor_position.sidebar[2])
         if min <= 0 then min = 1 end
-		vim.api.nvim_win_set_cursor(UI.windows.sidebar, { min, max }) end
+		vim.api.nvim_win_set_cursor(self.windows.sidebar, { min, max }) end
 	highlightSidebarNumbers()
 	setSidebarModifiable(buf, false)
 end
@@ -461,16 +465,15 @@ end
 ---@param con Connection
 ---Adds the Connection object to the UI object
 function UI:addConnection(con)
-	-- local copy = vim.deepcopy(con)
 	local db = con.name
 	if UI.active_db == "" then
 		UI.active_db = db
 	end
 	UI.dbs[db] = con
-    UI.dbs[db].files = require("sqlua.files"):setup(db)
+    local files = vim.deepcopy(require("sqlua.files"))
+    UI.dbs[db].files = files:setup(db)
 	UI.num_dbs = UI.num_dbs + 1
 	setSidebarModifiable(UI.buffers.sidebar, false)
-	-- UI:populateSavedQueries(db)
 end
 
 local function openFileInEditor(db, filename)
@@ -714,24 +717,22 @@ local function createSidebar()
 				return
 			end
 
+
 			local is_collapsed, _ = string.find(val, "")
 			local is_expanded, _ = string.find(val, "")
 			if is_collapsed or is_expanded then
                 local is_folder, _ = string.find(val, UI_ICONS.folder)
 				local db = nil
 				db, _ = sidebarFind("database", num)
-				val = val:gsub(ICONS_SUB, "")
-				if db and db == val then
+                val = val:gsub(ICONS_SUB, "")
+                if val == "Buffers" then
+                    UI.buffers_expanded = not UI.buffers_expanded
+                elseif db and db == val then
 					toggleExpanded(UI.dbs, val)
 				elseif val == "Queries" then
-					UI.dbs[db].files_expanded = not
-                        UI.dbs[db].files_expanded
-                elseif val == "Buffers" then
-                    UI.dbs[db].buffers_expanded = not
-                        UI.dbs[db].buffers_expanded
+					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded
                 elseif val == "Results" then
-                    UI.dbs[db].results_expanded = not
-                        UI.dbs[db].results_expanded
+                    UI.results_expanded = not UI.results_expanded
                 elseif is_folder then
                     toggleExpanded(UI.dbs[db].files, val)
 				else
@@ -776,7 +777,6 @@ local function createSidebar()
                     )
                     setSidebarModifiable(rbuf, false)
 				else
-                    print(val)
 					local tbl = nil
 					local schema = nil
 					local db = nil
