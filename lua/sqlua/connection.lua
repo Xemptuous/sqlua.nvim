@@ -23,6 +23,8 @@ local Query = {
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
 ---@field cmd string query to execute
+---@field cli string cli program cmd name
+---@field cli_args table uv.spawn args
 ---@field rdbms string actual db name according to the url
 ---@field schema Schema nested schema design for this db
 ---@field files table all saved files in the local dir
@@ -36,7 +38,9 @@ local Connection = {
 	name = "",
 	url = "",
 	cmd = "",
+    cli = "",
 	rdbms = "",
+    cli_args = {},
 	schema = {},
 	files = {},
     queries = {}
@@ -86,6 +90,7 @@ function Connection:query(query, data)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
         setSidebarModifiable(ui.buffers.results, false)
     else
+        print("QUERY RESULTS PANE")
         ui.createResultsPane(data)
     end
     vim.api.nvim_set_current_win(win)
@@ -95,13 +100,28 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgresql rdbms
-function Connection:getPostgresSchema(data)
-	self.rdbms = "postgres"
+---Gets the initial db structure for postgres rdbms
+function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-	table.remove(schema, 1)
-	table.remove(schema, 1)
-	table.remove(schema)
+    if self.rdbms == "postgres" then
+        table.remove(schema, 1)
+        table.remove(schema, 1)
+        table.remove(schema)
+        for i, _ in ipairs(schema) do
+            schema[i] = string.gsub(schema[i], "%s", "")
+            schema[i] = utils.splitString(schema[i], "|")
+        end
+    elseif self.rdbms == "mysql" then
+        table.remove(schema, 1)
+        table.remove(schema, 1)
+        table.remove(schema, 2)
+        table.remove(schema)
+        for i, _ in ipairs(schema) do
+            schema[i] = string.gsub(schema[i], "%s", "")
+            schema[i] = string.sub(schema[i], 2, -2)
+            schema[i] = utils.splitString(schema[i], "|")
+        end
+    end
 
     local old_schema = nil
     if next(self.schema) ~= nil then
@@ -111,9 +131,6 @@ function Connection:getPostgresSchema(data)
     self.schema = {}
 
 	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "%s", "")
-		schema[i] = utils.splitString(schema[i], "|")
-
 		local schema_name = schema[i][1]
 		local table_name = schema[i][2]
         if not self.schema[schema_name] then
@@ -164,6 +181,7 @@ end
 ---  - refresh
 ---  - query
 function Connection:executeUv(query_type, query_data)
+    -- TODO: comments in code need to have space added
     if #query_data == 1 and query_data[1] == " " then
         return
     end
@@ -173,8 +191,8 @@ function Connection:executeUv(query_type, query_data)
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    local handle, _ = uv.spawn("psql", {
-        args = {self.url},
+    local handle, _ = uv.spawn(self.cli, {
+        args = self.cli_args,
         stdio = {stdin, stdout, stderr}
     })
 
@@ -188,10 +206,10 @@ function Connection:executeUv(query_type, query_data)
             local final = cleanData(table.concat(results, ""))
             if next(final) ~= nil then
                 if query_type == "connect" then
-                    self:getPostgresSchema(final)
+                    self:getSchema(final)
                     ui:addConnection(self)
                 elseif query_type == "refresh" then
-                    self:getPostgresSchema(final)
+                    self:getSchema(final)
                 elseif query_type == "query" then
                     self:query(query_data, final)
                     vim.api.nvim_win_close(ui.windows.query_float, true)
@@ -216,7 +234,7 @@ function Connection:executeUv(query_type, query_data)
             if stderr_results then
                 local final = cleanData(table.concat(results, ""))
                 if next(final) ~= nil then
-                    if query_type ~= "refresh" then
+                    if query_type == "query" then
                         self:query(query_data, final)
                         ui:refreshSidebar()
                     end
@@ -375,6 +393,7 @@ function Connection:execute(--[[optional mode string]] mode)
     end
 end
 
+
 ---@param name string
 ---@return nil
 ---Initializes the connection to the DB, and inserts into UI.
@@ -386,9 +405,24 @@ Connections.connect = function(name)
 			local con = vim.deepcopy(Connection)
 			con.name = name
 			con.url = connection["url"]
-			con.cmd = "psql " .. connection["url"] .. " -c "
-			local Queries = require("sqlua.queries.postgres")
-			local query = string.gsub(Queries.SchemaQuery, "\n", " ")
+
+            local parsed = utils.parseUrl(connection["url"])
+            con.rdbms = parsed.rdbms
+            con.url = connection["url"]
+
+            local queries = {}
+            if parsed.rdbms == "postgres" then
+                con.cli = "psql"
+                con.cmd = "psql "..connection["url"].." -c "
+                con.cli_args = {con.url}
+                queries = require("sqlua.queries.postgres")
+            elseif parsed.rdbms == "mysql" then
+                con.cli = "mysql"
+                con.cli_args = utils.getCLIArgs("mysql", parsed)
+                queries = require("sqlua.queries.mysql")
+            end
+            local query = string.gsub(queries.SchemaQuery, "\n", " ")
+
             con:executeUv("connect", query)
 		end
 	end

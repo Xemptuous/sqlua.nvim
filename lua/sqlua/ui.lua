@@ -758,7 +758,7 @@ local function createSidebar()
                     vim.api.nvim_set_current_win(UI.windows.editors[1])
                     vim.api.nvim_set_current_buf(buffer)
                 elseif string.find(val, UI_ICONS.dbout) then
-                    print("IS DBOUT")
+                    -- TODO: after a while, these stop returning correct results
                     local rbuf= UI.buffers.results
                     if rbuf == nil then
                         return
