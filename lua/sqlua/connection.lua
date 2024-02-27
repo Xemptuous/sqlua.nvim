@@ -402,17 +402,15 @@ Connections.connect = function(name)
             con.rdbms = parsed.rdbms
             con.url = connection["url"]
 
-            local queries = {}
             if parsed.rdbms == "postgres" then
                 con.cli = "psql"
                 con.cmd = "psql "..connection["url"].." -c "
                 con.cli_args = {con.url}
-                queries = require("sqlua.queries.postgres")
             elseif parsed.rdbms == "mysql" then
                 con.cli = "mysql"
                 con.cli_args = utils.getCLIArgs("mysql", parsed)
-                queries = require("sqlua.queries.mysql")
             end
+            local queries = require("sqlua.queries."..con.rdbms)
             local query = string.gsub(queries.SchemaQuery, "\n", " ")
 
             con:executeUv("connect", query)

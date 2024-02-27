@@ -271,7 +271,6 @@ function UI:refreshSidebar()
 			local text = UI_ICONS.table.." "..table
 			if tables[table].expanded then
 				srow = printSidebarExpanded(buf, srow, text, sep)
-
 				for _, stmt in Utils.pairsByKeys(statements) do
 					text = UI_ICONS.table_stmt.." "..stmt
 					srow = printSidebarEmpty(buf, srow, sep .. "    " .. text)

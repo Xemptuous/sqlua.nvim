@@ -10,4 +10,14 @@ FROM information_schema.schemata s
 ORDER BY 1
 ]]
 
+M.ddl = {
+	"Data",
+	"Columns",
+	"Primary Keys",
+	"Indexes",
+	"References",
+	"Foreign Keys",
+	"DDL",
+}
+
 return M
