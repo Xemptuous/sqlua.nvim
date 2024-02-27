@@ -114,7 +114,7 @@ function Connection:getSchema(data)
     elseif self.rdbms == "mysql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
-        table.remove(schema, 2)
+        table.remove(schema, 1)
         table.remove(schema)
         for i, _ in ipairs(schema) do
             schema[i] = string.gsub(schema[i], "%s", "")
@@ -204,6 +204,11 @@ function Connection:executeUv(query_type, query_data)
             table.insert(results, data)
         else
             local final = cleanData(table.concat(results, ""))
+            if self.rdbms == "mysql" then
+                if string.find(final[1], "mysql%: %[Warning%]") then
+                    table.remove(final, 1)
+                end
+            end
             if next(final) ~= nil then
                 if query_type == "connect" then
                     self:getSchema(final)
