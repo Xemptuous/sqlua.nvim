@@ -9,12 +9,22 @@ local Schema = {
     num_tables = 0
 }
 
+---@class Query
+---@field statement string|table
+---@field results table
+local Query = {
+    statement = "",
+    results = {}
+}
+
 ---@class Connection
 ---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
 ---@field cmd string query to execute
+---@field cli string cli program cmd name
+---@field cli_args table uv.spawn args
 ---@field rdbms string actual db name according to the url
 ---@field schema Schema nested schema design for this db
 ---@field files table all saved files in the local dir
@@ -22,14 +32,28 @@ local Schema = {
 local Connection = {
     expanded = false,
 	files_expanded = false,
+    results_expanded = false,
+    buffers_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
 	cmd = "",
+    cli = "",
 	rdbms = "",
+    cli_args = {},
 	schema = {},
 	files = {},
+    queries = {}
 }
+
+
+---@param buf buffer
+---@param val boolean
+---@return nil
+local function setSidebarModifiable(buf, val)
+	vim.api.nvim_set_option_value("modifiable", val, { buf = buf })
+end
+
 
 ---@param data string
 ---@return table
@@ -44,48 +68,31 @@ local function cleanData(data)
     return result
 end
 
----@param data table
----@return nil
----Takes query output and creates a 'Results' window & buffer
-local function createResultsPane(data)
-	vim.cmd("split")
-	local win = vim.api.nvim_get_current_win()
-	--TODO: new result window increments by 1 each time
-	-- consider reusing same one per window
-	local buf = vim.api.nvim_create_buf(true, true)
-	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
-	vim.api.nvim_win_set_buf(win, buf)
-	vim.api.nvim_win_set_height(0, 10)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
-	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-	vim.api.nvim_set_option_value("wrap", false, { win = win })
-	vim.api.nvim_set_option_value("number", false, { win = win })
-	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
-	vim.cmd("goto 1")
-	table.insert(require("sqlua.ui").buffers.results, buf)
-	table.insert(require("sqlua.ui").windows.results, win)
-end
 
 ---@param data table
 ---@return nil
-function Connection:query(data)
+function Connection:query(query, data)
 	local win = vim.api.nvim_get_current_win()
 	local pos = vim.api.nvim_win_get_cursor(win)
 	local buf = vim.api.nvim_win_get_buf(win)
     if data[1] == "" then
         return
     end
-    if vim.fn.bufexists("ResultsBuf") == 1 then
-        for _, buffer in pairs(vim.api.nvim_list_bufs()) do
-            if vim.fn.bufname(buffer) == "ResultsBuf" then
-                vim.api.nvim_buf_delete(buffer, {
-                    force = true,
-                    unload = false
-                })
-            end
-        end
+
+    local q = vim.deepcopy(Query)
+    q.statement = query
+    q.results = data
+    table.insert(self.queries, q)
+
+    local ui = require("sqlua.ui")
+    if ui.buffers.results ~= nil then
+        setSidebarModifiable(ui.buffers.results, true)
+        vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
+        setSidebarModifiable(ui.buffers.results, false)
+    else
+        print("QUERY RESULTS PANE")
+        ui.createResultsPane(data)
     end
-    createResultsPane(data)
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)
     vim.api.nvim_win_set_cursor(win, pos)
@@ -93,13 +100,28 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgresql rdbms
-function Connection:getPostgresSchema(data)
-	self.rdbms = "postgres"
+---Gets the initial db structure for postgres rdbms
+function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-	table.remove(schema, 1)
-	table.remove(schema, 1)
-	table.remove(schema)
+    if self.rdbms == "postgres" then
+        table.remove(schema, 1)
+        table.remove(schema, 1)
+        table.remove(schema)
+        for i, _ in ipairs(schema) do
+            schema[i] = string.gsub(schema[i], "%s", "")
+            schema[i] = utils.splitString(schema[i], "|")
+        end
+    elseif self.rdbms == "mysql" then
+        table.remove(schema, 1)
+        table.remove(schema, 1)
+        table.remove(schema, 1)
+        table.remove(schema)
+        for i, _ in ipairs(schema) do
+            schema[i] = string.gsub(schema[i], "%s", "")
+            schema[i] = string.sub(schema[i], 2, -2)
+            schema[i] = utils.splitString(schema[i], "|")
+        end
+    end
 
     local old_schema = nil
     if next(self.schema) ~= nil then
@@ -109,9 +131,6 @@ function Connection:getPostgresSchema(data)
     self.schema = {}
 
 	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "%s", "")
-		schema[i] = utils.splitString(schema[i], "|")
-
 		local schema_name = schema[i][1]
 		local table_name = schema[i][2]
         if not self.schema[schema_name] then
@@ -155,81 +174,139 @@ end
 
 
 ---@param query_type string
----@param query_data table<string>
+---@param query_data string|table<string>
 ---The main query execution wrapper.
 ---Takes 3 types of arguments for `query_type`:
 ---  - connect
 ---  - refresh
 ---  - query
 function Connection:executeUv(query_type, query_data)
+    -- TODO: comments in code need to have space added
+    if #query_data == 1 and query_data[1] == " " then
+        return
+    end
     local uv = vim.uv
 
     local stdin = uv.new_pipe()
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    local handle, _ = uv.spawn("psql", {
-        args = {self.url},
+    local handle, _ = uv.spawn(self.cli, {
+        args = self.cli_args,
         stdio = {stdin, stdout, stderr}
     })
 
-    local stdout_results = {}
+    local results = {}
+    local ui = require("sqlua.ui")
     uv.read_start(stdout, vim.schedule_wrap(function(err, data)
         assert(not err, err)
-        local ui = require("sqlua.ui")
         if data then
-            table.insert(stdout_results, data)
+            table.insert(results, data)
         else
-            local final = cleanData(table.concat(stdout_results, ""))
+            local final = cleanData(table.concat(results, ""))
+            if self.rdbms == "mysql" then
+                if string.find(final[1], "mysql%: %[Warning%]") then
+                    table.remove(final, 1)
+                end
+            end
             if next(final) ~= nil then
                 if query_type == "connect" then
-                    self:getPostgresSchema(final)
+                    self:getSchema(final)
                     ui:addConnection(self)
-                    ui:refreshSidebar()
                 elseif query_type == "refresh" then
-                    self:getPostgresSchema(final)
-                    ui:refreshSidebar()
-                    -- local old_schema = self.schema
-                    -- self.schema = {}
-                    -- local con = vim.deepcopy(self)
-                    -- con:getPostgresSchema(final)
-                    -- local new_schema = con.schema
-                    -- self.schema = vim.tbl_deep_extend(
-                    --     "force", old_schema, new_schema)
-                    -- ui:refreshSidebar()
+                    self:getSchema(final)
                 elseif query_type == "query" then
-                    self:query(final)
+                    self:query(query_data, final)
+                    vim.api.nvim_win_close(ui.windows.query_float, true)
+                    ui.windows.query_float = nil
                 end
+                ui:refreshSidebar()
+            else
+                vim.api.nvim_win_close(ui.windows.query_float, true)
+                ui.windows.query_float = nil
             end
         end
     end))
 
-    local stderr_results = nil
+
+    local stderr_results = false
     uv.read_start(stderr, vim.schedule_wrap(function(err, data)
         assert(not err, err)
         if data then
-            if not stderr_results then
-                stderr_results = {}
-            end
-            table.insert(stderr_results, data)
+            table.insert(results, data)
+            stderr_results = true
         else
             if stderr_results then
-                local final = cleanData(table.concat(stderr_results, ""))
+                local final = cleanData(table.concat(results, ""))
                 if next(final) ~= nil then
-                    if query_type ~= "refresh" then
-                        self:query(final)
+                    if query_type == "query" then
+                        self:query(query_data, final)
+                        ui:refreshSidebar()
                     end
                 end
             end
         end
     end))
 
-    uv.write(stdin, query_data)
-    uv.shutdown(stdin, function()
-        if handle then
+    uv.write(stdin, query_data, function()
+    end)
+
+
+    uv.shutdown(stdin, vim.schedule_wrap(function()
+        if query_type == "query" then
+            setSidebarModifiable(ui.buffers.results, true)
+            if ui.buffers.results ~= nil then
+                vim.api.nvim_buf_set_lines(
+                    ui.buffers.results, 0, -1, false, {})
+            else
+                ui.createResultsPane({})
+            end
+            if not ui.windows.query_float then
+                local w = vim.api.nvim_win_get_width(ui.windows.results)
+                local h = vim.api.nvim_win_get_height(ui.windows.results)
+                local b = vim.api.nvim_create_buf(false, true)
+                ui.buffers.query_float = b
+                local fwin = vim.api.nvim_open_win(b, false, {
+                    relative='win',
+                    win=ui.windows.results,
+                    row=h/2 - 1,
+                    col=w/2 - math.floor(w/3) / 2,
+                    width=math.floor(w/3), height=1,
+                    border="single", title="Querying", title_pos="center",
+                    style="minimal",
+                    focusable=false,
+                })
+                ui.windows.query_float = fwin
+                local sep = string.rep(" ",
+                    math.floor(w / 3 / 2) -
+                        math.ceil(string.len("Executing Query") / 2))
+                vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+                    sep.."Executing Query"
+                })
+            end
+            setSidebarModifiable(ui.buffers.results, false)
             uv.close(handle)
         end
-    end)
+    end))
+    -- TODO: implement async "time elapsed" for query.
+    -- below was an attempt, but can't use vim.api or globals
+    -- inside of uv.new_thread()
+
+    -- local start_time = os.clock() * 100
+    -- local query_thread
+    -- query_thread = uv.new_thread(function(...)
+    --     local se, so, stime, rbuf = ...
+    --     print(se, so)
+    --     print("//////////// LOOP START")
+    --     while(se:is_active()) do
+    --         -- vim.api.nvim_buf_set_lines(
+    --         --     rbuf, 0, -1, false, {
+    --         --         "Fetching ",
+    --         --         tostring(stime - os.clock() * 100)
+    --         -- })
+    --     end
+    --     print("//////////// LOOP DONE")
+    -- end, stdout, stderr, start_time, ui.buffers.results)
 end
 
 
@@ -321,6 +398,7 @@ function Connection:execute(--[[optional mode string]] mode)
     end
 end
 
+
 ---@param name string
 ---@return nil
 ---Initializes the connection to the DB, and inserts into UI.
@@ -332,9 +410,24 @@ Connections.connect = function(name)
 			local con = vim.deepcopy(Connection)
 			con.name = name
 			con.url = connection["url"]
-			con.cmd = "psql " .. connection["url"] .. " -c "
-			local Queries = require("sqlua.queries.postgres")
-			local query = string.gsub(Queries.SchemaQuery, "\n", " ")
+
+            local parsed = utils.parseUrl(connection["url"])
+            con.rdbms = parsed.rdbms
+            con.url = connection["url"]
+
+            local queries = {}
+            if parsed.rdbms == "postgres" then
+                con.cli = "psql"
+                con.cmd = "psql "..connection["url"].." -c "
+                con.cli_args = {con.url}
+                queries = require("sqlua.queries.postgres")
+            elseif parsed.rdbms == "mysql" then
+                con.cli = "mysql"
+                con.cli_args = utils.getCLIArgs("mysql", parsed)
+                queries = require("sqlua.queries.mysql")
+            end
+            local query = string.gsub(queries.SchemaQuery, "\n", " ")
+
             con:executeUv("connect", query)
 		end
 	end
