@@ -22,8 +22,6 @@ local UI = {
 	initial_layout_loaded = false,
 	help_toggled = false,
 	sidebar_ns = 0,
-	files_expanded = false,
-    results_expanded = false,
     buffers_expanded = false,
 	active_db = "",
 	dbs = {},
@@ -732,7 +730,8 @@ local function createSidebar()
 				elseif val == "Queries" then
 					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded
                 elseif val == "Results" then
-                    UI.results_expanded = not UI.results_expanded
+                    UI.dbs[db].results_expanded = not
+                    UI.dbs[db].results_expanded
                 elseif is_folder then
                     toggleExpanded(UI.dbs[db].files, val)
 				else
@@ -768,7 +767,7 @@ local function createSidebar()
                     if rbuf == nil then
                         return
                     end
-                    local qnum = tonumber(string.match(val, "%d"))
+                    local qnum = tonumber(string.match(val, "%d+"))
 					local db, _ = sidebarFind("database", num)
                     setSidebarModifiable(rbuf, true)
                     vim.api.nvim_buf_set_lines(rbuf,

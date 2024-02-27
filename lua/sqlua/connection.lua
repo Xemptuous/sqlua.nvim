@@ -32,8 +32,6 @@ local Query = {
 local Connection = {
     expanded = false,
 	files_expanded = false,
- --    results_expanded = false,
- --    buffers_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
@@ -216,6 +214,7 @@ function Connection:executeUv(query_type, query_data)
                 elseif query_type == "refresh" then
                     self:getSchema(final)
                 elseif query_type == "query" then
+                    print("STDOUT")
                     self:query(query_data, final)
                     vim.api.nvim_win_close(ui.windows.query_float, true)
                     ui.windows.query_float = nil
@@ -229,22 +228,10 @@ function Connection:executeUv(query_type, query_data)
     end))
 
 
-    local stderr_results = false
     uv.read_start(stderr, vim.schedule_wrap(function(err, data)
         assert(not err, err)
         if data then
             table.insert(results, data)
-            stderr_results = true
-        else
-            if stderr_results then
-                local final = cleanData(table.concat(results, ""))
-                if next(final) ~= nil then
-                    if query_type == "query" then
-                        self:query(query_data, final)
-                        ui:refreshSidebar()
-                    end
-                end
-            end
         end
     end))
 
