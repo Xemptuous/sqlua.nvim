@@ -439,7 +439,11 @@ function UI:refreshSidebar()
 			printSidebarCollapsed(buf, srow - 1, text, sep)
 		end
 		srow = srow + 1
-        vim.cmd("syn match SQLua_active_db /"..UI.active_db..".*$/")
+        if db == UI.active_db then
+            vim.cmd("syn match SQLua_active_db /"..db..".*$/")
+        else
+            vim.cmd("syn match Normal /"..db..".*$/")
+        end
 	end
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(UI.windows.sidebar, setCursor)
