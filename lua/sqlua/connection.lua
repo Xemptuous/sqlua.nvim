@@ -4,9 +4,35 @@ local utils = require("sqlua.utils")
 local Connections = {}
 
 ---@class Schema
+---@field rdbms string
+---@field tables table
+---@field views table
+---@field functions table
+---@field procedures table
+---@field num_tables integer
+---@field num_views integer
+---@field num_functions integer
+---@field num_procedures integer
+---@field expanded boolean
+---@field tables_expanded boolean
+---@field views_expanded boolean
+---@field functions_expanded boolean
+---@field procedures_expanded boolean
 local Schema = {
+    rdbms = "",
     tables = {},
-    num_tables = 0
+    views = {},
+    functions = {},
+    procedures = {},
+    num_tables = 0,
+    num_views = 0,
+    num_functions = 0,
+    num_procedures = 0,
+    expanded = false,
+    tables_expanded = false,
+    views_expanded = false,
+    functions_expanded = false,
+    procedures_expanded = false,
 }
 
 ---@class Query
@@ -26,7 +52,7 @@ local Query = {
 ---@field cli string cli program cmd name
 ---@field cli_args table uv.spawn args
 ---@field rdbms string actual db name according to the url
----@field schema Schema nested schema design for this db
+---@field schema table nested schema design for this db
 ---@field files table all saved files in the local dir
 ---The primary object representing a single connection to a rdbms by url
 local Connection = {
@@ -88,7 +114,6 @@ function Connection:query(query, data)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
         setSidebarModifiable(ui.buffers.results, false)
     else
-        print("QUERY RESULTS PANE")
         ui.createResultsPane(data)
     end
     vim.api.nvim_set_current_win(win)
@@ -129,22 +154,32 @@ function Connection:getSchema(data)
     self.schema = {}
 
 	for i, _ in ipairs(schema) do
-		local schema_name = schema[i][1]
-		local table_name = schema[i][2]
-        if not self.schema[schema_name] then
-			self.schema[schema_name] = {
-				expanded = false,
-				num_tables = 0,
-				tables = {},
-			}
+        local type = schema[i][1]
+		local s = schema[i][2] -- schema
+		local t = schema[i][3] -- table/view/proc/func
+        if not self.schema[s] then
+            self.schema[s] = vim.deepcopy(Schema)
             self.num_schema = self.num_schema + 1
+            self.schema[s].rdbms = self.rdbms
 		end
-		if table_name ~= "-" then
-			self.schema[schema_name].tables[table_name] = {
-				expanded = false,
-			}
-			self.schema[schema_name].num_tables =
-                self.schema[schema_name].num_tables + 1
+		if t ~= "-" then
+            if type == "function" then
+                self.schema[s].functions[t] = { expanded = false }
+                self.schema[s].num_functions =
+                    self.schema[s].num_functions + 1
+            elseif type == "table" then
+                self.schema[s].tables[t] = { expanded = false }
+                self.schema[s].num_tables =
+                    self.schema[s].num_tables + 1
+            elseif type == "view" then
+                self.schema[s].views[t] = { expanded = false }
+                self.schema[s].num_views =
+                    self.schema[s].num_views + 1
+            else
+                self.schema[s].procedures[t] = { expanded = false }
+                self.schema[s].num_procedures =
+                    self.schema[s].num_procedures + 1
+            end
 		end
 	end
     if old_schema ~= nil then
@@ -214,7 +249,6 @@ function Connection:executeUv(query_type, query_data)
                 elseif query_type == "refresh" then
                     self:getSchema(final)
                 elseif query_type == "query" then
-                    print("STDOUT")
                     self:query(query_data, final)
                     vim.api.nvim_win_close(ui.windows.query_float, true)
                     ui.windows.query_float = nil
@@ -410,9 +444,8 @@ Connections.connect = function(name)
                 con.cli = "mysql"
                 con.cli_args = utils.getCLIArgs("mysql", parsed)
             end
-            local queries = require("sqlua.queries."..con.rdbms)
-            local query = string.gsub(queries.SchemaQuery, "\n", " ")
-
+            local queries = require("sqlua.queries."..con.rdbms).SchemaQuery
+            local query = string.gsub(queries, "\n", " ")
             con:executeUv("connect", query)
 		end
 	end
