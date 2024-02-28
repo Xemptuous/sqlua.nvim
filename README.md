@@ -2,6 +2,12 @@
 
 A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turning NeoVim into a full-fledged SQL IDE.
 
+![SQLua](img/sqlua_example.png)
+
+Currently supported DBMS:
+* PostgreSQL
+* MySQL
+
 ## Installation
 
 ### Lazy
@@ -11,7 +17,7 @@ A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turn
     'xemptuous/sqlua.nvim',
     lazy = true,
     cmd = 'SQLua',
-    config = function() require('sqlua').setup(opts) end
+    config = function() require('sqlua').setup() end
 }
 ```
 ### vim-plug
@@ -23,6 +29,11 @@ Plug 'xemptuous/sqlua.nvim'
 ### Packer
 ```lua
 use "xemptuous/sqlua.nvim"
+```
+
+To launch SQLua quickly, consider adding an alias to your `.zshrc` or `.bashrc`
+```
+alias nvsql="nvim '+SQLua'"
 ```
 
 ## Setup
@@ -77,7 +88,7 @@ be run based on the parent table, schema, and database.
 
 ## Roadmap
 
-This project is actively being developed, and will hopefully serve as NeoVim's full-fledged SQL IDE moving forward, eliminating the need for long load times and vim extensions.
+This project is actively being developed, and will hopefully serve as NeoVim's full-fledged SQL IDE moving forward, eliminating the need for long load times and multiple vim extensions.
 
 - [x] Create functional connection for psql
 - [x] Be able to execute queries from buffer
@@ -93,5 +104,4 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [ ] Add default limit functionality
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
-- [ ] Integrate other databases
 - [ ] Include fancy ui functionality to make SQLua sexy
