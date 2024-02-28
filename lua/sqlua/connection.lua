@@ -114,6 +114,7 @@ function Connection:query(query, data)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
         setSidebarModifiable(ui.buffers.results, false)
     else
+        print("QUERY RESULTS PANE")
         ui.createResultsPane(data)
     end
     vim.api.nvim_set_current_win(win)
