@@ -405,18 +405,18 @@ function Connection:execute(--[[optional mode string]] mode)
 		end
 	end
 
+    local final_query = {}
     if query then
         for i, j in ipairs(query) do
-            query[i] = query[i]:gsub("[\r\n]", " ")
-            query[i] = query[i]:gsub("%s+", " ")
-            local cleaned = j:gsub("%s+", "")
-            if cleaned:sub(1, 1) == "-" and cleaned:sub(2, 2) == '-' then
-                table.remove(query, i)
+            query[i] = j:gsub("[\r\n]", " ")
+            query[i] = " "..query[i]:match("^%s*(.-)%s*$").." "
+            local cleaned = j:match("^%s*(.-)%s*$")
+            if cleaned:match("^%-%-") or cleaned:match("^%#") then
             else
-                query[i] = " "..query[i]
+                table.insert(final_query, query[i])
             end
         end
-        self:executeUv("query", query)
+        self:executeUv("query", final_query)
     end
 end
 
