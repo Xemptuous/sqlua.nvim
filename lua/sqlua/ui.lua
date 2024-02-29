@@ -199,9 +199,7 @@ local function createTableStatement(type, tbl, schema, db)
         tbl, schema, UI.options.default_limit
     )[type]
 	for line in string.gmatch(query, "[^\r\n]+") do
-        local q, _ = line:gsub("%s+", " ")
-        q, _ = q:gsub("%.%s", ".")
-		table.insert(stmt, q)
+		table.insert(stmt, line)
 	end
 	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
     UI.dbs[db]:execute()
@@ -814,6 +812,7 @@ local function createSidebar()
                 end)
 
                 local sub_val = val:gsub(ICONS_SUB, "")
+                print(val, sub_val, schema)
                 if sub_val == "Buffers" then
                     UI.buffers_expanded = not UI.buffers_expanded
                 elseif db and db == sub_val then
@@ -838,7 +837,18 @@ local function createSidebar()
                 elseif is_folder then
                     toggleExpanded(UI.dbs[db].files, sub_val)
 				else
-					toggleExpanded(UI.dbs[db], sub_val)
+                    local s = UI.dbs[db].schema
+                    if string.find(val, UI_ICONS.schema) then
+                        toggleExpanded(s, sub_val)
+                    elseif string.find(val, UI_ICONS.table) then
+                        toggleExpanded(s[schema].tables, sub_val)
+                    elseif string.find(val, UI_ICONS.view) then
+                        toggleExpanded(s[schema].views, sub_val)
+                    elseif string.find(val, UI_ICONS._function) then
+                        toggleExpanded(s[schema].functions, sub_val)
+                    elseif string.find(val, UI_ICONS.procedure) then
+                        toggleExpanded(s[schema].procedures, sub_val)
+                    end
 				end
 				UI:refreshSidebar()
 				vim.api.nvim_win_set_cursor(0, cursorPos)
@@ -886,12 +896,15 @@ local function createSidebar()
 					db, _ = sidebarFind.database(num)
                     if tbl then
                         tbl = tbl:gsub(ICONS_SUB, "")
+                        tbl = tbl:gsub("%s+", "")
                     end
                     if schema then
                         schema = schema:gsub(ICONS_SUB, "")
+                        schema = schema:gsub("%s+", "")
                     end
                     if db then
                         db = db:gsub(ICONS_SUB, "")
+                        db = db:gsub("%s+", "")
                     end
 					val = val:gsub(ICONS_SUB, "")
 					if not tbl or not schema or not db then
