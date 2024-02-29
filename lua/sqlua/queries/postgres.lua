@@ -44,7 +44,6 @@ M.ddl = {
 	"Indexes",
 	"References",
 	"Foreign Keys",
-	"DDL",
 }
 
 ---@param tbl string
@@ -53,20 +52,11 @@ M.ddl = {
 ---@return string[]
 M.getQueries = function(tbl, schema, limit)
 	return {
-		Data = [[
+        Data = [[
 SELECT *
-FROM ]] .. schema .. "." .. tbl .. [[
-LIMIT ]] .. limit,
-
-		Columns = [[
-SELECT
-    column_name, column_default, is_nullable, data_type
-FROM information_schema.columns
-WHERE table_name = ']] .. tbl .. [['
-    AND table_schema = ']] .. schema .. [['
-ORDER BY column_name
-  ]],
-
+FROM ]]..schema.."."..tbl.."\n"..[[
+LIMIT ]]..limit,
+		Columns = "\\d+ "..schema.."."..tbl,
 		PrimaryKeys = [[
 SELECT
     tc.constraint_name,
@@ -84,15 +74,22 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
       ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'PRIMARY KEY'
-    AND tc.table_name = ']] .. tbl .. [['
-    AND tc.table_schema = ']] .. schema .. [['
+  AND tc.table_name = ']] .. tbl .. [['
+  AND tc.table_schema = ']] .. schema .. [['
 ]],
-
 		Indexes = [[
-SELECT *
-FROM pg_indexes
+SELECT
+    tc.constraint_name,
+    tc.table_name,
+    kcu.column_name,
+    pgi.indexdef AS index_definition
+FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+        ON tc.constraint_name = kcu.constraint_name
+    JOIN pg_indexes pgi
+        ON tc.constraint_name = pgi.indexname
 WHERE tablename = ']] .. tbl .. [['
-    AND schemaname = ']] .. schema .. "'",
+  AND schemaname = ']] .. schema .. "'",
 		References = [[
 SELECT
     tc.constraint_name,
@@ -104,18 +101,17 @@ SELECT
     rc.delete_rule
 FROM information_schema.table_constraints AS tc
     JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
+      ON tc.constraint_name = kcu.constraint_name
     JOIN information_schema.referential_constraints as rc
-        ON tc.constraint_name = rc.constraint_name
+      ON tc.constraint_name = rc.constraint_name
     JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
+      ON tc.constraint_name = ccu.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-    AND ccu.table_name = ']] .. tbl .. [['
-    AND tc.table_schema = ']] .. schema .. [['
+  AND ccu.table_name = ']] .. tbl .. [['
+  AND ccu.table_schema = ']] .. schema .. [['
 ]],
-
 		ForeignKeys = [[
-SELECT
+SELECT DISTINCT
     tc.constraint_name,
     tc.table_name,
     kcu.column_name,
@@ -125,24 +121,14 @@ SELECT
     rc.delete_rule
 FROM information_schema.table_constraints AS tc
     JOIN information_schema.key_column_usage AS kcu
-        ON tc.constraint_name = kcu.constraint_name
+      ON tc.constraint_name = kcu.constraint_name
     JOIN information_schema.referential_constraints as rc
-        ON tc.constraint_name = rc.constraint_name
+      ON tc.constraint_name = rc.constraint_name
     JOIN information_schema.constraint_column_usage AS ccu
-        ON ccu.constraint_name = tc.constraint_name
+      ON tc.constraint_name = ccu.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-    AND ccu.table_name = ']] .. tbl .. [['
-    AND tc.table_schema = ']] .. schema .. [['
-]],
-
-		DDL = [[
-SELECT
-    table_name,
-    pg_size_pretty(pg_relation_size(quote_ident(table_name))),
-    pg_relation_size(quote_ident(table_name))
-FROM Information_schema.tables
-WHERE table_schema = 'public'
-ORDER BY 3 DESC;
+  AND tc.table_name = ']] .. tbl .. [['
+  AND tc.table_schema = ']] .. schema .. [['
 ]],
 	}
 end
