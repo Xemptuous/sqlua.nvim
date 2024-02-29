@@ -67,6 +67,16 @@ Current commands include:
 :SQLuaAddConnection - prompts the user to add a connection to the connections file
 ```
 
+### Adding a Database
+After using `:SQLuaAddConnection` you will be prompted to enter a database url and a name for the database.
+
+The url should follow standard jdbc url format:
+`rdbms://[user][:password]@[host][:port][/db][?args*]`
+The url will be parsed to be used with the appropriate CLI command through args as necessary.
+
+The name given will be shown in the sidebar, and will not be used to connect to the specified db.
+
+
 The sidebar navigator can be used to explore the DB and its various schema and tables, as well as creating various template queries.
 
 ### Executing Queries
