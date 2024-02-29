@@ -24,8 +24,8 @@ local Windows = {
 ---@field active_db string
 ---@field dbs table
 ---@field num_dbs integer
----@field buffers table<buffer|table<buffer>|nil>
----@field windows table<window|table<window>|nil>
+---@field buffers Buffers
+---@field windows Windows
 ---@field last_cursor_position table<table<integer, integer>>
 ---@field last_active_buffer buffer
 ---@field current_active_buffer buffer
@@ -188,12 +188,8 @@ end
 ---Query is pulled based on active_db rdbms, and fills the available buffer.
 local function createTableStatement(type, tbl, schema, db)
 	local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
-	local buf = UI.last_active_buffer
-	local win = UI.last_active_window
-	if buf == 0 then
-		buf = UI.buffers.editors[1]
-		win = UI.windows.editors[1]
-	end
+    local win = UI.windows.editors[1]
+    local buf = vim.api.nvim_win_get_buf(win)
 	vim.api.nvim_set_current_win(win)
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
