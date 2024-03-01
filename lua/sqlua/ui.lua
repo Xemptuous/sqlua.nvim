@@ -212,66 +212,66 @@ end
 local sidebarFind = {
     ---@param num integer sidebar starting line
     table = function(num)
-            local tbl = nil
-            while true do
-                tbl = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if not tbl then
-                    return
-                elseif string.find(tbl, UI_ICONS.table) then
-                    break
-                end
-                num = num - 1
+        local tbl = nil
+        while true do
+            tbl = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if not tbl then
+                return
+            elseif string.find(tbl, UI_ICONS.table) then
+                break
             end
             num = num - 1
-            if tbl then
-                if tbl:find("%(") then
-                    tbl = tbl:sub(1, tbl:find("%(") - 1)
-                end
+        end
+        num = num - 1
+        if tbl then
+            if tbl:find("%(") then
+                tbl = tbl:sub(1, tbl:find("%(") - 1)
             end
-            return tbl, num
-        end,
+        end
+        return tbl, num
+    end,
     ---@param num integer sidebar starting line
     database = function(num)
-            local db = nil
-            while true do
-                db = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if string.find(db, UI_ICONS.db) then
-                    db = db:gsub("%s+", "")
-                    db = db:gsub(ICONS_SUB, "")
-                    break
-                end
-                num = num - 1
+        local db = nil
+        while true do
+            db = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if string.find(db, UI_ICONS.db) then
+                db = db:gsub("%s+", "")
+                db = db:gsub(ICONS_SUB, "")
+                break
             end
-            if db then
-                if db:find("%(") then
-                    db = db:sub(1, db:find("%(") - 1)
-                end
+            num = num - 1
+        end
+        if db then
+            if db:find("%(") then
+                db = db:sub(1, db:find("%(") - 1)
             end
-            return db, num
-        end,
+        end
+        return db, num
+    end,
     ---@param num integer sidebar starting line
     schema = function(num)
-            local schema = nil
-            while true do
-                schema = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if string.find(schema, UI_ICONS.schema) then
-                    break
-                end
-                num = num - 1
+        local schema = nil
+        while true do
+            schema = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if string.find(schema, UI_ICONS.schema) then
+                break
             end
-            if schema then
-                if schema:find("%(") then
-                    schema = schema:sub(1, schema:find("%(") - 1)
-                end
-            end
-            return schema, num
+            num = num - 1
         end
+        if schema then
+            if schema:find("%(") then
+                schema = schema:sub(1, schema:find("%(") - 1)
+            end
+        end
+        return schema, num
+    end
 }
 
 
