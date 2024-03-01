@@ -2,6 +2,10 @@
 ---@alias iterator function
 
 ---@class Buffers
+---@field sidebar integer|nil
+---@field results integer|nil
+---@field query_float integer|nil
+---@field editors table
 local Buffers = {
     sidebar = nil,
     results = nil,
@@ -9,6 +13,10 @@ local Buffers = {
     editors = {},
 }
 ---@class Windows
+---@field sidebar integer|nil
+---@field results integer|nil
+---@field query_float integer|nil
+---@field editors table
 local Windows = {
     sidebar = nil,
     results = nil,
@@ -24,8 +32,8 @@ local Windows = {
 ---@field active_db string
 ---@field dbs table
 ---@field num_dbs integer
----@field buffers table<buffer|table<buffer>|nil>
----@field windows table<window|table<window>|nil>
+---@field buffers Buffers
+---@field windows Windows
 ---@field last_cursor_position table<table<integer, integer>>
 ---@field last_active_buffer buffer
 ---@field current_active_buffer buffer
@@ -188,12 +196,8 @@ end
 ---Query is pulled based on active_db rdbms, and fills the available buffer.
 local function createTableStatement(type, tbl, schema, db)
 	local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
-	local buf = UI.last_active_buffer
-	local win = UI.last_active_window
-	if buf == 0 then
-		buf = UI.buffers.editors[1]
-		win = UI.windows.editors[1]
-	end
+    local win = UI.windows.editors[1]
+    local buf = vim.api.nvim_win_get_buf(win)
 	vim.api.nvim_set_current_win(win)
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
@@ -203,9 +207,7 @@ local function createTableStatement(type, tbl, schema, db)
         tbl, schema, UI.options.default_limit
     )[type]
 	for line in string.gmatch(query, "[^\r\n]+") do
-        local q, _ = line:gsub("%s+", " ")
-        q, _ = q:gsub("%.%s", ".")
-		table.insert(stmt, q)
+		table.insert(stmt, line)
 	end
 	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
     UI.dbs[db]:execute()
@@ -218,66 +220,66 @@ end
 local sidebarFind = {
     ---@param num integer sidebar starting line
     table = function(num)
-            local tbl = nil
-            while true do
-                tbl = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if not tbl then
-                    return
-                elseif string.find(tbl, UI_ICONS.table) then
-                    break
-                end
-                num = num - 1
+        local tbl = nil
+        while true do
+            tbl = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if not tbl then
+                return
+            elseif string.find(tbl, UI_ICONS.table) then
+                break
             end
             num = num - 1
-            if tbl then
-                if tbl:find("%(") then
-                    tbl = tbl:sub(1, tbl:find("%(") - 1)
-                end
+        end
+        num = num - 1
+        if tbl then
+            if tbl:find("%(") then
+                tbl = tbl:sub(1, tbl:find("%(") - 1)
             end
-            return tbl, num
-        end,
+        end
+        return tbl, num
+    end,
     ---@param num integer sidebar starting line
     database = function(num)
-            local db = nil
-            while true do
-                db = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if string.find(db, UI_ICONS.db) then
-                    db = db:gsub("%s+", "")
-                    db = db:gsub(ICONS_SUB, "")
-                    break
-                end
-                num = num - 1
+        local db = nil
+        while true do
+            db = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if string.find(db, UI_ICONS.db) then
+                db = db:gsub("%s+", "")
+                db = db:gsub(ICONS_SUB, "")
+                break
             end
-            if db then
-                if db:find("%(") then
-                    db = db:sub(1, db:find("%(") - 1)
-                end
+            num = num - 1
+        end
+        if db then
+            if db:find("%(") then
+                db = db:sub(1, db:find("%(") - 1)
             end
-            return db, num
-        end,
+        end
+        return db, num
+    end,
     ---@param num integer sidebar starting line
     schema = function(num)
-            local schema = nil
-            while true do
-                schema = vim.api.nvim_buf_get_lines(
-                    UI.buffers.sidebar, num - 1, num, false
-                )[1]
-                if string.find(schema, UI_ICONS.schema) then
-                    break
-                end
-                num = num - 1
+        local schema = nil
+        while true do
+            schema = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if string.find(schema, UI_ICONS.schema) then
+                break
             end
-            if schema then
-                if schema:find("%(") then
-                    schema = schema:sub(1, schema:find("%(") - 1)
-                end
-            end
-            return schema, num
+            num = num - 1
         end
+        if schema then
+            if schema:find("%(") then
+                schema = schema:sub(1, schema:find("%(") - 1)
+            end
+        end
+        return schema, num
+    end
 }
 
 
@@ -584,10 +586,12 @@ end
 ---@param data table
 ---@return nil
 ---Takes query output and creates a 'Results' window & buffer
-function UI.createResultsPane(data)
+function UI:createResultsPane(data)
 	vim.cmd("split")
 	local win = vim.api.nvim_get_current_win()
 	local buf = vim.api.nvim_create_buf(false, true)
+    self.buffers.results = buf
+	self.windows.results = win
 	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
@@ -598,8 +602,7 @@ function UI.createResultsPane(data)
 	vim.api.nvim_set_option_value("number", false, { win = win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
-    UI.buffers.results = buf
-	UI.windows.results = win
+    vim.api.nvim_set_current_buf(self.last_active_buffer)
 end
 
 ---@param win window
@@ -806,6 +809,13 @@ local function createSidebar()
 			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
 			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
 			if is_collapsed or is_expanded then
+                local sub_val = val:gsub(ICONS_SUB, "")
+                if sub_val == "Buffers" then
+                    UI.buffers_expanded = not UI.buffers_expanded
+                    UI:refreshSidebar()
+                    vim.api.nvim_win_set_cursor(0, cursorPos)
+                    return
+                end
                 local is_folder, _ = string.find(val, UI_ICONS.folder)
 				local db, _ = sidebarFind.database(num)
                 local _, schema = pcall(function()
@@ -817,10 +827,7 @@ local function createSidebar()
                     end
                 end)
 
-                local sub_val = val:gsub(ICONS_SUB, "")
-                if sub_val == "Buffers" then
-                    UI.buffers_expanded = not UI.buffers_expanded
-                elseif db and db == sub_val then
+                if db and db == sub_val then
 					toggleExpanded(UI.dbs, sub_val)
 				elseif sub_val == "Queries" then
 					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded
@@ -842,7 +849,18 @@ local function createSidebar()
                 elseif is_folder then
                     toggleExpanded(UI.dbs[db].files, sub_val)
 				else
-					toggleExpanded(UI.dbs[db], sub_val)
+                    local s = UI.dbs[db].schema
+                    if string.find(val, UI_ICONS.schema) then
+                        toggleExpanded(s, sub_val)
+                    elseif string.find(val, UI_ICONS.table) then
+                        toggleExpanded(s[schema].tables, sub_val)
+                    elseif string.find(val, UI_ICONS.view) then
+                        toggleExpanded(s[schema].views, sub_val)
+                    elseif string.find(val, UI_ICONS._function) then
+                        toggleExpanded(s[schema].functions, sub_val)
+                    elseif string.find(val, UI_ICONS.procedure) then
+                        toggleExpanded(s[schema].procedures, sub_val)
+                    end
 				end
 				UI:refreshSidebar()
 				vim.api.nvim_win_set_cursor(0, cursorPos)
@@ -890,12 +908,15 @@ local function createSidebar()
 					db, _ = sidebarFind.database(num)
                     if tbl then
                         tbl = tbl:gsub(ICONS_SUB, "")
+                        tbl = tbl:gsub("%s+", "")
                     end
                     if schema then
                         schema = schema:gsub(ICONS_SUB, "")
+                        schema = schema:gsub("%s+", "")
                     end
                     if db then
                         db = db:gsub(ICONS_SUB, "")
+                        db = db:gsub("%s+", "")
                     end
 					val = val:gsub(ICONS_SUB, "")
 					if not tbl or not schema or not db then
@@ -961,37 +982,49 @@ function UI:setup(config)
 	})
 	vim.api.nvim_create_autocmd({ "BufLeave" }, {
 		callback = function()
+            print("--------------------BufLeave--------------------")
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
+            print("  curwin ", curwin)
+            print("  curbuf ", curbuf)
 			if self.connections_loaded and self.initial_layout_loaded then
+                print("  setting last_active_buf/win")
 				self.last_active_buffer = curbuf
 				self.last_active_window = curwin
-				local _type, _ = getBufferType(curbuf)
-				if _type == nil then
+				local type, _ = getBufferType(curbuf)
+				if type == nil then
 					return
 				end
-				self.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(
-                    curwin
-                )
+                print("  buftype ", type)
+				self.last_cursor_position[type] =
+                    vim.api.nvim_win_get_cursor(curwin)
 			else
-				self.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
-                    curwin
-                )
+                print("  else")
+				self.last_cursor_position.sidebar =
+                    vim.api.nvim_win_get_cursor(curwin)
 			end
 		end,
 	})
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         callback = function()
+            print("--------------------BufEnter--------------------")
 			local curwin = vim.api.nvim_get_current_win()
+            print("  curwin ", curwin)
             if curwin == self.windows.sidebar then
+                print("  is sidebar")
                 if self.buffers.sidebar == nil then
+                    print("  return")
                     return
                 end
+                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.sidebar)
             elseif curwin == self.windows.results then
+                print("  is results")
                 if self.buffers.results == nil then
+                    print("  return")
                     return
                 end
+                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.results)
             end
         end
