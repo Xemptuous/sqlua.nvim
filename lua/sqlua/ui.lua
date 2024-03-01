@@ -2,6 +2,10 @@
 ---@alias iterator function
 
 ---@class Buffers
+---@field sidebar integer|nil
+---@field results integer|nil
+---@field query_float integer|nil
+---@field editors table
 local Buffers = {
     sidebar = nil,
     results = nil,
@@ -9,6 +13,10 @@ local Buffers = {
     editors = {},
 }
 ---@class Windows
+---@field sidebar integer|nil
+---@field results integer|nil
+---@field query_float integer|nil
+---@field editors table
 local Windows = {
     sidebar = nil,
     results = nil,
@@ -578,10 +586,12 @@ end
 ---@param data table
 ---@return nil
 ---Takes query output and creates a 'Results' window & buffer
-function UI.createResultsPane(data)
+function UI:createResultsPane(data)
 	vim.cmd("split")
 	local win = vim.api.nvim_get_current_win()
 	local buf = vim.api.nvim_create_buf(false, true)
+    self.buffers.results = buf
+	self.windows.results = win
 	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
@@ -592,8 +602,7 @@ function UI.createResultsPane(data)
 	vim.api.nvim_set_option_value("number", false, { win = win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
-    UI.buffers.results = buf
-	UI.windows.results = win
+    vim.api.nvim_set_current_buf(self.last_active_buffer)
 end
 
 ---@param win window
@@ -800,6 +809,13 @@ local function createSidebar()
 			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
 			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
 			if is_collapsed or is_expanded then
+                local sub_val = val:gsub(ICONS_SUB, "")
+                if sub_val == "Buffers" then
+                    UI.buffers_expanded = not UI.buffers_expanded
+                    UI:refreshSidebar()
+                    vim.api.nvim_win_set_cursor(0, cursorPos)
+                    return
+                end
                 local is_folder, _ = string.find(val, UI_ICONS.folder)
 				local db, _ = sidebarFind.database(num)
                 local _, schema = pcall(function()
@@ -811,11 +827,7 @@ local function createSidebar()
                     end
                 end)
 
-                local sub_val = val:gsub(ICONS_SUB, "")
-                print(val, sub_val, schema)
-                if sub_val == "Buffers" then
-                    UI.buffers_expanded = not UI.buffers_expanded
-                elseif db and db == sub_val then
+                if db and db == sub_val then
 					toggleExpanded(UI.dbs, sub_val)
 				elseif sub_val == "Queries" then
 					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded
@@ -970,37 +982,49 @@ function UI:setup(config)
 	})
 	vim.api.nvim_create_autocmd({ "BufLeave" }, {
 		callback = function()
+            print("--------------------BufLeave--------------------")
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
+            print("  curwin ", curwin)
+            print("  curbuf ", curbuf)
 			if self.connections_loaded and self.initial_layout_loaded then
+                print("  setting last_active_buf/win")
 				self.last_active_buffer = curbuf
 				self.last_active_window = curwin
-				local _type, _ = getBufferType(curbuf)
-				if _type == nil then
+				local type, _ = getBufferType(curbuf)
+				if type == nil then
 					return
 				end
-				self.last_cursor_position[_type] = vim.api.nvim_win_get_cursor(
-                    curwin
-                )
+                print("  buftype ", type)
+				self.last_cursor_position[type] =
+                    vim.api.nvim_win_get_cursor(curwin)
 			else
-				self.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(
-                    curwin
-                )
+                print("  else")
+				self.last_cursor_position.sidebar =
+                    vim.api.nvim_win_get_cursor(curwin)
 			end
 		end,
 	})
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         callback = function()
+            print("--------------------BufEnter--------------------")
 			local curwin = vim.api.nvim_get_current_win()
+            print("  curwin ", curwin)
             if curwin == self.windows.sidebar then
+                print("  is sidebar")
                 if self.buffers.sidebar == nil then
+                    print("  return")
                     return
                 end
+                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.sidebar)
             elseif curwin == self.windows.results then
+                print("  is results")
                 if self.buffers.results == nil then
+                    print("  return")
                     return
                 end
+                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.results)
             end
         end

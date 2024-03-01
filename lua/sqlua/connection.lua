@@ -112,10 +112,11 @@ function Connection:query(query, data)
     if ui.buffers.results ~= nil then
         setSidebarModifiable(ui.buffers.results, true)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
+        vim.api.nvim_win_set_cursor(ui.windows.results, {1, 0})
         setSidebarModifiable(ui.buffers.results, false)
     else
-        print("QUERY RESULTS PANE")
-        ui.createResultsPane(data)
+        ui:createResultsPane(data)
+        vim.api.nvim_win_set_cursor(ui.windows.results, {1, 0})
     end
     vim.api.nvim_set_current_win(win)
     vim.api.nvim_win_set_buf(win, buf)
@@ -281,7 +282,7 @@ function Connection:executeUv(query_type, query_data)
                 vim.api.nvim_buf_set_lines(
                     ui.buffers.results, 0, -1, false, {})
             else
-                ui.createResultsPane({})
+                ui:createResultsPane({})
             end
             if not ui.windows.query_float then
                 local w = vim.api.nvim_win_get_width(ui.windows.results)
