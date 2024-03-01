@@ -44,7 +44,50 @@ M.ddl = {
 	"Indexes",
 	"References",
 	"Foreign Keys",
-	"DDL",
 }
+
+---@param tbl string
+---@param schema string
+---@param limit integer
+---@return string[]
+M.getQueries = function(tbl, schema, limit)
+	return {
+        Data = [[
+SELECT *
+FROM ]]..schema.."."..tbl.."\n"..[[
+LIMIT ]]..limit,
+		Columns = "DESCRIBE "..schema.."."..tbl,
+		PrimaryKeys = [[
+SHOW KEYS FROM ]]..schema.."."..tbl..[[
+
+WHERE key_name = 'PRIMARY'
+]],
+		Indexes = "SHOW INDEX FROM "..schema.."."..tbl,
+		References = [[
+SELECT
+    kc.constraint_name,
+    kc.table_schema,
+    kc.table_name,
+    kc.column_name,
+    c.column_type,
+    c.column_key,
+    kc.referenced_table_schema foreign_schema,
+    kc.referenced_table_name foreign_table
+FROM information_schema.key_column_usage kc
+    JOIN information_schema.columns c
+        ON c.table_schema = kc.table_schema
+       AND c.table_name = kc.table_name
+       AND c.column_name = kc.column_name
+WHERE kc.constraint_name <> 'PRIMARY'
+  AND kc.referenced_table_schema = ']]..schema..[['
+  AND kc.referenced_table_name = ']]..tbl..[['
+]],
+		ForeignKeys = [[
+SHOW KEYS FROM ]]..schema.."."..tbl..[[
+
+WHERE key_name <> 'PRIMARY'
+]]
+	}
+end
 
 return M
