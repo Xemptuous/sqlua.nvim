@@ -1,14 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/Xemptuous/sqlua.nvim/tree/HEAD)
-
-[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.0...HEAD)
-
-**Merged pull requests:**
-
-- Feature/queries inclusion [\#12](https://github.com/Xemptuous/sqlua.nvim/pull/12) ([Xemptuous](https://github.com/Xemptuous))
-
-## [v0.1.0](https://github.com/Xemptuous/sqlua.nvim/tree/v0.1.0) (2024-02-28)
+## [v0.1.0](https://github.com/Xemptuous/sqlua.nvim/tree/v0.1.0) (2024-03-01)
 
 [Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/5100587a184ff6a772ccf140d143f40bad55d80b...v0.1.0)
 
@@ -23,6 +15,7 @@
 
 **Merged pull requests:**
 
+- Feature/queries inclusion [\#12](https://github.com/Xemptuous/sqlua.nvim/pull/12) ([Xemptuous](https://github.com/Xemptuous))
 - Feature/buffers expansion [\#11](https://github.com/Xemptuous/sqlua.nvim/pull/11) ([Xemptuous](https://github.com/Xemptuous))
 - Feature/url parsing [\#10](https://github.com/Xemptuous/sqlua.nvim/pull/10) ([Xemptuous](https://github.com/Xemptuous))
 - Feature/file handling [\#9](https://github.com/Xemptuous/sqlua.nvim/pull/9) ([Xemptuous](https://github.com/Xemptuous))
