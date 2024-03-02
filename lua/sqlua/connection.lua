@@ -4,7 +4,7 @@ local utils = require("sqlua.utils")
 local Connections = {}
 
 ---@class Schema
----@field rdbms string
+---@field dbms string
 ---@field tables table
 ---@field views table
 ---@field functions table
@@ -19,7 +19,7 @@ local Connections = {}
 ---@field functions_expanded boolean
 ---@field procedures_expanded boolean
 local Schema = {
-    rdbms = "",
+    dbms = "",
     tables = {},
     views = {},
     functions = {},
@@ -51,10 +51,10 @@ local Query = {
 ---@field cmd string query to execute
 ---@field cli string cli program cmd name
 ---@field cli_args table uv.spawn args
----@field rdbms string actual db name according to the url
+---@field dbms string actual db name according to the url
 ---@field schema table nested schema design for this db
 ---@field files table all saved files in the local dir
----The primary object representing a single connection to a rdbms by url
+---The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
 	files_expanded = false,
@@ -63,7 +63,7 @@ local Connection = {
 	url = "",
 	cmd = "",
     cli = "",
-	rdbms = "",
+	dbms = "",
     cli_args = {},
 	schema = {},
 	files = {},
@@ -125,10 +125,11 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgres rdbms
+---Gets the initial db structure for postgres dbms
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-    if self.rdbms == "postgres" then
+    P(data)
+    if self.dbms == "postgres" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema)
@@ -136,7 +137,7 @@ function Connection:getSchema(data)
             schema[i] = string.gsub(schema[i], "%s", "")
             schema[i] = utils.splitString(schema[i], "|")
         end
-    elseif self.rdbms == "mysql" then
+    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema, 1)
@@ -162,7 +163,7 @@ function Connection:getSchema(data)
         if not self.schema[s] then
             self.schema[s] = vim.deepcopy(Schema)
             self.num_schema = self.num_schema + 1
-            self.schema[s].rdbms = self.rdbms
+            self.schema[s].dbms = self.dbms
 		end
 		if t ~= "-" then
             if type == "function" then
@@ -239,7 +240,7 @@ function Connection:executeUv(query_type, query_data)
             table.insert(results, data)
         else
             local final = cleanData(table.concat(results, ""))
-            if self.rdbms == "mysql" then
+            if self.dbms == "mysql" then
                 if string.find(final[1], "mysql%: %[Warning%]") then
                     table.remove(final, 1)
                 end
@@ -257,8 +258,10 @@ function Connection:executeUv(query_type, query_data)
                 end
                 ui:refreshSidebar()
             else
-                vim.api.nvim_win_close(ui.windows.query_float, true)
-                ui.windows.query_float = nil
+                if ui.windows.query_float then
+                    vim.api.nvim_win_close(ui.windows.query_float, true)
+                    ui.windows.query_float = nil
+                end
             end
         end
     end))
@@ -435,18 +438,22 @@ Connections.connect = function(name)
 			con.url = connection["url"]
 
             local parsed = utils.parseUrl(connection["url"])
-            con.rdbms = parsed.rdbms
+            con.dbms = parsed.dbms
             con.url = connection["url"]
+            print(con.dbms, con.url)
 
-            if parsed.rdbms == "postgres" then
+            if parsed.dbms == "postgres" then
                 con.cli = "psql"
                 con.cmd = "psql "..connection["url"].." -c "
                 con.cli_args = {con.url}
-            elseif parsed.rdbms == "mysql" then
+            elseif parsed.dbms == "mysql" then
                 con.cli = "mysql"
                 con.cli_args = utils.getCLIArgs("mysql", parsed)
+            elseif parsed.dbms == "mariadb" then
+                con.cli = "mariadb"
+                con.cli_args = utils.getCLIArgs("mysql", parsed)
             end
-            local queries = require("sqlua.queries."..con.rdbms).SchemaQuery
+            local queries = require("sqlua.queries."..con.dbms).SchemaQuery
             local query = string.gsub(queries, "\n", " ")
             con:executeUv("connect", query)
 		end
