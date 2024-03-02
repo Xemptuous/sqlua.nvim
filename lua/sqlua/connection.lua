@@ -279,10 +279,11 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgres dbms
+--- Populates the Connection's schema based on the stdout
+--- from executing the DBMS' SchemaQuery
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-    if self.dbms == "postgres" then
+    if self.dbms == "postgresql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema)
@@ -290,7 +291,7 @@ function Connection:getSchema(data)
             schema[i] = string.gsub(schema[i], "%s", "")
             schema[i] = utils.splitString(schema[i], "|")
         end
-    elseif self.dbms == "mysql" then
+    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema, 1)
@@ -411,8 +412,10 @@ function Connection:executeUv(query_type, query_data)
                 end
                 ui:refreshSidebar()
             else
-                vim.api.nvim_win_close(ui.windows.query_float, true)
-                ui.windows.query_float = nil
+                if ui.windows.query_float then
+                    vim.api.nvim_win_close(ui.windows.query_float, true)
+                    ui.windows.query_float = nil
+                end
             end
         end
     end))

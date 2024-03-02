@@ -7,6 +7,7 @@ A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turn
 Currently supported DBMS:
 * PostgreSQL
 * MySQL
+* MariaDB
 
 ## Installation
 

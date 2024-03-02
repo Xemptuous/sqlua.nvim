@@ -193,9 +193,9 @@ end
 ---@param db string database
 ---@return nil
 ---Creates the specified statement to query the given table.
----Query is pulled based on active_db rdbms, and fills the available buffer.
+---Query is pulled based on active_db dbms, and fills the available buffer.
 local function createTableStatement(type, tbl, schema, db)
-	local queries = require("sqlua/queries." .. UI.dbs[db].rdbms)
+	local queries = require("sqlua/queries." .. UI.dbs[db].dbms)
     local win = UI.windows.editors[1]
     local buf = vim.api.nvim_win_get_buf(win)
 	vim.api.nvim_set_current_win(win)
@@ -290,7 +290,7 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
 	local function refreshTables(buf, srow, schema, sep)
-		local queries = require("sqlua/queries." .. schema.rdbms)
+		local queries = require("sqlua/queries." .. schema.dbms)
 		local statements = queries.ddl
 
 		local text = UI_ICONS.tables.." Tables ("..schema.num_tables..")"
@@ -702,7 +702,7 @@ local function createSidebar()
 		callback = function()
 			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(0)
 			for _, con in pairs(UI.dbs) do
-                local queries = require('sqlua.queries.postgres')
+                local queries = require('sqlua.queries.'..con.dbms)
                 local query = string.gsub(queries.SchemaQuery, "\n", " ")
                 con:executeUv("refresh", query)
                 con.files:refresh()
@@ -958,9 +958,6 @@ function UI:setup(config)
 
 			local mode = vim.api.nvim_get_mode().mode
             local db = self.dbs[self.active_db]
-            if not db then
-                print("No Active Connection")
-            end
             db:execute(mode)
             self:refreshSidebar()
 		end,
@@ -982,24 +979,18 @@ function UI:setup(config)
 	})
 	vim.api.nvim_create_autocmd({ "BufLeave" }, {
 		callback = function()
-            print("--------------------BufLeave--------------------")
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
-            print("  curwin ", curwin)
-            print("  curbuf ", curbuf)
 			if self.connections_loaded and self.initial_layout_loaded then
-                print("  setting last_active_buf/win")
 				self.last_active_buffer = curbuf
 				self.last_active_window = curwin
 				local type, _ = getBufferType(curbuf)
 				if type == nil then
 					return
 				end
-                print("  buftype ", type)
 				self.last_cursor_position[type] =
                     vim.api.nvim_win_get_cursor(curwin)
 			else
-                print("  else")
 				self.last_cursor_position.sidebar =
                     vim.api.nvim_win_get_cursor(curwin)
 			end
@@ -1007,24 +998,16 @@ function UI:setup(config)
 	})
     vim.api.nvim_create_autocmd({ "BufEnter" }, {
         callback = function()
-            print("--------------------BufEnter--------------------")
 			local curwin = vim.api.nvim_get_current_win()
-            print("  curwin ", curwin)
             if curwin == self.windows.sidebar then
-                print("  is sidebar")
                 if self.buffers.sidebar == nil then
-                    print("  return")
                     return
                 end
-                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.sidebar)
             elseif curwin == self.windows.results then
-                print("  is results")
                 if self.buffers.results == nil then
-                    print("  return")
                     return
                 end
-                print("  setting win buf")
                 vim.api.nvim_win_set_buf(curwin, self.buffers.results)
             end
         end
