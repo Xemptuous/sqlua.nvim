@@ -4,7 +4,7 @@ local utils = require("sqlua.utils")
 local Connections = {}
 
 ---@class Schema
----@field rdbms string
+---@field dbms string
 ---@field tables table
 ---@field views table
 ---@field functions table
@@ -19,7 +19,7 @@ local Connections = {}
 ---@field functions_expanded boolean
 ---@field procedures_expanded boolean
 local Schema = {
-    rdbms = "",
+    dbms = "",
     tables = {},
     views = {},
     functions = {},
@@ -43,32 +43,186 @@ local Query = {
     results = {}
 }
 
+---@class ConnectionInfo
+---@field dbms string
+---@field user string
+---@field password string
+---@field host string
+---@field port string
+---@field database string
+---@field args table<string>
+local ConnectionInfo = {
+    dbms = "",
+    user = "",
+    password = "",
+    host = "",
+    port = "",
+    database = "",
+    args = {}
+}
+
 ---@class Connection
 ---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
----@field cmd string query to execute
----@field cli string cli program cmd name
+---@field cmd string cli program cmd name
 ---@field cli_args table uv.spawn args
----@field rdbms string actual db name according to the url
+---@field dbms string actual db name according to the url
 ---@field schema table nested schema design for this db
 ---@field files table all saved files in the local dir
----The primary object representing a single connection to a rdbms by url
+---The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
 	files_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
-	cmd = "",
-    cli = "",
-	rdbms = "",
+    cmd = "",
+	dbms = "",
+    connection_info = ConnectionInfo,
+    schema_query = "",
     cli_args = {},
 	schema = {},
 	files = {},
     queries = {}
 }
+
+local Commands = {
+    postgres = "psql",
+    mysql = "mysql",
+    mariadb = "mariadb"
+}
+
+---@return table<string>
+--- Gets the cli args fed to uv.spawn when executing queries
+function Connection:GetCliArgs()
+    local parts = {}
+    if self.dbms == "postgres" then
+        return { self.url }
+    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
+        for k, v in pairs(self.connection_info) do
+            if type(v) == "table" then
+                if next(v) ~= nil then
+                    for _, item in pairs(v) do
+                        table.insert(parts, " --"..item)
+                    end
+                end
+            elseif v ~= "" then
+                table.insert(parts, "--"..k..v.."")
+            end
+        end
+        table.insert(parts, "-t") -- table output
+    end
+    return parts
+end
+
+---@returns ConnectionInfo
+--- Takes a url and returns a ConnectionInfo object
+--- representing connection attributes
+function Connection:parseUrl()
+    local split = utils.splitString(self.url, ":/@")
+    local con_info = vim.deepcopy(ConnectionInfo)
+    con_info.dbms = split[1]
+    if self.url:find("@") then
+        if #split == 3 then
+            -- dbms://user@host
+            con_info.user = split[2]
+            con_info.host = split[3]
+        elseif #split == 4 then
+            if tonumber(split[4]) then
+                -- dbms://user@host:port
+                con_info.user = split[2]
+                con_info.host = split[3]
+                con_info.port = split[4]
+            elseif split[4]:find("?") then
+                -- dbms://user@host/db?query
+                con_info.user = split[2]
+                con_info.host = split[3]
+                con_info.database = split[4]
+            else
+                -- dbms://user:pass@host
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+            end
+        elseif #split == 5 then
+            if tonumber(split[5]) then
+                -- dbms://user:pass@host:port
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+                con_info.port = split[5]
+            else
+                -- dbms://user:pass@host?db?query
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+                con_info.database = split[5]
+            end
+        else
+            -- dbms://user:pass@host:port/db?query
+            con_info.user = split[2]
+            con_info.password = split[3]
+            con_info.host = split[4]
+            con_info.port = split[5]
+            con_info.database = split[6]
+        end
+    else
+        if #split == 2 then
+            -- dbms://host
+            con_info.host = split[2]
+        elseif #split == 3 then
+            if tonumber(split[3]) then
+                -- dbms://host:port
+                con_info.host = split[2]
+                con_info.port = split[3]
+            else
+                -- dbms://host:db?query
+                con_info.host = split[2]
+                con_info.database = split[3]
+            end
+        elseif #split == 4 then
+            -- dbms://host:port/db?query
+            con_info.host = split[2]
+            con_info.port = split[3]
+            con_info.database = split[4]
+        end
+    end
+    -- extract query con_info from db name
+    if con_info.database ~= "" then
+        local args = utils.splitString(con_info.database, '?&')
+        con_info.database = args[1]
+        table.remove(args, 1)
+        for _, item in pairs(args) do
+            local user_args = item:match("user=(%w+)")
+            local password_args = item:match("password=([%w!-$'-~]+)")
+            if user_args then
+                con_info.user = user_args
+            elseif password_args then
+                con_info.password = password_args
+            else
+                table.insert(con_info.args, item)
+            end
+        end
+    end
+    return con_info
+end
+
+---@param name string
+---@param url string
+--- Initial connection setup which sets attributes
+function Connection:setup(name, url)
+    self.name = name
+    self.url = url
+    self.connection_info = self:parseUrl()
+    self.dbms = self.connection_info.dbms
+    self.cmd = Commands[self.dbms]
+    self.cli_args = self:GetCliArgs()
+
+    local query = require("sqlua.queries."..self.dbms).SchemaQuery
+    self.schema_query = string.gsub(query, "\n", " ")
+end
 
 
 ---@param buf buffer
@@ -125,10 +279,10 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgres rdbms
+---Gets the initial db structure for postgres dbms
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-    if self.rdbms == "postgres" then
+    if self.dbms == "postgres" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema)
@@ -136,7 +290,7 @@ function Connection:getSchema(data)
             schema[i] = string.gsub(schema[i], "%s", "")
             schema[i] = utils.splitString(schema[i], "|")
         end
-    elseif self.rdbms == "mysql" then
+    elseif self.dbms == "mysql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema, 1)
@@ -162,7 +316,7 @@ function Connection:getSchema(data)
         if not self.schema[s] then
             self.schema[s] = vim.deepcopy(Schema)
             self.num_schema = self.num_schema + 1
-            self.schema[s].rdbms = self.rdbms
+            self.schema[s].dbms = self.dbms
 		end
 		if t ~= "-" then
             if type == "function" then
@@ -226,7 +380,7 @@ function Connection:executeUv(query_type, query_data)
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    local handle, _ = uv.spawn(self.cli, {
+    local handle, _ = uv.spawn(self.cmd, {
         args = self.cli_args,
         stdio = {stdin, stdout, stderr}
     })
@@ -239,7 +393,7 @@ function Connection:executeUv(query_type, query_data)
             table.insert(results, data)
         else
             local final = cleanData(table.concat(results, ""))
-            if self.rdbms == "mysql" then
+            if self.dbms == "mysql" then
                 if string.find(final[1], "mysql%: %[Warning%]") then
                     table.remove(final, 1)
                 end
@@ -431,24 +585,8 @@ Connections.connect = function(name)
 	for _, connection in pairs(connections) do
 		if connection["name"] == name then
 			local con = vim.deepcopy(Connection)
-			con.name = name
-			con.url = connection["url"]
-
-            local parsed = utils.parseUrl(connection["url"])
-            con.rdbms = parsed.rdbms
-            con.url = connection["url"]
-
-            if parsed.rdbms == "postgres" then
-                con.cli = "psql"
-                con.cmd = "psql "..connection["url"].." -c "
-                con.cli_args = {con.url}
-            elseif parsed.rdbms == "mysql" then
-                con.cli = "mysql"
-                con.cli_args = utils.getCLIArgs("mysql", parsed)
-            end
-            local queries = require("sqlua.queries."..con.rdbms).SchemaQuery
-            local query = string.gsub(queries, "\n", " ")
-            con:executeUv("connect", query)
+            con:setup(name, connection["url"])
+            con:executeUv("connect", con.schema_query)
 		end
 	end
 end
