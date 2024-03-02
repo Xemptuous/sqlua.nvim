@@ -89,7 +89,7 @@ local Connection = {
 }
 
 local Commands = {
-    postgres = "psql",
+    postgresql = "psql",
     mysql = "mysql",
     mariadb = "mariadb"
 }
@@ -98,7 +98,7 @@ local Commands = {
 --- Gets the cli args fed to uv.spawn when executing queries
 function Connection:GetCliArgs()
     local parts = {}
-    if self.dbms == "postgres" then
+    if self.dbms == "postgresql" then
         return { self.url }
     elseif self.dbms == "mysql" or self.dbms == "mariadb" then
         for k, v in pairs(self.connection_info) do
@@ -108,8 +108,8 @@ function Connection:GetCliArgs()
                         table.insert(parts, " --"..item)
                     end
                 end
-            elseif v ~= "" then
-                table.insert(parts, "--"..k..v.."")
+            elseif v ~= "" and k ~= "dbms" then
+                table.insert(parts, "--"..k.."="..v)
             end
         end
         table.insert(parts, "-t") -- table output
