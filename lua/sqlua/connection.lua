@@ -125,10 +125,11 @@ end
 
 ---@param data table
 ---@return nil
----Gets the initial db structure for postgres rdbms
+--- Populates the Connection's schema based on the stdout
+--- from executing the DBMS' SchemaQuery
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-    if self.rdbms == "postgres" then
+    if self.rdbms == "postgresql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema)
@@ -438,7 +439,7 @@ Connections.connect = function(name)
             con.rdbms = parsed.rdbms
             con.url = connection["url"]
 
-            if parsed.rdbms == "postgres" then
+            if parsed.rdbms == "postgresql" then
                 con.cli = "psql"
                 con.cmd = "psql "..connection["url"].." -c "
                 con.cli_args = {con.url}
