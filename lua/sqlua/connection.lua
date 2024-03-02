@@ -129,7 +129,6 @@ end
 --- from executing the DBMS' SchemaQuery
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
-    print(self.dbms)
     if self.dbms == "postgresql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
