@@ -175,9 +175,9 @@ M.pairsByKeys = function(t, f)
 	return iter
 end
 
-M.getCLIArgs = function(rdbms, parsed)
+M.getCLIArgs = function(dbms, parsed)
     local parts = {}
-    if rdbms == "mysql" then
+    if dbms == "mysql" then
         if parsed.host ~= "" then
             table.insert(parts, "--host="..parsed.host.."")
         end
@@ -205,7 +205,7 @@ end
 
 M.parseUrl = function(url)
     local params = {
-        rdbms = "",
+        dbms = "",
         user = "",
         password = "",
         host = "",
@@ -214,45 +214,45 @@ M.parseUrl = function(url)
         query = {}
     }
     local split = M.splitString(url, ":/@")
-    params.rdbms = split[1]
+    params.dbms = split[1]
     if url:find("@") then
         if #split == 3 then
-            -- rdbms://user@host
+            -- dbms://user@host
             params.user = split[2]
             params.host = split[3]
         elseif #split == 4 then
             if tonumber(split[4]) then
-                -- rdbms://user@host:port
+                -- dbms://user@host:port
                 params.user = split[2]
                 params.host = split[3]
                 params.port = split[4]
             elseif split[4]:find("?") then
-                -- rdbms://user@host/db?query
+                -- dbms://user@host/db?query
                 params.user = split[2]
                 params.host = split[3]
                 params.db = split[4]
             else
-                -- rdbms://user:pass@host
+                -- dbms://user:pass@host
                 params.user = split[2]
                 params.password = split[3]
                 params.host = split[4]
             end
         elseif #split == 5 then
             if tonumber(split[5]) then
-                -- rdbms://user:pass@host:port
+                -- dbms://user:pass@host:port
                 params.user = split[2]
                 params.password = split[3]
                 params.host = split[4]
                 params.port = split[5]
             else
-                -- rdbms://user:pass@host?db?query
+                -- dbms://user:pass@host?db?query
                 params.user = split[2]
                 params.password = split[3]
                 params.host = split[4]
                 params.db = split[5]
             end
         else
-            -- rdbms://user:pass@host:port/db?query
+            -- dbms://user:pass@host:port/db?query
             params.user = split[2]
             params.password = split[3]
             params.host = split[4]
@@ -261,20 +261,20 @@ M.parseUrl = function(url)
         end
     else
         if #split == 2 then
-            -- rdbms://host
+            -- dbms://host
             params.host = split[2]
         elseif #split == 3 then
             if tonumber(split[3]) then
-                -- rdbms://host:port
+                -- dbms://host:port
                 params.host = split[2]
                 params.port = split[3]
             else
-                -- rdbms://host:db?query
+                -- dbms://host:db?query
                 params.host = split[2]
                 params.db = split[3]
             end
         elseif #split == 4 then
-            -- rdbms://host:port/db?query
+            -- dbms://host:port/db?query
             params.host = split[2]
             params.port = split[3]
             params.db = split[4]
