@@ -702,7 +702,7 @@ local function createSidebar()
 		callback = function()
 			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(0)
 			for _, con in pairs(UI.dbs) do
-                local queries = require('sqlua.queries.postgres')
+                local queries = require('sqlua.queries.'..con.dbms)
                 local query = string.gsub(queries.SchemaQuery, "\n", " ")
                 con:executeUv("refresh", query)
                 con.files:refresh()
