@@ -128,6 +128,7 @@ end
 ---Gets the initial db structure for postgres dbms
 function Connection:getSchema(data)
 	local schema = utils.shallowcopy(data)
+    P(data)
     if self.dbms == "postgres" then
         table.remove(schema, 1)
         table.remove(schema, 1)
@@ -136,7 +137,7 @@ function Connection:getSchema(data)
             schema[i] = string.gsub(schema[i], "%s", "")
             schema[i] = utils.splitString(schema[i], "|")
         end
-    elseif self.dbms == "mysql" then
+    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
         table.remove(schema, 1)
         table.remove(schema, 1)
         table.remove(schema, 1)
@@ -257,8 +258,10 @@ function Connection:executeUv(query_type, query_data)
                 end
                 ui:refreshSidebar()
             else
-                vim.api.nvim_win_close(ui.windows.query_float, true)
-                ui.windows.query_float = nil
+                if ui.windows.query_float then
+                    vim.api.nvim_win_close(ui.windows.query_float, true)
+                    ui.windows.query_float = nil
+                end
             end
         end
     end))
@@ -437,6 +440,7 @@ Connections.connect = function(name)
             local parsed = utils.parseUrl(connection["url"])
             con.dbms = parsed.dbms
             con.url = connection["url"]
+            print(con.dbms, con.url)
 
             if parsed.dbms == "postgres" then
                 con.cli = "psql"
@@ -444,6 +448,9 @@ Connections.connect = function(name)
                 con.cli_args = {con.url}
             elseif parsed.dbms == "mysql" then
                 con.cli = "mysql"
+                con.cli_args = utils.getCLIArgs("mysql", parsed)
+            elseif parsed.dbms == "mariadb" then
+                con.cli = "mariadb"
                 con.cli_args = utils.getCLIArgs("mysql", parsed)
             end
             local queries = require("sqlua.queries."..con.dbms).SchemaQuery
