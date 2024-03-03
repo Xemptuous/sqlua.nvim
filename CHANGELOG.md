@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/Xemptuous/sqlua.nvim/tree/HEAD)
+## [v](https://github.com/Xemptuous/sqlua.nvim/tree/v) (2024-03-03)
 
-[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.1...HEAD)
+[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.1...v)
 
 **Merged pull requests:**
 
