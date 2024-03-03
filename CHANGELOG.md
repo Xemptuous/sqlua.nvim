@@ -1,8 +1,8 @@
 # Changelog
 
-## [v](https://github.com/Xemptuous/sqlua.nvim/tree/v) (2024-03-03)
+## [v0.1.1](https://github.com/Xemptuous/sqlua.nvim/tree/v0.1.1) (2024-03-03)
 
-[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.1...v)
+[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.0...v0.1.1)
 
 **Merged pull requests:**
 
@@ -10,10 +10,6 @@
 - fix: rdbms to dbms [\#15](https://github.com/Xemptuous/sqlua.nvim/pull/15) ([Xemptuous](https://github.com/Xemptuous))
 - fix: renamed postgres to postgresql [\#14](https://github.com/Xemptuous/sqlua.nvim/pull/14) ([Xemptuous](https://github.com/Xemptuous))
 - Feature/mariadb [\#13](https://github.com/Xemptuous/sqlua.nvim/pull/13) ([Xemptuous](https://github.com/Xemptuous))
-
-## [v0.1.1](https://github.com/Xemptuous/sqlua.nvim/tree/v0.1.1) (2024-03-01)
-
-[Full Changelog](https://github.com/Xemptuous/sqlua.nvim/compare/v0.1.0...v0.1.1)
 
 ## [v0.1.0](https://github.com/Xemptuous/sqlua.nvim/tree/v0.1.0) (2024-03-01)
 
