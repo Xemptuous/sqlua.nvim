@@ -12,6 +12,7 @@ DEFAULT_CONFIG = {
 	db_save_location = utils.concat({ ROOT_DIR, "dbs" }),
 	connections_save_location = utils.concat({ ROOT_DIR, "connections.json" }),
 	default_limit = 200,
+    load_connections_on_start = true,
 	keybinds = {
 		execute_query = "<leader>r",
 		activate_db = "<C-a>",
@@ -37,20 +38,19 @@ M.setup = function(opts)
 	-- main function to enter the UI
 	vim.api.nvim_create_user_command("SQLua", function(args)
 		UI:setup(config)
-		local dbs = nil
-		if args.args == "" then
-			dbs = utils.getDatabases(config.connections_save_location)
-			for _, db in pairs(dbs) do
-				Connection.connect(db.name)
-			end
-		else
-			dbs = utils.splitString(args.args, " ")
-			for _, db in pairs(dbs) do
-				Connection.connect(db)
-			end
-		end
-		UI.connections_loaded = true
 		UI.initial_layout_loaded = true
+
+        local cons = Connection.read()
+        for _, con in pairs(cons) do
+            local name, url = con["name"], con["url"]
+            local connection = Connection.setup(name, url)
+            if config.load_connections_on_start and connection then
+                connection:connect()
+            end
+            UI.dbs[name] = connection
+        end
+
+		-- UI.connections_loaded = true
 		if UI.num_dbs > 0 then
 			vim.api.nvim_win_set_cursor(UI.windows.sidebar, { 2, 2 })
 		end

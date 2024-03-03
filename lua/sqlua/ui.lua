@@ -521,14 +521,20 @@ function UI:refreshSidebar()
 
 
 	for db, _ in Utils.pairsByKeys(self.dbs) do
-		local text = UI_ICONS.db.." "..db.." (".. self.dbs[db].num_schema..")"
-		if self.dbs[db].expanded then
-			printSidebarExpanded(buf, srow - 1, text, sep)
-			srow = refreshDatabase(buf, db, srow)
-		else
-			printSidebarCollapsed(buf, srow - 1, text, sep)
-		end
-		srow = srow + 1
+        if self.dbs[db].loaded then
+            local ns = self.dbs[db].num_schema
+            local text = UI_ICONS.db.." "..db.." (".. ns ..")"
+            if self.dbs[db].expanded then
+                printSidebarExpanded(buf, srow - 1, text, sep)
+                srow = refreshDatabase(buf, db, srow)
+            else
+                printSidebarCollapsed(buf, srow - 1, text, sep)
+            end
+        else
+            local text = UI_ICONS.db.." "..db
+            printSidebarCollapsed(buf, srow - 1, text, sep)
+        end
+        srow = srow + 1
         if db == self.active_db then
             vim.cmd("syn match SQLua_active_db /"..db..".*$/")
         else
@@ -828,6 +834,9 @@ local function createSidebar()
                 end)
 
                 if db and db == sub_val then
+                    if not UI.dbs[db].loaded then
+                        UI.dbs[db]:connect()
+                    end
 					toggleExpanded(UI.dbs, sub_val)
 				elseif sub_val == "Queries" then
 					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded

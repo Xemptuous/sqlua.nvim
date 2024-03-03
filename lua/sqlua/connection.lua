@@ -43,13 +43,30 @@ local Query = {
     results = {}
 }
 
+---@class ConnectionInfo
+---@field dbms string
+---@field user string
+---@field password string
+---@field host string
+---@field port string
+---@field database string
+---@field args table<string>
+local ConnectionInfo = {
+    dbms = "",
+    user = "",
+    password = "",
+    host = "",
+    port = "",
+    database = "",
+    args = {}
+}
+
 ---@class Connection
 ---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
 ---@field name string locally defined db name
 ---@field url string full url to connect to the db
----@field cmd string query to execute
----@field cli string cli program cmd name
+---@field cmd string cli program cmd name
 ---@field cli_args table uv.spawn args
 ---@field dbms string actual db name according to the url
 ---@field schema table nested schema design for this db
@@ -57,18 +74,156 @@ local Query = {
 ---The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
+    loaded = false,
 	files_expanded = false,
 	num_schema = 0,
 	name = "",
 	url = "",
-	cmd = "",
-    cli = "",
+    cmd = "",
 	dbms = "",
+    connection_info = ConnectionInfo,
+    schema_query = "",
     cli_args = {},
 	schema = {},
 	files = {},
     queries = {}
 }
+
+local Commands = {
+    postgresql = "psql",
+    mysql = "mysql",
+    mariadb = "mariadb"
+}
+
+---@return table<string>
+--- Gets the cli args fed to uv.spawn when executing queries
+function Connection:GetCliArgs()
+    local parts = {}
+    if self.dbms == "postgresql" then
+        return { self.url }
+    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
+        for k, v in pairs(self.connection_info) do
+            if type(v) == "table" then
+                if next(v) ~= nil then
+                    for _, item in pairs(v) do
+                        table.insert(parts, " --"..item)
+                    end
+                end
+            elseif v ~= "" and k ~= "dbms" then
+                table.insert(parts, "--"..k.."="..v)
+            end
+        end
+        table.insert(parts, "-t") -- table output
+    end
+    return parts
+end
+
+---@returns ConnectionInfo
+--- Takes a url and returns a ConnectionInfo object
+--- representing connection attributes
+function Connection:parseUrl()
+    local split = utils.splitString(self.url, ":/@")
+    local con_info = vim.deepcopy(ConnectionInfo)
+    con_info.dbms = split[1]
+    if self.url:find("@") then
+        if #split == 3 then
+            -- dbms://user@host
+            con_info.user = split[2]
+            con_info.host = split[3]
+        elseif #split == 4 then
+            if tonumber(split[4]) then
+                -- dbms://user@host:port
+                con_info.user = split[2]
+                con_info.host = split[3]
+                con_info.port = split[4]
+            elseif split[4]:find("?") then
+                -- dbms://user@host/db?query
+                con_info.user = split[2]
+                con_info.host = split[3]
+                con_info.database = split[4]
+            else
+                -- dbms://user:pass@host
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+            end
+        elseif #split == 5 then
+            if tonumber(split[5]) then
+                -- dbms://user:pass@host:port
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+                con_info.port = split[5]
+            else
+                -- dbms://user:pass@host?db?query
+                con_info.user = split[2]
+                con_info.password = split[3]
+                con_info.host = split[4]
+                con_info.database = split[5]
+            end
+        else
+            -- dbms://user:pass@host:port/db?query
+            con_info.user = split[2]
+            con_info.password = split[3]
+            con_info.host = split[4]
+            con_info.port = split[5]
+            con_info.database = split[6]
+        end
+    else
+        if #split == 2 then
+            -- dbms://host
+            con_info.host = split[2]
+        elseif #split == 3 then
+            if tonumber(split[3]) then
+                -- dbms://host:port
+                con_info.host = split[2]
+                con_info.port = split[3]
+            else
+                -- dbms://host:db?query
+                con_info.host = split[2]
+                con_info.database = split[3]
+            end
+        elseif #split == 4 then
+            -- dbms://host:port/db?query
+            con_info.host = split[2]
+            con_info.port = split[3]
+            con_info.database = split[4]
+        end
+    end
+    -- extract query con_info from db name
+    if con_info.database ~= "" then
+        local args = utils.splitString(con_info.database, '?&')
+        con_info.database = args[1]
+        table.remove(args, 1)
+        for _, item in pairs(args) do
+            local user_args = item:match("user=(%w+)")
+            local password_args = item:match("password=([%w!-$'-~]+)")
+            if user_args then
+                con_info.user = user_args
+            elseif password_args then
+                con_info.password = password_args
+            else
+                table.insert(con_info.args, item)
+            end
+        end
+    end
+    return con_info
+end
+
+---@param name string
+---@param url string
+--- Initial connection setup which sets attributes
+function Connection:setup(name, url)
+    self.name = name
+    self.url = url
+    self.connection_info = self:parseUrl()
+    self.dbms = self.connection_info.dbms
+    self.cmd = Commands[self.dbms]
+    self.cli_args = self:GetCliArgs()
+
+    local query = require("sqlua.queries."..self.dbms).SchemaQuery
+    self.schema_query = string.gsub(query, "\n", " ")
+end
 
 
 ---@param buf buffer
@@ -187,22 +342,28 @@ function Connection:getSchema(data)
 	end
     if old_schema ~= nil then
         for s, st in pairs(self.schema) do
-            local os, ns = old_schema[s], self.schema[s]
-            if os ~= nil and ns == nil then
+            local old_s, new_s = old_schema[s], self.schema[s]
+            if old_s and not new_s then
                 self.schema[s] = st
-            elseif os == nil and ns ~= nil then
+            elseif new_s and not old_s then
                 old_schema[s] = st
             end
             self.schema[s].expanded = old_schema[s].expanded
-            if next(self.schema) ~= nil then
-                for t, tt in pairs(self.schema[s]) do
-                    local ost, nst = old_schema[s][t], self.schema[s][t]
-                    if ost ~= nil and nst == nil then
-                        self.schema[s][t] = tt
-                    elseif ost == nil and nst ~= nil then
-                        old_schema[s][t] = tt
+            local types = { "tables", "views", "functions", "procedures" }
+            for _, type in pairs(types) do
+                for i, tbl in pairs(self.schema[s][type]) do
+                    local old = old_schema[s][type][i]
+                    local new = self.schema[s][type][i]
+                    if old and not new then
+                        self.schema[s][type][i] = tbl
+                    elseif new and not old then
+                        old_schema[s][type][i] = tbl
                     end
+                    self.schema[s][type][i].expanded =
+                        old_schema[s][type][i].expanded
                 end
+                self.schema[s][type.."_expanded"] =
+                    old_schema[s][type.."_expanded"]
             end
         end
     end
@@ -227,7 +388,7 @@ function Connection:executeUv(query_type, query_data)
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    local handle, _ = uv.spawn(self.cli, {
+    local handle, _ = uv.spawn(self.cmd, {
         args = self.cli_args,
         stdio = {stdin, stdout, stderr}
     })
@@ -424,39 +585,19 @@ function Connection:execute(--[[optional mode string]] mode)
     end
 end
 
+function Connection:connect()
+    self:executeUv("connect", self.schema_query)
+    self.loaded = true
+end
+
 
 ---@param name string
+---@param url string
 ---@return nil
----Initializes the connection to the DB, and inserts into UI.
----Required for any operations on the given db.
-Connections.connect = function(name)
-	local connections = Connections.read()
-	for _, connection in pairs(connections) do
-		if connection["name"] == name then
-			local con = vim.deepcopy(Connection)
-			con.name = name
-			con.url = connection["url"]
-
-            local parsed = utils.parseUrl(connection["url"])
-            con.dbms = parsed.dbms
-            con.url = connection["url"]
-
-            if parsed.dbms == "postgresql" then
-                con.cli = "psql"
-                con.cmd = "psql "..connection["url"].." -c "
-                con.cli_args = {con.url}
-            elseif parsed.dbms == "mysql" then
-                con.cli = "mysql"
-                con.cli_args = utils.getCLIArgs("mysql", parsed)
-            elseif parsed.dbms == "mariadb" then
-                con.cli = "mariadb"
-                con.cli_args = utils.getCLIArgs("mysql", parsed)
-            end
-            local queries = require("sqlua.queries."..con.dbms).SchemaQuery
-            local query = string.gsub(queries, "\n", " ")
-            con:executeUv("connect", query)
-		end
-	end
+Connections.setup = function(name, url)
+    local con = vim.deepcopy(Connection)
+    con:setup(name, url)
+    return con
 end
 
 CONNECTIONS_FILE = utils.concat({
