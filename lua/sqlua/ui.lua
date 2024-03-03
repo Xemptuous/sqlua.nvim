@@ -1069,4 +1069,67 @@ function UI:setup(config)
     vim.api.nvim_buf_delete(1, {})
 end
 
+function UI.highlightResultsPane()
+    local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
+    local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
+    local null_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
+    local keyword_hl = vim.api.nvim_get_hl(0, { name = "Keyword" })
+    local function_hl = vim.api.nvim_get_hl(0, { name = "Function" })
+    local error_hl = vim.api.nvim_get_hl(0, { name = "Error" })
+    vim.api.nvim_set_hl(0, "SQLuaString", { fg = str_hl.fg })
+    vim.api.nvim_set_hl(0, "SQLuaNumber", { fg = int_hl.fg })
+    vim.api.nvim_set_hl(0, "SQLuaDateTime", { fg = function_hl.fg })
+    vim.api.nvim_set_hl(0, "SQLuaNull", { fg = null_hl.fg })
+    vim.api.nvim_set_hl(0, "SQLuaBool", { fg = error_hl.fg })
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaString', 'contained',
+            '/\\s(NULL)\\|[A-Za-z_]\\+\\|/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaNumber', 'contained',
+            '/\\s\\d\\+\\s/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaNumber', 'contained',
+            '/\\s\\d\\+\\.\\d\\+/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaDateTime', 'contained',
+            '/\\d\\+-\\d\\+-\\d\\+/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaDateTime', 'contained',
+            '/\\d\\+:\\d\\+:\\d\\+/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaDateTime', 'contained',
+            '/\\d\\+:\\d\\+:\\d\\+\\.\\{-\\}\\d\\+-\\{-\\}\\d\\+/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaBool', 'contained',
+            '/|\\s[tf]\\s/hs=s+1'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'match', 'SQLuaNull', 'contained',
+            '/<null>\\|NULL/'
+        }}, {})
+    vim.api.nvim_cmd({
+        cmd = "syntax",
+        args = { 'region', 'Normal', 'skipwhite',
+            'start="|\\n"',
+            'skip="\\$\\n"',
+            'matchgroup=None',
+            'contains=SQLuaNumber,SQLuaDateTime,SQLuaNull,SQLuaBool,SQLuaString',
+            'end="[\\(]"',
+        }}, {})
+end
+
 return UI

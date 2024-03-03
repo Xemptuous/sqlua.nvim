@@ -100,7 +100,11 @@ local Commands = {
 function Connection:GetCliArgs()
     local parts = {}
     if self.dbms == "postgresql" then
-        return { self.url }
+        table.insert(parts, self.url)
+        table.insert(parts, "--pset=null=<null>")
+        table.insert(parts, "--pset=footer=off")
+        -- table.insert(parts, "--pset=border=1")
+        table.insert(parts, "--pset=border=2")
     elseif self.dbms == "mysql" or self.dbms == "mariadb" then
         for k, v in pairs(self.connection_info) do
             if type(v) == "table" then
@@ -287,6 +291,7 @@ function Connection:getSchema(data)
     if self.dbms == "postgresql" then
         table.remove(schema, 1)
         table.remove(schema, 1)
+        table.remove(schema, 1)
         table.remove(schema)
         for i, _ in ipairs(schema) do
             schema[i] = string.gsub(schema[i], "%s", "")
@@ -416,6 +421,7 @@ function Connection:executeUv(query_type, query_data)
                     self:query(query_data, final)
                     vim.api.nvim_win_close(ui.windows.query_float, true)
                     ui.windows.query_float = nil
+                    ui.highlightResultsPane()
                 end
                 ui:refreshSidebar()
             else
