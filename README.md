@@ -46,12 +46,22 @@ After the first time running the setup() function, a folder for SQLua will be cr
 
 The `connections.json` file here will contain your DB URL's, as well as friendly names to call them by.
 
+## Default Config
+
 You can override the default settings by feeding the table as a table to the setup() function:
 ```lua
 {
-    db_save_location = "~/.local/share/nvim/sqlua/dbs",
+    -- the parent folder that databases will be placed, holding
+    -- various tmp files and other saved queries.
+    db_save_location = "~/.local/share/nvim/sqlua/",
+    -- where to save the json config containing connection information
     connections_save_location = "~/.local/share/nvim/sqlua/connections.json"
-    default_limit = 200, -- Not currently implemented
+    -- the default limit attached to queries
+    -- currently only works on "Data" command under a table
+    default_limit = 200,
+    -- whether to introspect the database on load or when first expanded
+    -- through the sidebar
+    load_connections_on_start = true,
     keybinds = {
         execute_query = "<leader>r",
         activate_db = "<C-a>"
