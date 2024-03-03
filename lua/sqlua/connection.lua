@@ -74,6 +74,7 @@ local ConnectionInfo = {
 ---The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
+    loaded = false,
 	files_expanded = false,
 	num_schema = 0,
 	name = "",
@@ -578,20 +579,19 @@ function Connection:execute(--[[optional mode string]] mode)
     end
 end
 
+function Connection:connect()
+    self:executeUv("connect", self.schema_query)
+    self.loaded = true
+end
+
 
 ---@param name string
+---@param url string
 ---@return nil
----Initializes the connection to the DB, and inserts into UI.
----Required for any operations on the given db.
-Connections.connect = function(name)
-	local connections = Connections.read()
-	for _, connection in pairs(connections) do
-		if connection["name"] == name then
-			local con = vim.deepcopy(Connection)
-            con:setup(name, connection["url"])
-            con:executeUv("connect", con.schema_query)
-		end
-	end
+Connections.setup = function(name, url)
+    local con = vim.deepcopy(Connection)
+    con:setup(name, url)
+    return con
 end
 
 CONNECTIONS_FILE = utils.concat({
