@@ -342,22 +342,28 @@ function Connection:getSchema(data)
 	end
     if old_schema ~= nil then
         for s, st in pairs(self.schema) do
-            local os, ns = old_schema[s], self.schema[s]
-            if os ~= nil and ns == nil then
+            local old_s, new_s = old_schema[s], self.schema[s]
+            if old_s and not new_s then
                 self.schema[s] = st
-            elseif os == nil and ns ~= nil then
+            elseif new_s and not old_s then
                 old_schema[s] = st
             end
             self.schema[s].expanded = old_schema[s].expanded
-            if next(self.schema) ~= nil then
-                for t, tt in pairs(self.schema[s]) do
-                    local ost, nst = old_schema[s][t], self.schema[s][t]
-                    if ost ~= nil and nst == nil then
-                        self.schema[s][t] = tt
-                    elseif ost == nil and nst ~= nil then
-                        old_schema[s][t] = tt
+            local types = { "tables", "views", "functions", "procedures" }
+            for _, type in pairs(types) do
+                for i, tbl in pairs(self.schema[s][type]) do
+                    local old = old_schema[s][type][i]
+                    local new = self.schema[s][type][i]
+                    if old and not new then
+                        self.schema[s][type][i] = tbl
+                    elseif new and not old then
+                        old_schema[s][type][i] = tbl
                     end
+                    self.schema[s][type][i].expanded =
+                        old_schema[s][type][i].expanded
                 end
+                self.schema[s][type.."_expanded"] =
+                    old_schema[s][type.."_expanded"]
             end
         end
     end
