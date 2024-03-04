@@ -1128,7 +1128,7 @@ function UI.highlightResultsPane()
             'skip="\\$\\n"',
             'matchgroup=None',
             'contains=SQLuaNumber,SQLuaDateTime,SQLuaNull,SQLuaBool,SQLuaString',
-            'end="[\\(]"',
+            'end="\\[\\!~\\]"',
         }}, {})
 end
 
