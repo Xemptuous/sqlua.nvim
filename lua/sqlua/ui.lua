@@ -1084,12 +1084,12 @@ function UI.highlightResultsPane()
     vim.api.nvim_cmd({
         cmd = "syntax",
         args = { 'match', 'SQLuaString', 'contained',
-            '/\\s(NULL)\\|[A-Za-z_]\\+\\|/'
+            '/\\s(NULL)\\|\\d\\+\\s[^\\-|]\\{-\\}\\s\\{-\\}[!-/:-{}\\s]\\+\\|\\s[!-/:-{}]\\+\\|/'
         }}, {})
     vim.api.nvim_cmd({
         cmd = "syntax",
         args = { 'match', 'SQLuaNumber', 'contained',
-            '/\\s\\d\\+\\s/'
+            '/\\s\\d\\+\\s[^!-/:-{}]/he=e-1'
         }}, {})
     vim.api.nvim_cmd({
         cmd = "syntax",
@@ -1127,7 +1127,7 @@ function UI.highlightResultsPane()
             'start="|\\n"',
             'skip="\\$\\n"',
             'matchgroup=None',
-            'contains=SQLuaNumber,SQLuaDateTime,SQLuaNull,SQLuaBool,SQLuaString',
+            'contains=SQLuaNumber,SQLuaString,SQLuaDateTime,SQLuaNull,SQLuaBool',
             'end="\\n$"',
         }}, {})
 end
