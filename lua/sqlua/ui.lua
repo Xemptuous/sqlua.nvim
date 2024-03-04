@@ -1084,7 +1084,7 @@ function UI.highlightResultsPane()
     vim.api.nvim_cmd({
         cmd = "syntax",
         args = { 'match', 'SQLuaString', 'contained',
-            '/\\s(NULL)\\|\\d\\+\\s[^\\-|]\\{-\\}\\s\\{-\\}[!-/:-{}\\s]\\+\\|\\s[!-/:-{}]\\+\\|/'
+            '/\\s(NULL)\\|\\d\\+\\s[^\\-|]\\{-\\}\\s\\{-\\}[!-/:-{}\\s]\\+\\|\\s[!-/:;=-{}]\\+\\|/'
         }}, {})
     vim.api.nvim_cmd({
         cmd = "syntax",
