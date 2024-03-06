@@ -1,4 +1,6 @@
 ---@alias namespace_id integer
+---@alias buffer integer
+---@alias window integer
 ---@alias iterator function
 
 ---@class Buffers
@@ -34,7 +36,7 @@ local Windows = {
 ---@field num_dbs integer
 ---@field buffers Buffers
 ---@field windows Windows
----@field last_cursor_position table<table<integer, integer>>
+---@field last_cursor_position table
 ---@field last_active_buffer buffer
 ---@field current_active_buffer buffer
 ---@field last_active_window window
@@ -185,32 +187,6 @@ end
 local function printSidebarEmpty(buf, srow, text)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { text })
 	return srow + 1
-end
-
----@param type string the type of table statement
----@param tbl string table
----@param schema string schema
----@param db string database
----@return nil
----Creates the specified statement to query the given table.
----Query is pulled based on active_db dbms, and fills the available buffer.
-local function createTableStatement(type, tbl, schema, db)
-	local queries = require("sqlua/queries." .. UI.dbs[db].dbms)
-    local win = UI.windows.editors[1]
-    local buf = vim.api.nvim_win_get_buf(win)
-	vim.api.nvim_set_current_win(win)
-	vim.api.nvim_win_set_buf(win, buf)
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
-	vim.api.nvim_win_set_cursor(win, { 1, 0 })
-	local stmt = {}
-	local query = queries.getQueries(
-        tbl, schema, UI.options.default_limit
-    )[type]
-	for line in string.gmatch(query, "[^\r\n]+") do
-		table.insert(stmt, line)
-	end
-	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
-    UI.dbs[db]:execute()
 end
 
 --[[Searches the sidebar from the given starting point upwards
@@ -634,6 +610,47 @@ local function createEditor(win)
     return buf
 end
 
+---@param type string the type of table statement
+---@param tbl string table
+---@param schema string schema
+---@param db string database
+---@return nil
+---Creates the specified statement to query the given table.
+---Query is pulled based on active_db dbms, and fills the available buffer.
+local function createTableStatement(type, tbl, schema, db)
+	local queries = require("sqlua/queries." .. UI.dbs[db].dbms)
+    local win = nil
+    local buf = nil
+    for _, w in pairs(UI.windows.editors) do
+        for _, b in pairs(UI.buffers.editors) do
+            local name = vim.api.nvim_buf_get_name(b)
+            if name:match("Editor_%d.sql") then
+                win = w
+                buf = b
+                break
+            end
+        end
+    end
+    if not win or not buf then
+        createEditor(UI.windows.editors[1])
+        return
+    end
+	vim.api.nvim_set_current_win(win)
+	vim.api.nvim_win_set_buf(win, buf)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, {})
+	vim.api.nvim_win_set_cursor(win, { 1, 0 })
+	local stmt = {}
+	local query = queries.getQueries(
+        tbl, schema, UI.options.default_limit
+    )[type]
+	for line in string.gmatch(query, "[^\r\n]+") do
+		table.insert(stmt, line)
+	end
+	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
+    UI.dbs[db]:execute()
+end
+
+
 
 ---@return nil
 local function createSidebar()
@@ -784,6 +801,7 @@ local function createSidebar()
 			local cursorPos = vim.api.nvim_win_get_cursor(0)
 			local num = cursorPos[1]
 			local db, _ = sidebarFind.database(num)
+            if not db then return end
 			UI.active_db = db
 			UI:refreshSidebar()
 			vim.api.nvim_win_set_cursor(0, cursorPos)
