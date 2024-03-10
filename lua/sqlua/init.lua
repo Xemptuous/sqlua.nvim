@@ -66,7 +66,10 @@ M.setup = function(opts)
 		Connection.add(url, name)
 		local dbs = utils.getDatabases(config.connections_save_location)
 		for _, db in pairs(dbs) do
-			Connection.connect(db.name)
+            local connection = Connection.setup(db.name, db.url)
+            if config.load_connections_on_start and connection then
+                connection:connect()
+            end
 		end
 		UI:refreshSidebar()
 		if UI.num_dbs > 0 then
