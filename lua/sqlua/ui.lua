@@ -1070,6 +1070,8 @@ function UI:setup(config)
 end
 
 function UI.highlightResultsPane()
+    local previous_buf = vim.api.nvim_get_current_buf()
+    vim.api.nvim_set_current_buf(UI.buffers.sidebar)
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
     local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
     local null_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
@@ -1130,6 +1132,7 @@ function UI.highlightResultsPane()
             'contains=SQLuaNumber,SQLuaString,SQLuaDateTime,SQLuaNull,SQLuaBool',
             'end="\\n$"',
         }}, {})
+    vim.api.nvim_set_current_buf(previous_buf)
 end
 
 return UI
