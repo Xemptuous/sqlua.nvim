@@ -475,7 +475,8 @@ function UI:refreshSidebar()
         " a - add a file in the select dir",
         " d - delete the select file",
         " "..self.options.keybinds.activate_db.." - set the active db",
-        " <C-t> - toggle sidebar focus",
+        " <leader>st - toggle sidebar",
+        " <leader>sf - focus sidebar",
         " "..self.options.keybinds.execute_query.." - run query",
     }
 
@@ -665,7 +666,24 @@ local function createSidebar()
 	vim.cmd("syn match SQLuaBuffer /[󰯂󰯃]/")
 	vim.cmd("syn match Comment /[]/")
 	UI.buffers.sidebar = buf
-	vim.api.nvim_set_keymap("n", "<C-t>", "", {
+	vim.api.nvim_set_keymap("n", "<leader>st", "", {
+		callback = function()
+            if UI.windows.sidebar ~= nil then
+                vim.api.nvim_set_current_win(UI.windows.sidebar)
+                vim.api.nvim_set_current_buf(UI.buffers.sidebar)
+                vim.cmd(":hide")
+                UI.windows.sidebar = nil
+            else
+                local new_win = vim.api.nvim_open_win(UI.buffers.sidebar, true, {
+                    split = "left",
+                    win = UI.windows.sidebar,
+                })
+                UI.windows.sidebar = new_win
+                vim.api.nvim_win_set_width(new_win, 40)
+            end
+		end,
+	})
+	vim.api.nvim_set_keymap("n", "<leader>sf", "", {
 		callback = function()
 			local curbuf = vim.api.nvim_get_current_buf()
 			local sidebar_pos = UI.last_cursor_position.sidebar
