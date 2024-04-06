@@ -851,7 +851,7 @@ local function createSidebar()
                     end
                 end)
 
-                if db and db == sub_val then
+                if db and db ~= schema and db == sub_val then
                     if not UI.dbs[db].loaded then
                         UI.dbs[db]:connect()
                     end
