@@ -67,6 +67,7 @@ local UI_ICONS = {
     expanded = "",
     collapsed = "",
 	db = "",
+	db2 = "",
 	buffers = "",
 	folder = "",
 	schemas = "",
