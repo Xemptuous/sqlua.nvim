@@ -70,7 +70,6 @@ M.ddl = {
 	"Primary Keys",
 	"Indexes",
 	"References",
-	"Foreign Keys",
 }
 
 ---@param tbl string
@@ -81,39 +80,18 @@ M.getQueries = function(tbl, schema, db, limit)
 	return {
         Data = [[
 SELECT *
-FROM ]]..schema.."."..tbl.."\n"..[[
+FROM ]]..db.."."..schema.."."..tbl.."\n"..[[
 LIMIT ]]..limit,
 		Columns = "DESCRIBE "..db.."."..schema.."."..tbl,
-		PrimaryKeys = [[
-SHOW KEYS FROM ]]..schema.."."..tbl..[[
-
-WHERE key_name = 'PRIMARY'
-]],
-		Indexes = "SHOW INDEX FROM "..schema.."."..tbl,
-		References = [[
-SELECT
-    kc.constraint_name,
-    kc.table_schema,
-    kc.table_name,
-    kc.column_name,
-    c.column_type,
-    c.column_key,
-    kc.referenced_table_schema foreign_schema,
-    kc.referenced_table_name foreign_table
-FROM information_schema.key_column_usage kc
-    JOIN information_schema.columns c
-        ON c.table_schema = kc.table_schema
-       AND c.table_name = kc.table_name
-       AND c.column_name = kc.column_name
-WHERE kc.constraint_name <> 'PRIMARY'
-  AND kc.referenced_table_schema = ']]..schema..[['
-  AND kc.referenced_table_name = ']]..tbl..[['
-]],
-		ForeignKeys = [[
-SHOW KEYS FROM ]]..schema.."."..tbl..[[
-
-WHERE key_name <> 'PRIMARY'
-]]
+		PrimaryKeys = "SHOW PRIMARY KEYS IN TABLE "..db.."."..schema.."."..tbl,
+		Indexes = "SHOW INDEXES IN TABLE "..db.."."..schema.."."..tbl,
+        References = [[
+SELECT *
+FROM TABLE(GET_OBJECT_REFERENCES(
+    DATABASE_NAME => ']]..db..[[',
+    SCHEMA_NAME => ']]..schema..[[',
+    OBJECT_NAME => ']]..tbl..[[')
+)]]
 	}
 end
 

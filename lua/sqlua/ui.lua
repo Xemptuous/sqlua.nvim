@@ -34,7 +34,7 @@ local Windows = {
 ---@field num_dbs integer
 ---@field buffers Buffers
 ---@field windows Windows
----@field last_cursor_position table<table<integer, integer>>
+---@field last_cursor_position table
 ---@field last_active_buffer buffer
 ---@field current_active_buffer buffer
 ---@field last_active_window window
@@ -195,8 +195,8 @@ end
 ---@return nil
 ---Creates the specified statement to query the given table.
 ---Query is pulled based on active_db dbms, and fills the available buffer.
-local function createTableStatement(type, tbl, schema, db)
-	local queries = require("sqlua/queries." .. UI.dbs[db].dbms)
+local function createTableStatement(type, tbl, schema, db, dbms)
+    local queries = require("sqlua.queries.mysql."..dbms)
     local win = UI.windows.editors[1]
     local buf = vim.api.nvim_win_get_buf(win)
 	vim.api.nvim_set_current_win(win)
@@ -315,7 +315,8 @@ function UI:refreshSidebar()
 		local queries = require("sqlua/queries." .. schema.dbms)
 		local statements = queries.ddl
 
-		local text = UI_ICONS.tables.." Tables ("..schema.num_tables..")"
+        local nt = schema.num_tables or 0
+		local text = UI_ICONS.tables.." Tables ("..nt..")"
 		if schema.tables_expanded then
 			srow = printSidebarExpanded(buf, srow, text, sep)
             for table, _ in Utils.pairsByKeys(schema.tables) do
@@ -530,6 +531,7 @@ function UI:refreshSidebar()
 
 	local sep = " "
     local setCursor = self.last_cursor_position.sidebar
+    local winPos = vim.fn.winsaveview()
     local srow = 2
 	local buf = self.buffers.sidebar
 
@@ -620,12 +622,15 @@ function UI:refreshSidebar()
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(self.windows.sidebar, setCursor)
     end) then
+        print("SETTING LAST CURSOR POS TO: ")
+        P(setCursor)
         local min = math.min(srow,
             self.last_cursor_position.sidebar[1] - #helpTextTable
         )
         local max = math.max(2, self.last_cursor_position.sidebar[2])
         if min <= 0 then min = 1 end
 		vim.api.nvim_win_set_cursor(self.windows.sidebar, { min, max }) end
+    vim.fn.winrestview(winPos)
 	highlightSidebarNumbers()
 	setSidebarModifiable(buf, false)
 end
@@ -886,6 +891,7 @@ local function createSidebar()
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
 		callback = function()
 			local cursorPos = vim.api.nvim_win_get_cursor(0)
+            UI.last_cursor_position.sidebar = cursorPos
 			local num_lines = vim.api.nvim_buf_line_count(UI.buffers.sidebar)
 			local num = cursorPos[1]
 			-- if on last line, choose value above
@@ -926,14 +932,10 @@ local function createSidebar()
                     end
                 end)
 
-                print(db)
-                print(UI.dbs[db].dbms)
-                print(schema)
                 local con = UI.dbs[db]
                 local con_schema = {}
                 if con.dbms == "snowflake" and con.expanded then
                     local sfdb = sidebarFind.snowflake_db(num)
-                    print(sfdb)
                     if con.schema[sfdb] then
                         con_schema = con.schema[sfdb].schema[schema]
                     end
@@ -973,9 +975,10 @@ local function createSidebar()
                 elseif is_folder then
                     toggleExpanded(con.files, sub_val)
 				else
-                    db = sidebarFind.snowflake_db(num)
+                    db = sidebarFind.database(num)
                     local s = con.schema
                     if con.dbms == "snowflake" then
+                        db = sidebarFind.snowflake_db(num)
                         s = con.schema[db].schema
                     end
                     if string.find(val, UI_ICONS.schema) then
@@ -1002,7 +1005,6 @@ local function createSidebar()
                     end
 				end
 				UI:refreshSidebar()
-				vim.api.nvim_win_set_cursor(0, cursorPos)
 			else
 				if string.find(val, UI_ICONS.file) then
 					local file = val:gsub(ICONS_SUB, "")
@@ -1045,6 +1047,11 @@ local function createSidebar()
 					tbl, _ = sidebarFind.table(num)
 					schema, _ = sidebarFind.schema(num)
 					db, _ = sidebarFind.database(num)
+                    local query = require("sqlua.queries."..db)
+                    if UI.dbs[db].dbms == "snowflake" then
+                        db = sidebarFind.snowflake_db(num)
+                    end
+                    local dbms = UI.dbs[db].dbms
                     if tbl then
                         tbl = tbl:gsub(ICONS_SUB, "")
                         tbl = tbl:gsub("%s+", "")
@@ -1061,9 +1068,11 @@ local function createSidebar()
 					if not tbl or not schema or not db then
 						return
 					end
-					createTableStatement(val, tbl, schema, db)
+                    print(val, tbl, schema, db, dbms)
+					createTableStatement(val, tbl, schema, db, dbms)
 				end
 			end
+            vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
 			highlightSidebarNumbers()
 		end,
 	})
