@@ -5,6 +5,7 @@ A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turn
 ![SQLua](img/sqlua_example.png)
 
 Currently supported DBMS:
+* SnowFlake
 * PostgreSQL
 * MySQL
 * MariaDB
@@ -45,6 +46,8 @@ To use, require the setup:
 After the first time running the setup() function, a folder for SQLua will be created in the neovim data directory (~/.local/share/nvim/sqlua/)
 
 The `connections.json` file here will contain your DB URL's, as well as friendly names to call them by.
+
+`Note:` for SnowFlake, you will need the `snowsql` client. In the `connections.json` file, use `snowflake` for the name, and ensure all configuration is done in your snowsql config file.
 
 ## Default Config
 
