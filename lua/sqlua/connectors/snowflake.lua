@@ -48,11 +48,29 @@ function Snowflake:cleanTables(data)
     return schema
 end
 
+---@param data string
+---@return table
 --- Takes string results and transforms them to a table of strings
-function Snowflake:dbmsCleanResults(data)
-    table.remove(data, 1)
-    table.remove(data, 1)
-    table.remove(data)
+function Snowflake:baseCleanResults(data)
+    local result = {}
+    local i = 1
+    for c in data:gmatch(string.format("([^%s]+)", '\n')) do
+        result[i] = c
+        i = i + 1
+    end
+    return result
+end
+
+---@param data table
+---@param query_type string
+--- dbms specific cleaning
+function Snowflake:dbmsCleanResults(data, query_type)
+    if query_type == "query" then
+    else
+        table.remove(data, 1)
+        table.remove(data, 1)
+        table.remove(data)
+    end
     return data
 end
 

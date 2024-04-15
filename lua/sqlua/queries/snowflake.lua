@@ -82,7 +82,7 @@ M.getQueries = function(tbl, schema, db, limit)
 SELECT *
 FROM ]]..db.."."..schema.."."..tbl.."\n"..[[
 LIMIT ]]..limit,
-		Columns = "DESCRIBE "..db.."."..schema.."."..tbl,
+		Columns = "DESCRIBE TABLE "..db.."."..schema.."."..tbl,
 		PrimaryKeys = "SHOW PRIMARY KEYS IN TABLE "..db.."."..schema.."."..tbl,
 		Indexes = "SHOW INDEXES IN TABLE "..db.."."..schema.."."..tbl,
         References = [[

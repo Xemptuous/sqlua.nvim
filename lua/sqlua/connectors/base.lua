@@ -66,10 +66,26 @@ function Connection:cleanSchema(data)
     return data
 end
 
----@overload fun(table) : table
-function Connection:dbmsCleanResults(data)
+---@overload fun(table, string) : table
+--- dbms specific cleaning
+function Connection:dbmsCleanResults(data, query_type)
     return data
 end
+
+---@overload fun(data: string) : table
+---@param data string
+---@return table
+--- Takes string results and transforms them to a table of strings
+function Connection:baseCleanResults(data)
+    local result = {}
+    local i = 1
+    for c in data:gmatch(string.format("([^%s]+)", '\n')) do
+        result[i] = c
+        i = i + 1
+    end
+    return result
+end
+
 
 ---@class Database
 ---@field dbms string
@@ -364,19 +380,6 @@ function Connection:query(query, data)
     vim.api.nvim_win_set_cursor(win, pos)
 end
 
----@param data string
----@return table
---- Takes string results and transforms them to a table of strings
-function Connection:baseCleanResults(data)
-    local result = {}
-    local i = 1
-    for c in data:gmatch(string.format("([^%s]+)", '\n')) do
-        result[i] = c
-        i = i + 1
-    end
-    return result
-end
-
 ---@param query_type string
 ---@param query_data string|table<string>
 ---@param db string|nil
@@ -432,7 +435,7 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
             print("### RESULTS ###")
             P(results)
             local base = self:baseCleanResults(table.concat(results, ""))
-            local final = self:dbmsCleanResults(base)
+            local final = self:dbmsCleanResults(base, query_type)
             print("### FINAL ###")
             P(final)
             if next(final) ~= nil then

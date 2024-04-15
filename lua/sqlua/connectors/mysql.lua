@@ -44,7 +44,7 @@ function Mysql:cleanSchema(data)
 end
 
 
-function Mysql:dbmsCleanResults(data)
+function Mysql:dbmsCleanResults(data, query_type)
     if string.find(data[1], "mysql%: %[Warning%]") then
         table.remove(data, 1)
     end

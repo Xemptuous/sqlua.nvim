@@ -195,8 +195,8 @@ end
 ---@return nil
 ---Creates the specified statement to query the given table.
 ---Query is pulled based on active_db dbms, and fills the available buffer.
-local function createTableStatement(type, tbl, schema, db, dbms)
-    local queries = require("sqlua.queries.mysql."..dbms)
+local function createTableStatement(type, tbl, schema, database, db, dbms)
+    local queries = require("sqlua.queries."..dbms)
     local win = UI.windows.editors[1]
     local buf = vim.api.nvim_win_get_buf(win)
 	vim.api.nvim_set_current_win(win)
@@ -211,7 +211,7 @@ local function createTableStatement(type, tbl, schema, db, dbms)
 		table.insert(stmt, line)
 	end
 	vim.api.nvim_buf_set_lines(buf, 0, 0, false, stmt)
-    UI.dbs[db]:execute()
+    UI.dbs[database]:execute()
 end
 
 --[[Searches the sidebar from the given starting point upwards
@@ -935,9 +935,11 @@ local function createSidebar()
                 local con = UI.dbs[db]
                 local con_schema = {}
                 if con.dbms == "snowflake" and con.expanded then
-                    local sfdb = sidebarFind.snowflake_db(num)
-                    if con.schema[sfdb] then
-                        con_schema = con.schema[sfdb].schema[schema]
+                    if db ~= sub_val then
+                        local sfdb = sidebarFind.snowflake_db(num)
+                        if con.schema[sfdb] then
+                            con_schema = con.schema[sfdb].schema[schema]
+                        end
                     end
                 else
                     con_schema = con.schema[schema]
@@ -1043,15 +1045,16 @@ local function createSidebar()
 				else
 					local tbl = nil
 					local schema = nil
+                    local database = nil
 					local db = nil
 					tbl, _ = sidebarFind.table(num)
 					schema, _ = sidebarFind.schema(num)
 					db, _ = sidebarFind.database(num)
-                    local query = require("sqlua.queries."..db)
+                    database = db
+                    local dbms = UI.dbs[db].dbms
                     if UI.dbs[db].dbms == "snowflake" then
                         db = sidebarFind.snowflake_db(num)
                     end
-                    local dbms = UI.dbs[db].dbms
                     if tbl then
                         tbl = tbl:gsub(ICONS_SUB, "")
                         tbl = tbl:gsub("%s+", "")
@@ -1069,10 +1072,12 @@ local function createSidebar()
 						return
 					end
                     print(val, tbl, schema, db, dbms)
-					createTableStatement(val, tbl, schema, db, dbms)
+					createTableStatement(val, tbl, schema, database, db, dbms)
 				end
 			end
-            vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+            if vim.api.nvim_get_current_buf() == UI.buffers.sidebar then
+                    vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+            end
 			highlightSidebarNumbers()
 		end,
 	})
