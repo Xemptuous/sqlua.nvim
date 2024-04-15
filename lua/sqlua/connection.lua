@@ -17,7 +17,8 @@ Connections.setup = function(name, url)
     local s = url:find("://") or #url + 1
     local dbms = url:sub(0, s - 1)
     local con = Cons[dbms]
-    return con:setup(name, url)
+    local connection = con:setup(name, url)
+    return connection
 end
 
 CONNECTIONS_FILE = utils.concat({

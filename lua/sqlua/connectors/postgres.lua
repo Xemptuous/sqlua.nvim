@@ -6,20 +6,22 @@ Postgres = Connection:new()
 
 
 function Postgres:setup(name, url)
-    self.name = name
-    self.url = url
-    self.dbms = "postgres"
-    self.cmd = "psql"
-    self.cli_args = {
-        self.url,
+    ---@class Postgres
+    local s = Postgres:new()
+    s.name = name
+    s.url = url
+    s.dbms = "postgres"
+    s.cmd = "psql"
+    s.cli_args = {
+        s.url,
         "--pset=null=<null>",
         "--pset=footer=off",
         "--pset=border=2",
     }
 
-    local queries = require("sqlua.queries."..self.dbms)
-    self.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
-    return self
+    local queries = require("sqlua.queries."..s.dbms)
+    s.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
+    return s
 end
 
 function Postgres:cleanSchema(data)

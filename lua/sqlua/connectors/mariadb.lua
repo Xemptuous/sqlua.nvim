@@ -13,6 +13,7 @@ function Mariadb:setup(name, url)
     s.dbms = "mysql"
     s.cmd = "mariadb"
     s.cli_args = {}
+    s.connection_info = s:parseUrl()
     for k, v in pairs(s.connection_info) do
         if type(v) == "table" then
             if next(v) ~= nil then

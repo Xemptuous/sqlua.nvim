@@ -6,27 +6,30 @@ Mysql = Connection:new()
 
 
 function Mysql:setup(name, url)
-    self.name = name
-    self.url = url
-    self.dbms = "mariadb"
-    self.cmd = "mariadb"
-    self.cli_args = {}
-    for k, v in pairs(self.connection_info) do
+    ---@class Mysql
+    local s = Mysql:new()
+    s.name = name
+    s.url = url
+    s.dbms = "mariadb"
+    s.cmd = "mariadb"
+    s.cli_args = {}
+    s.connection_info = s:parseUrl()
+    for k, v in pairs(s.connection_info) do
         if type(v) == "table" then
             if next(v) ~= nil then
                 for _, item in pairs(v) do
-                    table.insert(self.cli_args, " --"..item)
+                    table.insert(s.cli_args, " --"..item)
                 end
             end
         elseif v ~= "" and k ~= "dbms" then
-            table.insert(self.cli_args, "--"..k.."="..v)
+            table.insert(s.cli_args, "--"..k.."="..v)
         end
     end
-    table.insert(self.cli_args, "-t") -- table output
+    table.insert(s.cli_args, "-t") -- table output
 
-    local queries = require("sqlua.queries."..self.dbms)
-    self.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
-    return self
+    local queries = require("sqlua.queries."..s.dbms)
+    s.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
+    return s
 end
 
 function Mysql:cleanSchema(data)

@@ -80,11 +80,7 @@ end
 --- Populates the Connection's schema based on the stdout
 --- from executing the DBMS' SchemaQuery
 function Snowflake:getSchema(data, db)
-    print("##### DIRTY #####")
-    P(data)
     local schema = self:cleanSchema(data)
-    print("##### CLEAN #####")
-    P(schema)
     -- local old_schema = nil
     -- if next(self.schema) ~= nil then
     --     old_schema = vim.deepcopy(self.schema)
@@ -93,7 +89,6 @@ function Snowflake:getSchema(data, db)
     -- on initial db connect
     if not self.schema.databases_loaded then
         self.num_databases = 0
-        print("----------LOADING DATABASES----------")
         for _, database in pairs(schema) do
             if not self.schema[database] then
                 self.schema[database] = vim.deepcopy(Connection.Database)
@@ -105,11 +100,7 @@ function Snowflake:getSchema(data, db)
         return
     end
     for _ = 1,6 do table.remove(schema, 1) end
-    print("##### AFTER CLEAN #####")
-    P(schema)
-    print("DB: ", db)
     if not self.schema[db].schemata_loaded then
-        print("----------LOADING SCHEMAS----------")
         for _, s in pairs(schema) do
             if not self.schema[db][s] then
                 self.schema[db].num_schema = 0
@@ -123,17 +114,12 @@ function Snowflake:getSchema(data, db)
     end
 
     schema = self:cleanTables(data)
-    print("### TABLE SCHEMA ###")
-    P(schema)
-    print("----------LOADING TABLES----------")
     -- on db expand
 	for i, _ in ipairs(schema) do
-        print(i, _)
         local type = schema[i][1]
 		local d = schema[i][2] -- database
 		local s = schema[i][3] -- schema
 		local t = schema[i][4] -- table/view/proc/func
-        print(type, d, s, t)
         if not self.schema[d].schema[s] then
             self.schema[d].schema[s] = vim.deepcopy(Connection.Schema)
             self.num_schema = self.num_schema + 1

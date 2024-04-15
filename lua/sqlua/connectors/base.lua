@@ -137,35 +137,6 @@ Connection.Query = {
     statement = "",
     results = {}
 }
----@return table<string>
---- Gets the cli args fed to uv.spawn when executing queries
-function Connection:GetCliArgs()
-    local parts = {}
-    if self.dbms == "postgresql" then
-        table.insert(parts, self.url)
-        table.insert(parts, "--pset=null=<null>")
-        table.insert(parts, "--pset=footer=off")
-        -- table.insert(parts, "--pset=border=1")
-        table.insert(parts, "--pset=border=2")
-    elseif self.dbms == "mysql" or self.dbms == "mariadb" then
-        for k, v in pairs(self.connection_info) do
-            if type(v) == "table" then
-                if next(v) ~= nil then
-                    for _, item in pairs(v) do
-                        table.insert(parts, " --"..item)
-                    end
-                end
-            elseif v ~= "" and k ~= "dbms" then
-                table.insert(parts, "--"..k.."="..v)
-            end
-        end
-        table.insert(parts, "-t") -- table output
-    elseif self.dbms == "snowflake" then
-        table.insert(parts, "--abort-detached-query")
-        -- table.insert(parts, "--filename")
-    end
-    return parts
-end
 
 ---@returns ConnectionInfo
 --- Takes a url and returns a ConnectionInfo object
@@ -261,7 +232,6 @@ end
 
 ---@param data table
 ---@param db? string
----@param
 ---@return nil
 --- Populates the Connection's schema based on the stdout
 --- from executing the DBMS' SchemaQuery
@@ -279,7 +249,6 @@ function Connection:getSchema(data, db)
 		local s = schema[i][2] -- schema
 		local t = schema[i][3] -- table/view/proc/func
         if not self.schema[s] then
-            print(s)
             self.schema[s] = vim.deepcopy(Connection.Schema)
             self.num_schema = self.num_schema + 1
             self.schema[s].dbms = self.dbms
@@ -389,8 +358,6 @@ end
 ---  - refresh
 ---  - query
 function Connection:executeUv(query_type, query_data, --[[optional]] db)
-    print("### QUERY DATA ###")
-    P(query_data)
     -- TODO: comments in code need to have space added
     if #query_data == 1 and query_data[1] == " " then
         return
@@ -406,23 +373,10 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    -- local handle = nil
-    -- if self.dbms == "snowflake" then
-    --     local tmpfile = vim.fn.tempname()
-    --     vim.fn.writefile(query_data, tmpfile)
-    --     local args = self.cli_args
-    --     table.insert(args, tmpfile)
-    --     P(args)
-    --     handle, _ = uv.spawn(self.cmd, {
-    --         args = args,
-    --         stdio = {stdin, stdout, stderr}
-    --     })
-    -- else
-        local handle, _ = uv.spawn(self.cmd, {
-            args = self.cli_args,
-            stdio = {stdin, stdout, stderr}
-        })
-    -- end
+    local handle, _ = uv.spawn(self.cmd, {
+        args = self.cli_args,
+        stdio = {stdin, stdout, stderr}
+    })
 
 
     local results = {}
@@ -432,12 +386,8 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
         if data then
             table.insert(results, data)
         else
-            print("### RESULTS ###")
-            P(results)
             local base = self:baseCleanResults(table.concat(results, ""))
             local final = self:dbmsCleanResults(base, query_type)
-            print("### FINAL ###")
-            P(final)
             if next(final) ~= nil then
                 if query_type == "connect" then
                     self:getSchema(final)

@@ -342,7 +342,8 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
 	local function refreshViews(buf, srow, schema, sep)
-		local v_text = UI_ICONS.views.." Views ("..schema.num_views..")"
+        local nv = schema.num_views or 0
+		local v_text = UI_ICONS.views.." Views ("..nv..")"
 		if schema.views_expanded then
 			srow = printSidebarExpanded(buf, srow, v_text, sep)
             for view, _ in Utils.pairsByKeys(schema.views) do
@@ -360,8 +361,8 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
 	local function refreshFunctions(buf, srow, schema, sep)
-		local f_text = UI_ICONS.functions.." Functions ("
-            ..schema.num_functions..")"
+        local nf = schema.num_functions or 0
+		local f_text = UI_ICONS.functions.." Functions (" ..nf..")"
 		if schema.functions_expanded then
 			srow = printSidebarExpanded(buf, srow, f_text, sep)
             for fn, _ in Utils.pairsByKeys(schema.functions) do
@@ -379,8 +380,8 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
 	local function refreshProcedures(buf, srow, schema, sep)
-		local p_text = UI_ICONS.procedures.." Procedures ("
-            ..schema.num_procedures..")"
+        local ns = schema.num_procedures
+		local p_text = UI_ICONS.procedures.." Procedures ("..ns..")"
 		if schema.procedures_expanded then
 			srow = printSidebarExpanded(buf, srow, p_text, sep)
             for fn, _ in Utils.pairsByKeys(schema.procedures) do
@@ -622,8 +623,6 @@ function UI:refreshSidebar()
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(self.windows.sidebar, setCursor)
     end) then
-        print("SETTING LAST CURSOR POS TO: ")
-        P(setCursor)
         local min = math.min(srow,
             self.last_cursor_position.sidebar[1] - #helpTextTable
         )
@@ -1071,13 +1070,13 @@ local function createSidebar()
 					if not tbl or not schema or not db then
 						return
 					end
-                    print(val, tbl, schema, db, dbms)
 					createTableStatement(val, tbl, schema, database, db, dbms)
 				end
 			end
             if vim.api.nvim_get_current_buf() == UI.buffers.sidebar then
-                    vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+                vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
             end
+
 			highlightSidebarNumbers()
 		end,
 	})
