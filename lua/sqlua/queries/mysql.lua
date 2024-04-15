@@ -46,24 +46,23 @@ M.ddl = {
 	"Foreign Keys",
 }
 
----@param tbl string
----@param schema string
----@param limit integer
----@return string[]
-M.getQueries = function(tbl, schema, db, limit)
-	return {
-        Data = [[
+M.Data = function(args)
+    return [[
 SELECT *
-FROM ]]..schema.."."..tbl.."\n"..[[
-LIMIT ]]..limit,
-		Columns = "DESCRIBE "..schema.."."..tbl,
-		PrimaryKeys = [[
-SHOW KEYS FROM ]]..schema.."."..tbl..[[
+FROM `]]..args.schema..'`."'..args.table..'"\n'..[[
+LIMIT ]]..args.limit
+end
 
-WHERE key_name = 'PRIMARY'
-]],
-		Indexes = "SHOW INDEX FROM "..schema.."."..tbl,
-		References = [[
+M.Columns = function(args)
+    return 'DESCRIBE `'..args.schema..'`."'..args.table..'"'
+end
+
+M.Indexes = function(args)
+    return 'SHOW INDEX FROM `'..args.schema..'`."'..args.table..'"'
+end
+
+M.References = function(args)
+    return [[
 SELECT
     kc.constraint_name,
     kc.table_schema,
@@ -79,15 +78,52 @@ FROM information_schema.key_column_usage kc
        AND c.table_name = kc.table_name
        AND c.column_name = kc.column_name
 WHERE kc.constraint_name <> 'PRIMARY'
-  AND kc.referenced_table_schema = ']]..schema..[['
-  AND kc.referenced_table_name = ']]..tbl..[['
-]],
-		ForeignKeys = [[
-SHOW KEYS FROM ]]..schema.."."..tbl..[[
-
-WHERE key_name <> 'PRIMARY'
+  AND kc.referenced_table_schema = ']]..args.schema..[['
+  AND kc.referenced_table_name = ']]..args.table..[['
 ]]
-	}
+end
+
+M.PrimaryKeys = function(args)
+    return [[
+SHOW KEYS FROM `]]..args.schema..'`."'..args.table..[["
+
+WHERE key_name = 'PRIMARY'
+]]
+end
+
+M.ForeignKeys = function(args)
+    return [[
+SHOW KEYS FROM `]]..args.schema..'`."'..args.table..[["
+WHERE key_name <> 'PRIMARY'
+LIMIT ]]..args.limit
+end
+
+M.Views = function(args)
+    return [[
+SELECT view_definition
+FROM information_schema.views
+WHERE table_schema = ']]..args.schema..[['
+  AND table_name = ']]..args.table.."'"
+end
+
+M.Procedures = function(args)
+    return [[
+SELECT routine_definition
+FROM information_schema.routines
+WHERE routine_schema = ']]..args.schema..[['
+  AND routine_name = ']]..args.table..[['
+  AND routine_type = 'PROCEDURE'
+]]
+end
+
+M.Functions = function(args)
+    return [[
+SELECT routine_definition
+FROM information_schema.routines
+WHERE routine_schema = ']]..args.schema..[['
+  AND routine_name = ']]..args.table..[['
+  AND routine_type = 'FUNCTION'
+]]
 end
 
 return M

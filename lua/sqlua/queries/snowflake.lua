@@ -72,27 +72,33 @@ M.ddl = {
 	"References",
 }
 
----@param tbl string
----@param schema string
----@param limit integer
----@return string[]
-M.getQueries = function(tbl, schema, db, limit)
-	return {
-        Data = [[
+M.Data = function(args)
+        return [[
 SELECT *
-FROM ]]..db.."."..schema.."."..tbl.."\n"..[[
-LIMIT ]]..limit,
-		Columns = "DESCRIBE TABLE "..db.."."..schema.."."..tbl,
-		PrimaryKeys = "SHOW PRIMARY KEYS IN TABLE "..db.."."..schema.."."..tbl,
-		Indexes = "SHOW INDEXES IN TABLE "..db.."."..schema.."."..tbl,
-        References = [[
+FROM ]]..args.db.."."..args.schema.."."..args.table.."\n"..[[
+LIMIT ]]..args.limit
+end
+
+M.Columns = function(args)
+    return "DESCRIBE TABLE "..args.db.."."..args.schema.."."..args.table
+end
+
+M.PrimaryKeys = function(args)
+    return "SHOW PRIMARY KEYS IN TABLE "..args.db.."."..args.schema.."."..args.table
+end
+
+M.Indexes = function(args)
+    return "SHOW INDEXES IN TABLE "..args.db.."."..args.schema.."."..args.table
+end
+
+M.References = function(args)
+    return [[
 SELECT *
 FROM TABLE(GET_OBJECT_REFERENCES(
-    DATABASE_NAME => ']]..db..[[',
-    SCHEMA_NAME => ']]..schema..[[',
-    OBJECT_NAME => ']]..tbl..[[')
+    DATABASE_NAME => ']]..args.db..[[',
+    SCHEMA_NAME => ']]..args.schema..[[',
+    OBJECT_NAME => ']]..args.table..[[')
 )]]
-	}
 end
 
 return M
