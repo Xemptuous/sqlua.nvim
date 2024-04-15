@@ -380,7 +380,7 @@ function UI:refreshSidebar()
 	---@param sep string
 	---@return integer srow
 	local function refreshProcedures(buf, srow, schema, sep)
-        local ns = schema.num_procedures
+        local ns = schema.num_procedures or 0
 		local p_text = UI_ICONS.procedures.." Procedures ("..ns..")"
 		if schema.procedures_expanded then
 			srow = printSidebarExpanded(buf, srow, p_text, sep)
