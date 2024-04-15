@@ -6,7 +6,7 @@ Mariadb = Connection:new()
 
 
 function Mariadb:setup(name, url)
-    ---@class Mariadb : Connection
+    ---@class Mariadb
     local s = Mariadb:new()
     s.name = name
     s.url = url

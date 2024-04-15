@@ -71,6 +71,16 @@ function Connection:dbmsCleanResults(data)
     return data
 end
 
+---@class Database
+---@field dbms string
+---@field databases table
+---@field num_databases integer
+---@field expanded boolean
+Connection.Database = {
+    dbms = "",
+    schema = {},
+    expanded = false,
+}
 
 ---@class Schema
 ---@field dbms string
@@ -234,12 +244,13 @@ function Connection:parseUrl()
 end
 
 ---@param data table
+---@param db? string
+---@param
 ---@return nil
 --- Populates the Connection's schema based on the stdout
 --- from executing the DBMS' SchemaQuery
-function Connection:getSchema(data)
+function Connection:getSchema(data, db)
     local schema = self:cleanSchema(data)
-    P(schema)
     local old_schema = nil
     if next(self.schema) ~= nil then
         old_schema = vim.deepcopy(self.schema)
@@ -368,12 +379,15 @@ end
 
 ---@param query_type string
 ---@param query_data string|table<string>
+---@param db string|nil
 ---The main query execution wrapper.
 ---Takes 3 types of arguments for `query_type`:
 ---  - connect
 ---  - refresh
 ---  - query
-function Connection:executeUv(query_type, query_data)
+function Connection:executeUv(query_type, query_data, --[[optional]] db)
+    print("### QUERY DATA ###")
+    P(query_data)
     -- TODO: comments in code need to have space added
     if #query_data == 1 and query_data[1] == " " then
         return
@@ -423,12 +437,10 @@ function Connection:executeUv(query_type, query_data)
             P(final)
             if next(final) ~= nil then
                 if query_type == "connect" then
-                    if self.dbms ~= "snowflake" then
-                        self:getSchema(final)
-                        ui:addConnection(self)
-                    end
-                elseif query_type == "refresh" then
                     self:getSchema(final)
+                    ui:addConnection(self)
+                elseif query_type == "refresh" then
+                    self:getSchema(final, db)
                 elseif query_type == "query" then
                     self:query(query_data, final)
                     vim.api.nvim_win_close(ui.windows.query_float, true)

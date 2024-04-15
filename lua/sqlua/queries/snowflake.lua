@@ -1,13 +1,16 @@
 local M = {}
 
-M.SchemaQuery = [[
+M.SchemaQuery = function(db, schema)
+    return [[
     SELECT
         'table' AS type,
         table_catalog,
         table_schema,
         COALESCE(table_name, '-')
     FROM information_schema.tables
-    WHERE table_type REGEXP 'TABLE'
+    WHERE LOWER(table_type) LIKE '%table%'
+      AND table_catalog = ']]..db..[['
+      AND table_schema = ']]..schema..[['
     UNION
     SELECT
         'view' AS type,
@@ -15,7 +18,9 @@ M.SchemaQuery = [[
         table_schema,
         COALESCE(table_name, '-')
     FROM information_schema.tables
-    WHERE table_type REGEXP 'VIEW'
+    WHERE LOWER(table_type) LIKE '%view%'
+      AND table_catalog = ']]..db..[['
+      AND table_schema = ']]..schema..[['
     UNION
     SELECT
         'function' AS type,
@@ -23,6 +28,8 @@ M.SchemaQuery = [[
         function_schema,
         function_name
     FROM information_schema.functions
+    WHERE function_catalog = ']]..db..[['
+      AND function_schema = ']]..schema..[['
     UNION
     SELECT
         'procedure' AS type,
@@ -30,18 +37,21 @@ M.SchemaQuery = [[
         procedure_schema,
         procedure_name
     FROM information_schema.procedures
+    WHERE procedure_catalog = ']]..db..[['
+      AND procedure_schema = ']]..schema..[['
     ORDER BY 1, 2, 3, 4
 ]]
+end
 
 M.DatabaseQuery = [[
     SELECT database_name
     FROM information_schema.databases
 ]]
 
-M.SchemaQuery = function(db)
+M.SchemataQuery = function(db)
     return [[
     SELECT schema_name
-    FROM information_schema.schema
+    FROM information_schema.schemata
     WHERE catalog_name = ']]..db.."'"
 end
 
@@ -67,13 +77,13 @@ M.ddl = {
 ---@param schema string
 ---@param limit integer
 ---@return string[]
-M.getQueries = function(tbl, schema, limit)
+M.getQueries = function(tbl, schema, db, limit)
 	return {
         Data = [[
 SELECT *
 FROM ]]..schema.."."..tbl.."\n"..[[
 LIMIT ]]..limit,
-		Columns = "DESCRIBE "..schema.."."..tbl,
+		Columns = "DESCRIBE "..db.."."..schema.."."..tbl,
 		PrimaryKeys = [[
 SHOW KEYS FROM ]]..schema.."."..tbl..[[
 

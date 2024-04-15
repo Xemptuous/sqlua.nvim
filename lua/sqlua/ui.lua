@@ -205,7 +205,7 @@ local function createTableStatement(type, tbl, schema, db)
 	vim.api.nvim_win_set_cursor(win, { 1, 0 })
 	local stmt = {}
 	local query = queries.getQueries(
-        tbl, schema, UI.options.default_limit
+        tbl, schema, db, UI.options.default_limit
     )[type]
 	for line in string.gmatch(query, "[^\r\n]+") do
 		table.insert(stmt, line)
@@ -280,7 +280,28 @@ local sidebarFind = {
             end
         end
         return schema, num
-    end
+    end,
+    ---@param num integer sidebar starting line
+    snowflake_db = function(num)
+        local db = nil
+        while true do
+            db = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if string.find(db, UI_ICONS.db2) then
+                db = db:gsub("%s+", "")
+                db = db:gsub(ICONS_SUB, "")
+                break
+            end
+            num = num - 1
+        end
+        if db then
+            if db:find("%(") then
+                db = db:sub(1, db:find("%(") - 1)
+            end
+        end
+        return db, num
+    end,
 }
 
 
@@ -422,6 +443,50 @@ function UI:refreshSidebar()
 	---@param buf buffer
 	---@param db string
 	---@param srow integer
+	---@return integer srow
+	local function refreshSnowflakeDatabases(buf, db, srow, sep)
+        local s = self.dbs[db].schema
+        if not s.databases_loaded then
+            srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading Databases...")
+        end
+		for sfdb, _ in Utils.pairsByKeys(s) do
+			local text = UI_ICONS.db2.." "..sfdb
+            if type(s[sfdb]) == "table" then
+                if s[sfdb].expanded then
+                    srow = printSidebarExpanded(buf, srow, text, sep)
+                    local sep2 = sep .. "  "
+                    local sf = self.dbs[db].schema[sfdb]
+                    if not s[sfdb].schemata_loaded then
+                        srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading Schemata...")
+                    end
+                    for schema, _ in Utils.pairsByKeys(sf.schema) do
+                        local text2 = UI_ICONS.schema.." "..schema
+                        if type(sf.schema[schema]) == "table" then
+                            if sf.schema[schema].expanded then
+                                srow = printSidebarExpanded(buf, srow, text2, sep2)
+                                if not sf.schema[schema].schemas_loaded then
+                                    srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading Schema...")
+                                end
+                                local ns = sep2 .. "  "
+                                srow = refreshTables(buf, srow, sf.schema[schema], ns)
+                                srow = refreshViews(buf, srow, sf.schema[schema], ns)
+                                srow = refreshFunctions(buf, srow, sf.schema[schema], ns)
+                                srow = refreshProcedures(buf, srow, sf.schema[schema], ns)
+                            else
+                                srow = printSidebarCollapsed(buf, srow, text2, sep2)
+                            end
+                        end
+                    end
+                else
+                    srow = printSidebarCollapsed(buf, srow, text, sep)
+				end
+			end
+		end
+		return srow
+	end
+	---@param buf buffer
+	---@param db string
+	---@param srow integer
 	local function refreshDatabase(buf, db, srow)
 		local sep = "   "
 
@@ -437,7 +502,11 @@ function UI:refreshSidebar()
 			srow = printSidebarCollapsed(buf, srow, queries_text, sep)
         end
 
-        srow = refreshSchema(buf, db, srow, sep)
+        if db == "snowflake" then
+            srow = refreshSnowflakeDatabases(buf, db, srow, sep)
+        else
+            srow = refreshSchema(buf, db, srow, sep)
+        end
 
         local dbout_text = UI_ICONS.results .. " " .. "Results ("
             .. #self.dbs[db].queries..")"
@@ -524,7 +593,12 @@ function UI:refreshSidebar()
 
 	for db, _ in Utils.pairsByKeys(self.dbs) do
         if self.dbs[db].loaded then
-            local ns = self.dbs[db].num_schema
+            local ns = 0
+            if self.dbs[db].dbms == "snowflake" then
+                ns = self.dbs[db].num_databases or 0
+            else
+                ns = self.dbs[db].num_schema or 0
+            end
             local text = UI_ICONS.db.." "..db.." (".. ns ..")"
             if self.dbs[db].expanded then
                 printSidebarExpanded(buf, srow - 1, text, sep)
@@ -659,7 +733,7 @@ local function createSidebar()
 	vim.api.nvim_set_option_value("cursorline", true, { win = win })
 	vim.api.nvim_set_option_value("cursorlineopt", "line", { win = win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
-	vim.cmd("syn match SQLuaTable /[פּ藺璘󰾇]/")
+	vim.cmd("syn match SQLuaTable /[פּ藺璘󰾇]/")
 	vim.cmd("syn match SQLuaSchema /[פּ󱁊]/")
 	vim.cmd("syn match SQLuaDDL /[離]/")
 	vim.cmd("syn match SQLuaFunction /[󰊕󰡱]/")
@@ -852,33 +926,70 @@ local function createSidebar()
                     end
                 end)
 
+                print(db)
+                print(UI.dbs[db].dbms)
+                print(schema)
+                local con = UI.dbs[db]
+                local con_schema = {}
+                if con.dbms == "snowflake" and con.expanded then
+                    local sfdb = sidebarFind.snowflake_db(num)
+                    print(sfdb)
+                    if con.schema[sfdb] then
+                        con_schema = con.schema[sfdb].schema[schema]
+                    end
+                else
+                    con_schema = con.schema[schema]
+                end
                 if db and db ~= schema and db == sub_val then
-                    if not UI.dbs[db].loaded then
-                        UI.dbs[db]:connect()
+                    if not con.loaded then
+                        con:connect()
                     end
 					toggleExpanded(UI.dbs, sub_val)
 				elseif sub_val == "Queries" then
-					UI.dbs[db].files_expanded = not UI.dbs[db].files_expanded
+					con.files_expanded = not con.files_expanded
+                elseif string.find(val, UI_ICONS.db2) then
+                    db = sidebarFind.snowflake_db(num)
+                    local s = con.schema[db]
+                        if not s.expanded and not s.loaded then
+                            local queries = require("sqlua.queries."..con.dbms)
+                        con:executeUv("refresh", {
+                            "USE DATABASE " .. db .. ";",
+                            queries.SchemataQuery(db)
+                        }, db)
+                        con.schema[db].loaded = true
+                    end
+                    con.schema[db].expanded = not
+                    con.schema[db].expanded
                 elseif string.find(val, UI_ICONS.tables) then
-                    UI.dbs[db].schema[schema].tables_expanded = not
-                    UI.dbs[db].schema[schema].tables_expanded
+                    con_schema.tables_expanded = not con_schema.tables_expanded
                 elseif string.find(val, UI_ICONS.views) then
-                    UI.dbs[db].schema[schema].views_expanded = not
-                    UI.dbs[db].schema[schema].views_expanded
+                    con_schema.views_expanded = not con_schema.views_expanded
                 elseif string.find(val, UI_ICONS.functions) then
-                    UI.dbs[db].schema[schema].functions_expanded = not
-                    UI.dbs[db].schema[schema].functions_expanded
+                    con_schema.functions_expanded = not con_schema.functions_expanded
                 elseif string.find(val, UI_ICONS.procedures) then
-                    UI.dbs[db].schema[schema].procedures_expanded = not
-                    UI.dbs[db].schema[schema].procedures_expanded
+                    con_schema.procedures_expanded = not con_schema.procedures_expanded
                 elseif sub_val == "Results" then
-                    UI.dbs[db].results_expanded = not
-                    UI.dbs[db].results_expanded
+                    con.results_expanded = not con.results_expanded
                 elseif is_folder then
-                    toggleExpanded(UI.dbs[db].files, sub_val)
+                    toggleExpanded(con.files, sub_val)
 				else
-                    local s = UI.dbs[db].schema
+                    db = sidebarFind.snowflake_db(num)
+                    local s = con.schema
+                    if con.dbms == "snowflake" then
+                        s = con.schema[db].schema
+                    end
                     if string.find(val, UI_ICONS.schema) then
+                        if con.dbms == "snowflake" then
+                            local sfdb = con.schema[db].schema[sub_val]
+                            if not sfdb.expanded and not sfdb.loaded then
+                                local queries = require("sqlua.queries."..con.dbms)
+                                con:executeUv("refresh", {
+                                    "USE DATABASE " .. db .. ";",
+                                    queries.SchemaQuery(db, sub_val)
+                                }, db)
+                                con.schema[db].loaded = true
+                            end
+                        end
                         toggleExpanded(s, sub_val)
                     elseif string.find(val, UI_ICONS.table) then
                         toggleExpanded(s[schema].tables, sub_val)

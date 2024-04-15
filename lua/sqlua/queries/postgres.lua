@@ -50,7 +50,7 @@ M.ddl = {
 ---@param schema string
 ---@param limit integer
 ---@return string[]
-M.getQueries = function(tbl, schema, limit)
+M.getQueries = function(tbl, schema, db, limit)
 	return {
         Data = [[
 SELECT *
