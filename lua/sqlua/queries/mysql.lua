@@ -49,16 +49,16 @@ M.ddl = {
 M.Data = function(args)
     return [[
 SELECT *
-FROM `]]..args.schema..'`."'..args.table..'"\n'..[[
+FROM `]]..args.schema..'`.'..args.table..'\n'..[[
 LIMIT ]]..args.limit
 end
 
 M.Columns = function(args)
-    return 'DESCRIBE `'..args.schema..'`."'..args.table..'"'
+    return 'DESCRIBE `'..args.schema..'`.'..args.table
 end
 
 M.Indexes = function(args)
-    return 'SHOW INDEX FROM `'..args.schema..'`."'..args.table..'"'
+    return 'SHOW INDEX FROM `'..args.schema..'`.'..args.table
 end
 
 M.References = function(args)
@@ -85,7 +85,7 @@ end
 
 M.PrimaryKeys = function(args)
     return [[
-SHOW KEYS FROM `]]..args.schema..'`."'..args.table..[["
+SHOW KEYS FROM `]]..args.schema..'`.'..args.table..[[
 
 WHERE key_name = 'PRIMARY'
 ]]
@@ -93,7 +93,7 @@ end
 
 M.ForeignKeys = function(args)
     return [[
-SHOW KEYS FROM `]]..args.schema..'`."'..args.table..[["
+SHOW KEYS FROM `]]..args.schema..'`.'..args.table..[[
 WHERE key_name <> 'PRIMARY'
 LIMIT ]]..args.limit
 end
