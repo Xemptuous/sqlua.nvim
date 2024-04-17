@@ -890,20 +890,27 @@ local function createSidebar()
             local db, _ = sidebarFind.database(pos[1])
             local is_folder = text:match(UI_ICONS.folder) ~= nil
             local is_file = text:match(UI_ICONS.file) ~= nil
-            if not is_folder and not is_file then
+            local is_dbout = text:match(UI_ICONS.dbout) ~= nil
+            if not is_folder and not is_file and not is_dbout then
                 return
             end
-			text = text:gsub("%s+", "")
-            text = text:gsub(ICONS_SUB, "")
-            if text == "Queries" then
-                return
-            end
-            local file = UI.dbs[db].files:find(text)
-            local show_path = file.path:match(db..".*")
-            local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
-            if response == "Y" then
-                assert(os.remove(file.path))
-                UI.dbs[db].files:refresh()
+            if is_folder or is_file then
+                text = text:gsub("%s+", "")
+                text = text:gsub(ICONS_SUB, "")
+                if text == "Queries" then
+                    return
+                end
+                local file = UI.dbs[db].files:find(text)
+                local show_path = file.path:match(db..".*")
+                local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
+                if response == "Y" then
+                    assert(os.remove(file.path))
+                    UI.dbs[db].files:refresh()
+                    UI:refreshSidebar()
+                end
+            else
+                local qnum = tonumber(string.match(text, "%d+"))
+                table.remove(UI.dbs[db].queries, qnum)
                 UI:refreshSidebar()
             end
         end
