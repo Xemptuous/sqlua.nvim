@@ -618,6 +618,7 @@ function UI:refreshSidebar()
     srow = srow + 1
 
 
+    local db_rows = {}
 	for db, _ in Utils.pairsByKeys(self.dbs) do
         if self.dbs[db].loaded then
             local ns = 0
@@ -628,26 +629,38 @@ function UI:refreshSidebar()
             end
             local text = UI_ICONS.db.." "..db.." (".. ns ..")"
             if self.dbs[db].expanded then
+                db_rows[db] = srow - 1
                 printSidebarExpanded(buf, srow - 1, text, sep)
                 srow = refreshDatabase(buf, db, srow)
             else
+                db_rows[db] = srow - 1
                 printSidebarCollapsed(buf, srow - 1, text, sep)
             end
         else
             local text = UI_ICONS.db.." "..db
             if self.dbs[db].loading then
+                db_rows[db] = srow - 1
                 printSidebarExpanded(buf, srow - 1, text, sep)
                 srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading ...")
             else
+                db_rows[db] = srow - 1
                 printSidebarCollapsed(buf, srow - 1, text, sep)
             end
         end
-        srow = srow + 1
         if db == self.active_db then
-            vim.cmd("syn match SQLua_active_db /"..db..".*$/")
-        else
-            vim.cmd("syn match Normal /"..db..".*$/")
+            local sbuf = UI.buffers.sidebar or 0
+            local sr = db_rows[db]
+            local txt = vim.api.nvim_buf_get_lines(sbuf, sr, sr + 1, true)[1]
+            vim.api.nvim_buf_add_highlight(
+                sbuf,
+                UI.sidebar_ns,
+                "SQLua_active_db",
+                sr,
+                txt:find("") + 1 or 0,
+                txt:find("%(") - 1 or 0
+            )
         end
+        srow = srow + 1
 	end
     srow = srow - 1
     local dbout_text = UI_ICONS.results .. " " .. "Results ("
@@ -1248,6 +1261,7 @@ function UI:setup(config)
 	})
 
 	self.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
+    local comment_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
     local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
     local keyword_hl = vim.api.nvim_get_hl(0, { name = "Keyword" })
@@ -1259,11 +1273,9 @@ function UI:setup(config)
     vim.api.nvim_set_hl(0, "SQLuaNewQuery", { fg = keyword_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaDDL", { fg = int_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaSchema", { fg = str_hl.fg })
-	vim.api.nvim_set_hl(0, "SQLua_active_db", { fg = str_hl.fg, bold = true })
+	vim.api.nvim_set_hl(0, "SQLua_active_db", { fg = str_hl.fg, bg = nil, bold = true })
 	vim.api.nvim_set_hl(0, "SQLuaHelpKey", { fg = str_hl.fg })
-	vim.api.nvim_set_hl(0, "SQLuaHelpText", {
-		fg = vim.api.nvim_get_hl(0, { name = "Comment" }).fg,
-	})
+	vim.api.nvim_set_hl(0, "SQLuaHelpText", { fg = comment_hl.fg })
 
 	local sidebar_win = vim.api.nvim_get_current_win()
 	self.windows.sidebar = sidebar_win
