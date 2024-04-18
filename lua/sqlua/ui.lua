@@ -289,6 +289,7 @@ local sidebarFind = {
             db = vim.api.nvim_buf_get_lines(
                 UI.buffers.sidebar, num - 1, num, false
             )[1]
+            if not db then return nil end
             if string.find(db, UI_ICONS.db) then
                 db = db:gsub("%s+", "")
                 db = db:gsub(ICONS_SUB, "")
@@ -651,13 +652,13 @@ function UI:refreshSidebar()
             local sbuf = UI.buffers.sidebar or 0
             local sr = db_rows[db]
             local txt = vim.api.nvim_buf_get_lines(sbuf, sr, sr + 1, true)[1]
+            local start = txt:find("") + 1
+            local stop = txt:find("%(") or #db + start + 2
             vim.api.nvim_buf_add_highlight(
                 sbuf,
                 UI.sidebar_ns,
                 "SQLua_active_db",
-                sr,
-                txt:find("") + 1 or 0,
-                txt:find("%(") - 1 or 0
+                sr, start, stop
             )
         end
         srow = srow + 1
@@ -992,7 +993,9 @@ local function createSidebar()
 
                 local con = UI.dbs[db]
                 local con_schema = {}
-                if con.dbms == "snowflake" and con.expanded then
+				if sub_val == "Queries" then
+					con.files_expanded = not con.files_expanded
+                elseif con.dbms == "snowflake" and con.expanded then
                     if db ~= sub_val then
                         local sfdb = sidebarFind.snowflake_db(num)
                         if con.schema[sfdb] then
@@ -1007,8 +1010,6 @@ local function createSidebar()
                         con:connect()
                     end
 					toggleExpanded(UI.dbs, sub_val)
-				elseif sub_val == "Queries" then
-					con.files_expanded = not con.files_expanded
                 elseif string.find(val, UI_ICONS.db2) then
                     db = sidebarFind.snowflake_db(num)
                     local s = con.schema[db]
