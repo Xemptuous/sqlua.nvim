@@ -45,7 +45,7 @@ M.setup = function(opts)
         for _, con in pairs(cons) do
             local name, url = con["name"], con["url"]
             vim.fn.mkdir(ROOT_DIR .. "/" .. name, "p")
-            local connection = Connection.setup(name, url)
+            local connection = Connection.setup(name, url, UI.options)
             if config.load_connections_on_start and connection then
                 connection:connect()
             end

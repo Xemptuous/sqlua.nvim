@@ -25,7 +25,6 @@ local Windows = {
 }
 
 ---@class UI
----@field connections_loaded boolean
 ---@field initial_layout_loaded boolean
 ---@field help_toggled boolean
 ---@field sidebar_ns namespace_id
@@ -40,7 +39,6 @@ local Windows = {
 ---@field last_active_window window
 ---@field current_active_window window
 local UI = {
-	connections_loaded = false,
 	initial_layout_loaded = false,
 	help_toggled = false,
 	sidebar_ns = 0,
@@ -59,6 +57,8 @@ local UI = {
 	current_active_buffer = 0,
 	last_active_window = 0,
 	current_active_window = 0,
+    queries = {},
+    results_expanded = false
 }
 
 local Utils = require("sqlua.utils")
@@ -551,23 +551,6 @@ function UI:refreshSidebar()
             srow = refreshSchema(buf, db, srow, sep)
         end
 
-        local dbout_text = UI_ICONS.results .. " " .. "Results ("
-            .. #self.dbs[db].queries..")"
-        if self.dbs[db].results_expanded then
-			srow = printSidebarExpanded(buf, srow, dbout_text, sep)
-            local query_results = {}
-            for i, tbl in ipairs(self.dbs[db].queries) do
-                local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
-                local stmt = table.concat(tbl.statement, "")
-                table.insert(query_results, text.." ("..stmt..")")
-            end
-            for _, q in ipairs(Utils.reverse(query_results)) do
-                srow = printSidebarEmpty(buf, srow, q)
-            end
-        else
-			srow = printSidebarCollapsed(buf, srow, dbout_text, sep)
-        end
-
 		return srow
 	end
 
@@ -652,7 +635,12 @@ function UI:refreshSidebar()
             end
         else
             local text = UI_ICONS.db.." "..db
-            printSidebarCollapsed(buf, srow - 1, text, sep)
+            if self.dbs[db].loading then
+                printSidebarExpanded(buf, srow - 1, text, sep)
+                srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading ...")
+            else
+                printSidebarCollapsed(buf, srow - 1, text, sep)
+            end
         end
         srow = srow + 1
         if db == self.active_db then
@@ -661,6 +649,24 @@ function UI:refreshSidebar()
             vim.cmd("syn match Normal /"..db..".*$/")
         end
 	end
+    srow = srow - 1
+    local dbout_text = UI_ICONS.results .. " " .. "Results ("
+        .. #self.queries..")"
+    if self.results_expanded then
+        srow = printSidebarExpanded(buf, srow, dbout_text, sep)
+        local query_results = {}
+        for i, tbl in ipairs(self.queries) do
+            local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
+            local stmt = table.concat(tbl.statement, "")
+            table.insert(query_results, text.." ("..stmt..")")
+        end
+        for _, q in ipairs(Utils.reverse(query_results)) do
+            srow = printSidebarEmpty(buf, srow, q)
+        end
+    else
+        srow = printSidebarCollapsed(buf, srow, dbout_text, sep)
+    end
+
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(self.windows.sidebar, setCursor)
     end) then
@@ -1012,7 +1018,7 @@ local function createSidebar()
                 elseif string.find(val, UI_ICONS.procedures) then
                     con_schema.procedures_expanded = not con_schema.procedures_expanded
                 elseif sub_val == "Results" then
-                    con.results_expanded = not con.results_expanded
+                    UI.results_expanded = not UI.results_expanded
                 elseif is_folder then
                     toggleExpanded(con.files, sub_val)
 				else
@@ -1069,7 +1075,6 @@ local function createSidebar()
                     vim.api.nvim_set_current_win(UI.windows.editors[1])
                     vim.api.nvim_set_current_buf(buffer)
                 elseif string.find(val, UI_ICONS.dbout) then
-                    -- TODO: after a while, these stop returning correct results
                     local rbuf= UI.buffers.results
                     if rbuf == nil then
                         return
@@ -1079,7 +1084,7 @@ local function createSidebar()
                     setSidebarModifiable(rbuf, true)
                     vim.api.nvim_buf_set_lines(rbuf,
                         0, -1, false,
-                        UI.dbs[db].queries[qnum].results
+                        UI.queries[qnum].results
                     )
                     setSidebarModifiable(rbuf, false)
                 elseif string.find(val, UI_ICONS.view) then
@@ -1192,7 +1197,7 @@ function UI:setup(config)
 		callback = function()
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
-			if self.connections_loaded and self.initial_layout_loaded then
+			if self.initial_layout_loaded then
 				self.last_active_buffer = curbuf
 				self.last_active_window = curwin
 				local type, _ = getBufferType(curbuf)

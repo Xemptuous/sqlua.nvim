@@ -31,6 +31,7 @@ local ConnectionInfo = {
 ---The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
+    loading = false,
     loaded = false,
 	files_expanded = false,
 	num_schema = 0,
@@ -42,8 +43,7 @@ local Connection = {
     schema_query = "",
     cli_args = {},
 	schema = {},
-	files = {},
-    queries = {}
+	files = {}
 }
 
 ---@return Connection
@@ -54,10 +54,11 @@ function Connection:new(o)
     return o
 end
 
----@overload fun(name: string, url: string) : self
-function Connection:setup(name, url)
+---@overload fun(name: string, url: string, options: table) : self
+function Connection:setup(name, url, options)
     name = name
     url = url
+    options = options
     return self
 end
 
@@ -332,9 +333,9 @@ function Connection:query(query, data)
     local q = vim.deepcopy(Connection.Query)
     q.statement = query
     q.results = data
-    table.insert(self.queries, q)
-
     local ui = require("sqlua.ui")
+    table.insert(ui.queries, q)
+
     if ui.buffers.results ~= nil then
         setSidebarModifiable(ui.buffers.results, true)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
@@ -392,6 +393,8 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
                 if query_type == "connect" then
                     self:getSchema(final)
                     ui:addConnection(self)
+                    self.loaded = true
+                    self.loading = false
                 elseif query_type == "refresh" then
                     self:getSchema(final, db)
                 elseif query_type == "query" then
@@ -571,8 +574,8 @@ function Connection:execute(--[[optional mode string]] mode)
 end
 
 function Connection:connect()
+    self.loading = true
     self:executeUv("connect", self.schema_query)
-    self.loaded = true
 end
 
 return Connection

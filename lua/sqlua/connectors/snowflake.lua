@@ -5,8 +5,7 @@ local utils = require("sqlua.utils")
 Snowflake = Connection:new()
 
 
----@overload fun(name: string, url: string)
-function Snowflake:setup(name, url)
+function Snowflake:setup(name, url, options)
     ---@class Snowflake
     local s = Snowflake:new()
     s.name = name
