@@ -46,18 +46,19 @@ M.ddl = {
 	"Foreign Keys",
 }
 
----@param tbl string
----@param schema string
----@param limit integer
----@return string[]
-M.getQueries = function(tbl, schema, limit)
-	return {
-        Data = [[
+M.Data = function(args)
+    return [[
 SELECT *
-FROM ]]..schema.."."..tbl.."\n"..[[
-LIMIT ]]..limit,
-		Columns = "\\d+ "..schema.."."..tbl,
-		PrimaryKeys = [[
+FROM ]]..args.schema.."."..args.table.."\n"..[[
+LIMIT ]]..args.limit
+end
+
+M.Columns = function(args)
+    return "\\d+ "..args.schema.."."..args.table
+end
+
+M.PrimaryKeys = function(args)
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -74,10 +75,13 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
       ON ccu.constraint_name = tc.constraint_name
 WHERE constraint_type = 'PRIMARY KEY'
-  AND tc.table_name = ']] .. tbl .. [['
-  AND tc.table_schema = ']] .. schema .. [['
-]],
-		Indexes = [[
+  AND tc.table_name = ']]..args.table..[['
+  AND tc.table_schema = ']]..args.schema..[['
+]]
+end
+
+M.Indexes = function(args)
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -88,9 +92,12 @@ FROM information_schema.table_constraints tc
         ON tc.constraint_name = kcu.constraint_name
     JOIN pg_indexes pgi
         ON tc.constraint_name = pgi.indexname
-WHERE tablename = ']] .. tbl .. [['
-  AND schemaname = ']] .. schema .. "'",
-		References = [[
+WHERE tablename = ']]..args.table..[['
+  AND schemaname = ']]..args.schema.."'"
+end
+
+M.References = function(args)
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -107,10 +114,13 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
       ON tc.constraint_name = ccu.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-  AND ccu.table_name = ']] .. tbl .. [['
-  AND ccu.table_schema = ']] .. schema .. [['
-]],
-		ForeignKeys = [[
+  AND ccu.table_name = ']]..args.table..[['
+  AND ccu.table_schema = ']]..args.schema..[['
+]]
+end
+
+M.ForeignKeys = function(args)
+    return [[
 SELECT DISTINCT
     tc.constraint_name,
     tc.table_name,
@@ -127,10 +137,21 @@ FROM information_schema.table_constraints AS tc
     JOIN information_schema.constraint_column_usage AS ccu
       ON tc.constraint_name = ccu.constraint_name
 WHERE constraint_type = 'FOREIGN KEY'
-  AND tc.table_name = ']] .. tbl .. [['
-  AND tc.table_schema = ']] .. schema .. [['
-]],
-	}
+  AND tc.table_name = ']]..args.table..[['
+  AND tc.table_schema = ']]..args.schema..[['
+]]
+end
+
+M.Views = function(args)
+    return "\\d+ "..args.schema..'.'..args.table
+end
+
+M.Proceduires = function(args)
+    return "\\df+ "..args.schema..'.'..args.table
+end
+
+M.Functions = function(args)
+    return "\\df+ "..args.schema..'.'..args.table
 end
 
 return M
