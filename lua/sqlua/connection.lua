@@ -13,11 +13,11 @@ local Cons = {
 ---@param name string
 ---@param url string
 ---@return nil
-Connections.setup = function(name, url)
+Connections.setup = function(name, url, options)
     local s = url:find("://") or #url + 1
     local dbms = url:sub(0, s - 1)
     local con = Cons[dbms]
-    local connection = con:setup(name, url)
+    local connection = con:setup(name, url, options)
     return connection
 end
 

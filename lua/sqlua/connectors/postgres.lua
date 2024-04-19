@@ -5,7 +5,7 @@ local utils = require("sqlua.utils")
 Postgres = Connection:new()
 
 
-function Postgres:setup(name, url)
+function Postgres:setup(name, url, options)
     ---@class Postgres
     local s = Postgres:new()
     s.name = name

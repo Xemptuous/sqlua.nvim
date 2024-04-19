@@ -25,7 +25,6 @@ local Windows = {
 }
 
 ---@class UI
----@field connections_loaded boolean
 ---@field initial_layout_loaded boolean
 ---@field help_toggled boolean
 ---@field sidebar_ns namespace_id
@@ -40,7 +39,6 @@ local Windows = {
 ---@field last_active_window window
 ---@field current_active_window window
 local UI = {
-	connections_loaded = false,
 	initial_layout_loaded = false,
 	help_toggled = false,
 	sidebar_ns = 0,
@@ -59,6 +57,8 @@ local UI = {
 	current_active_buffer = 0,
 	last_active_window = 0,
 	current_active_window = 0,
+    queries = {},
+    results_expanded = false
 }
 
 local Utils = require("sqlua.utils")
@@ -289,6 +289,7 @@ local sidebarFind = {
             db = vim.api.nvim_buf_get_lines(
                 UI.buffers.sidebar, num - 1, num, false
             )[1]
+            if not db then return nil end
             if string.find(db, UI_ICONS.db) then
                 db = db:gsub("%s+", "")
                 db = db:gsub(ICONS_SUB, "")
@@ -551,23 +552,6 @@ function UI:refreshSidebar()
             srow = refreshSchema(buf, db, srow, sep)
         end
 
-        local dbout_text = UI_ICONS.results .. " " .. "Results ("
-            .. #self.dbs[db].queries..")"
-        if self.dbs[db].results_expanded then
-			srow = printSidebarExpanded(buf, srow, dbout_text, sep)
-            local query_results = {}
-            for i, tbl in ipairs(self.dbs[db].queries) do
-                local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
-                local stmt = table.concat(tbl.statement, "")
-                table.insert(query_results, text.." ("..stmt..")")
-            end
-            for _, q in ipairs(Utils.reverse(query_results)) do
-                srow = printSidebarEmpty(buf, srow, q)
-            end
-        else
-			srow = printSidebarCollapsed(buf, srow, dbout_text, sep)
-        end
-
 		return srow
 	end
 
@@ -635,6 +619,7 @@ function UI:refreshSidebar()
     srow = srow + 1
 
 
+    local db_rows = {}
 	for db, _ in Utils.pairsByKeys(self.dbs) do
         if self.dbs[db].loaded then
             local ns = 0
@@ -645,22 +630,57 @@ function UI:refreshSidebar()
             end
             local text = UI_ICONS.db.." "..db.." (".. ns ..")"
             if self.dbs[db].expanded then
+                db_rows[db] = srow - 1
                 printSidebarExpanded(buf, srow - 1, text, sep)
                 srow = refreshDatabase(buf, db, srow)
             else
+                db_rows[db] = srow - 1
                 printSidebarCollapsed(buf, srow - 1, text, sep)
             end
         else
             local text = UI_ICONS.db.." "..db
-            printSidebarCollapsed(buf, srow - 1, text, sep)
+            if self.dbs[db].loading then
+                db_rows[db] = srow - 1
+                printSidebarExpanded(buf, srow - 1, text, sep)
+                srow = printSidebarEmpty(buf, srow, sep.."  󰑐 Loading ...")
+            else
+                db_rows[db] = srow - 1
+                printSidebarCollapsed(buf, srow - 1, text, sep)
+            end
+        end
+        if db == self.active_db then
+            local sbuf = UI.buffers.sidebar or 0
+            local sr = db_rows[db]
+            local txt = vim.api.nvim_buf_get_lines(sbuf, sr, sr + 1, true)[1]
+            local start = txt:find("") + 1
+            local stop = txt:find("%(") or #db + start + 2
+            vim.api.nvim_buf_add_highlight(
+                sbuf,
+                UI.sidebar_ns,
+                "SQLua_active_db",
+                sr, start, stop
+            )
         end
         srow = srow + 1
-        if db == self.active_db then
-            vim.cmd("syn match SQLua_active_db /"..db..".*$/")
-        else
-            vim.cmd("syn match Normal /"..db..".*$/")
-        end
 	end
+    srow = srow - 1
+    local dbout_text = UI_ICONS.results .. " " .. "Results ("
+        .. #self.queries..")"
+    if self.results_expanded then
+        srow = printSidebarExpanded(buf, srow, dbout_text, sep)
+        local query_results = {}
+        for i, tbl in ipairs(self.queries) do
+            local text = sep.."    "..UI_ICONS.dbout.." "..tostring(i)
+            local stmt = table.concat(tbl.statement, "")
+            table.insert(query_results, text.." ("..stmt..")")
+        end
+        for _, q in ipairs(Utils.reverse(query_results)) do
+            srow = printSidebarEmpty(buf, srow, q)
+        end
+    else
+        srow = printSidebarCollapsed(buf, srow, dbout_text, sep)
+    end
+
 	if not pcall(function()
         vim.api.nvim_win_set_cursor(self.windows.sidebar, setCursor)
     end) then
@@ -890,20 +910,27 @@ local function createSidebar()
             local db, _ = sidebarFind.database(pos[1])
             local is_folder = text:match(UI_ICONS.folder) ~= nil
             local is_file = text:match(UI_ICONS.file) ~= nil
-            if not is_folder and not is_file then
+            local is_dbout = text:match(UI_ICONS.dbout) ~= nil
+            if not is_folder and not is_file and not is_dbout then
                 return
             end
-			text = text:gsub("%s+", "")
-            text = text:gsub(ICONS_SUB, "")
-            if text == "Queries" then
-                return
-            end
-            local file = UI.dbs[db].files:find(text)
-            local show_path = file.path:match(db..".*")
-            local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
-            if response == "Y" then
-                assert(os.remove(file.path))
-                UI.dbs[db].files:refresh()
+            if is_folder or is_file then
+                text = text:gsub("%s+", "")
+                text = text:gsub(ICONS_SUB, "")
+                if text == "Queries" then
+                    return
+                end
+                local file = UI.dbs[db].files:find(text)
+                local show_path = file.path:match(db..".*")
+                local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
+                if response == "Y" then
+                    assert(os.remove(file.path))
+                    UI.dbs[db].files:refresh()
+                    UI:refreshSidebar()
+                end
+            else
+                local qnum = tonumber(string.match(text, "%d+"))
+                table.remove(UI.dbs[db].queries, qnum)
                 UI:refreshSidebar()
             end
         end
@@ -966,7 +993,9 @@ local function createSidebar()
 
                 local con = UI.dbs[db]
                 local con_schema = {}
-                if con.dbms == "snowflake" and con.expanded then
+				if sub_val == "Queries" then
+					con.files_expanded = not con.files_expanded
+                elseif con.dbms == "snowflake" and con.expanded then
                     if db ~= sub_val then
                         local sfdb = sidebarFind.snowflake_db(num)
                         if con.schema[sfdb] then
@@ -981,8 +1010,6 @@ local function createSidebar()
                         con:connect()
                     end
 					toggleExpanded(UI.dbs, sub_val)
-				elseif sub_val == "Queries" then
-					con.files_expanded = not con.files_expanded
                 elseif string.find(val, UI_ICONS.db2) then
                     db = sidebarFind.snowflake_db(num)
                     local s = con.schema[db]
@@ -1005,7 +1032,7 @@ local function createSidebar()
                 elseif string.find(val, UI_ICONS.procedures) then
                     con_schema.procedures_expanded = not con_schema.procedures_expanded
                 elseif sub_val == "Results" then
-                    con.results_expanded = not con.results_expanded
+                    UI.results_expanded = not UI.results_expanded
                 elseif is_folder then
                     toggleExpanded(con.files, sub_val)
 				else
@@ -1062,7 +1089,6 @@ local function createSidebar()
                     vim.api.nvim_set_current_win(UI.windows.editors[1])
                     vim.api.nvim_set_current_buf(buffer)
                 elseif string.find(val, UI_ICONS.dbout) then
-                    -- TODO: after a while, these stop returning correct results
                     local rbuf= UI.buffers.results
                     if rbuf == nil then
                         return
@@ -1072,7 +1098,7 @@ local function createSidebar()
                     setSidebarModifiable(rbuf, true)
                     vim.api.nvim_buf_set_lines(rbuf,
                         0, -1, false,
-                        UI.dbs[db].queries[qnum].results
+                        UI.queries[qnum].results
                     )
                     setSidebarModifiable(rbuf, false)
                 elseif string.find(val, UI_ICONS.view) then
@@ -1185,7 +1211,7 @@ function UI:setup(config)
 		callback = function()
 			local curwin = vim.api.nvim_get_current_win()
 			local curbuf = vim.api.nvim_get_current_buf()
-			if self.connections_loaded and self.initial_layout_loaded then
+			if self.initial_layout_loaded then
 				self.last_active_buffer = curbuf
 				self.last_active_window = curwin
 				local type, _ = getBufferType(curbuf)
@@ -1236,6 +1262,7 @@ function UI:setup(config)
 	})
 
 	self.sidebar_ns = vim.api.nvim_create_namespace("SQLuaSidebar")
+    local comment_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
     local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
     local keyword_hl = vim.api.nvim_get_hl(0, { name = "Keyword" })
@@ -1247,11 +1274,9 @@ function UI:setup(config)
     vim.api.nvim_set_hl(0, "SQLuaNewQuery", { fg = keyword_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaDDL", { fg = int_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaSchema", { fg = str_hl.fg })
-	vim.api.nvim_set_hl(0, "SQLua_active_db", { fg = str_hl.fg, bold = true })
+	vim.api.nvim_set_hl(0, "SQLua_active_db", { fg = str_hl.fg, bg = nil, bold = true })
 	vim.api.nvim_set_hl(0, "SQLuaHelpKey", { fg = str_hl.fg })
-	vim.api.nvim_set_hl(0, "SQLuaHelpText", {
-		fg = vim.api.nvim_get_hl(0, { name = "Comment" }).fg,
-	})
+	vim.api.nvim_set_hl(0, "SQLuaHelpText", { fg = comment_hl.fg })
 
 	local sidebar_win = vim.api.nvim_get_current_win()
 	self.windows.sidebar = sidebar_win

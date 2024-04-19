@@ -5,8 +5,8 @@ local utils = require("sqlua.utils")
 Mysql = Connection:new()
 
 
-function Mysql:setup(name, url)
     ---@class Mysql
+function Mysql:setup(name, url, options)
     local s = Mysql:new()
     s.name = name
     s.url = url
@@ -26,7 +26,8 @@ function Mysql:setup(name, url)
         end
     end
     table.insert(s.cli_args, "-t") -- table output
-
+    table.insert(s.cli_args, "--safe-updates")
+    table.insert(s.cli_args, "--select-limit="..options.default_limit)
     local queries = require("sqlua.queries."..s.dbms)
     s.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
     return s

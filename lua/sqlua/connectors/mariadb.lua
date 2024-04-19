@@ -5,7 +5,7 @@ local utils = require("sqlua.utils")
 Mariadb = Connection:new()
 
 
-function Mariadb:setup(name, url)
+function Mariadb:setup(name, url, options)
     ---@class Mariadb
     local s = Mariadb:new()
     s.name = name
@@ -26,7 +26,8 @@ function Mariadb:setup(name, url)
         end
     end
     table.insert(s.cli_args, "-t") -- table output
-
+    table.insert(s.cli_args, "--safe-updates")
+    table.insert(s.cli_args, "--select-limit="..options.default_limit)
     local queries = require("sqlua.queries."..s.dbms)
     s.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
     return s
