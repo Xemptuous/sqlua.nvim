@@ -26,8 +26,9 @@ function Mariadb:setup(name, url, options)
         end
     end
     table.insert(s.cli_args, "-t") -- table output
-    table.insert(s.cli_args, "--safe-updates")
-    table.insert(s.cli_args, "--select-limit="..options.default_limit)
+    -- FIXME: causes issues with information schema
+    -- table.insert(s.cli_args, "--safe-updates")
+    -- table.insert(s.cli_args, "--select-limit="..options.default_limit)
     local queries = require("sqlua.queries."..s.dbms)
     s.schema_query = string.gsub(queries.SchemaQuery, "\n", " ")
     return s
