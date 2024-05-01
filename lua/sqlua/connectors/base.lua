@@ -374,7 +374,7 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
     local stdout = uv.new_pipe()
     local stderr = uv.new_pipe()
 
-    local handle, _ = uv.spawn(self.cmd, {
+    local handle, pid = uv.spawn(self.cmd, {
         args = self.cli_args,
         stdio = {stdin, stdout, stderr}
     })
@@ -423,8 +423,7 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
         end
     end))
 
-    uv.write(stdin, query_data, function()
-    end)
+    uv.write(stdin, query_data)
 
 
     uv.shutdown(stdin, vim.schedule_wrap(function()
@@ -460,7 +459,7 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
                 })
             end
             setSidebarModifiable(ui.buffers.results, false)
-            uv.close(handle)
+            -- uv.close(handle, function() print("close end") end)
         end
     end))
     -- TODO: implement async "time elapsed" for query.
@@ -561,7 +560,7 @@ function Connection:execute(--[[optional mode string]] mode)
     local final_query = {}
     if query then
         for i, j in ipairs(query) do
-            query[i] = j:gsub("[\r\n]", " ")
+            query[i] = j:gsub("[\v\r\n\t]", " ")
             query[i] = " "..query[i]:match("^%s*(.-)%s*$").." "
             local cleaned = j:match("^%s*(.-)%s*$")
             if cleaned:match("^%-%-") or cleaned:match("^%#") then
@@ -569,6 +568,11 @@ function Connection:execute(--[[optional mode string]] mode)
                 table.insert(final_query, query[i])
             end
         end
+        -- local last_line = final_query[#final_query]
+        -- print(last_line)
+        -- if last_line[#last_line]:match("%s") then
+        --     string.sub(final_query[#final_query][#last_line], 1, #last_line - 1)
+        -- end
         self:executeUv("query", final_query)
     end
 end

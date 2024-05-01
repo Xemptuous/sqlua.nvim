@@ -856,12 +856,21 @@ local function createSidebar()
 	vim.api.nvim_buf_set_keymap(buf, "n", "R", "", {
 		callback = function()
 			UI.last_cursor_position.sidebar = vim.api.nvim_win_get_cursor(0)
-			for _, con in pairs(UI.dbs) do
-                local queries = require('sqlua.queries.'..con.dbms)
-                local query = string.gsub(queries.SchemaQuery, "\n", " ")
-                con:executeUv("refresh", query)
-                con.files:refresh()
-			end
+            local db = UI.dbs.active_db or ""
+            if db == "" then
+                local pos = vim.api.nvim_win_get_cursor(0)
+                db = sidebarFind.database(pos[1])
+            end
+            local con = UI.dbs[db]
+            local queries = require('sqlua.queries.'..con.dbms)
+            local query = ""
+            if con.dbms == "snowflake" then
+                -- TODO: implement snowflake specific refresh
+                -- query = string.gsub(queries.SchemaQuery(con.db, con.schema.name), "\n", " ")
+            else
+                query = string.gsub(queries.SchemaQuery, "\n", " ")
+            end
+            con:executeUv("refresh", query)
 			UI:refreshSidebar()
 		end,
 	})
@@ -914,6 +923,7 @@ local function createSidebar()
             if not is_folder and not is_file and not is_dbout then
                 return
             end
+            P(UI.dbs[db].files)
             if is_folder or is_file then
                 text = text:gsub("%s+", "")
                 text = text:gsub(ICONS_SUB, "")
@@ -921,7 +931,7 @@ local function createSidebar()
                     return
                 end
                 local file = UI.dbs[db].files:find(text)
-                local show_path = file.path:match(db..".*")
+                local show_path = file.path:match(db..".*") or file.path
                 local response = vim.fn.input("Are you sure you want to remove "..show_path.."? [Y/n]")
                 if response == "Y" then
                     assert(os.remove(file.path))
