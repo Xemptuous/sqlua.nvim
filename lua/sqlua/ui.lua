@@ -41,6 +41,7 @@ local Windows = {
 local UI = {
 	initial_layout_loaded = false,
 	help_toggled = false,
+    help_length = 0,
 	sidebar_ns = 0,
     buffers_expanded = false,
 	active_db = "",
@@ -639,6 +640,7 @@ function UI:refreshSidebar()
         " <leader>sf - focus sidebar",
         " "..self.options.keybinds.execute_query.." - run query",
     }
+    UI.help_length = #helpTextTable + 2
 
 	setSidebarModifiable(buf, true)
 	vim.api.nvim_buf_set_lines(self.buffers.sidebar, 0, -1, false, {})
@@ -648,7 +650,7 @@ function UI:refreshSidebar()
         vim.cmd("syn match SQLuaHelpText /\\(- \\).*/")
         vim.api.nvim_buf_set_lines(buf, 0, 0, false, helpTextTable)
         vim.cmd("syn match SQLuaHelpText /^$/")
-        srow = srow + #helpTextTable
+        srow = srow + #helpTextTable - 1
         vim.api.nvim_buf_add_highlight(
             self.buffers.sidebar, self.sidebar_ns, "Comment", 0, 0, winwidth
         )
@@ -1202,6 +1204,7 @@ local function createSidebar()
 			if num == num_lines then
 				local cursorCol = cursorPos[2]
 				local newpos = { num - 1, cursorCol }
+                UI.last_cursor_position.sidebar = cursorPos
 				vim.api.nvim_win_set_cursor(UI.windows.sidebar, newpos)
 			end
 
@@ -1297,7 +1300,13 @@ local function createSidebar()
 				end
 			end
             if vim.api.nvim_get_current_buf() == UI.buffers.sidebar then
-                vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+                if UI.help_toggled then
+                    local pos = UI.last_cursor_position.sidebar
+                    pos[1] = pos[1] - UI.help_length + 2
+                    vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+                else
+                    vim.api.nvim_win_set_cursor(0, UI.last_cursor_position.sidebar)
+                end
             end
 
 			highlightSidebarNumbers()
