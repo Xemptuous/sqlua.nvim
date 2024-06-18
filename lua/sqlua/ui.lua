@@ -255,6 +255,20 @@ local function createTableStatement(type, tbl, schema, database, db, dbms)
     UI.dbs[database]:execute()
 end
 
+
+local function countIndentWhitespace(val)
+    local current_indent = 0
+    for i = 1, #val do
+        local c = val:sub(i, i)
+        if c:match('[A-Za-z0-9_]') then
+            current_indent = i - 9
+            break
+        end
+    end
+    return current_indent
+end
+
+
 --[[Searches the sidebar from the given starting point upwards
   for the given type, returning the first occurence of either
   table, schema, or db
@@ -353,6 +367,31 @@ local sidebarFind = {
             if not line then
                 return
             elseif string.find(line, UI_ICONS.expanded) or string.find(line, UI_ICONS.collapsed) then
+                break
+            end
+            num = num - 1
+        end
+        num = num - 1
+        if line then
+            if line:find("%(") then
+                line = line:sub(1, line:find("%(") - 1)
+            end
+        end
+        return line, num
+    end,
+    first_parent = function(num)
+        local line = nil
+        local initial_indent = nil
+        while true do
+            line = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if not line then
+                return
+            end
+            if initial_indent == nil then
+                initial_indent = countIndentWhitespace(line)
+            elseif countIndentWhitespace(line) < initial_indent then
                 break
             end
             num = num - 1
@@ -799,6 +838,7 @@ local function toggleSelectionUnderCursor(num, val, sub_val)
     local db, schema = getDatabaseAndSchema(num)
 
     local con = UI.dbs[db]
+
     local con_schema = {}
     if sub_val == "Queries" then
         con.files_expanded = not con.files_expanded
@@ -1088,6 +1128,36 @@ local function createSidebar()
 			vim.api.nvim_win_set_cursor(0, cursorPos)
 		end,
 	})
+    -- collapse to parent disregarding current collapsibility
+    vim.api.nvim_buf_set_keymap(buf, "n", "O", "", {
+        callback = function()
+			local cursorPos = vim.api.nvim_win_get_cursor(0)
+			local num = cursorPos[1]
+
+            local val, sub_val = getValueUnderCursor()
+            if val == nil or sub_val == nil then
+                return
+            end
+
+            local parent, line_num = sidebarFind.first_parent(num)
+            if parent == nil then return end
+
+            parent = parent:gsub("%s+", "")
+            if parent:find("%(") then
+                parent = parent:sub(1, parent:find("%(") - 1)
+            end
+            local subbed_parent = parent:gsub(ICONS_SUB, "")
+
+            -- already top-level
+            if line_num == 1 then
+                return
+            end
+
+            toggleSelectionUnderCursor(line_num + 1, parent, subbed_parent)
+            vim.api.nvim_win_set_cursor(UI.windows.sidebar, {line_num + 1, cursorPos[1]})
+
+        end
+    })
     -- toggle collapse/expand current tree
     vim.api.nvim_buf_set_keymap(buf, "n", "o", "", {
         callback = function()
