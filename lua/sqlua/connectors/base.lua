@@ -367,6 +367,7 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
     if type(query_data) ~= 'table' then
         query_data = {query_data}
     end
+    P(query_data)
 
     local uv = vim.uv
 
@@ -484,7 +485,6 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
 end
 
 
-
 ---@param mode string|nil
 ---@return nil
 ---Executes a query based on editor that this command was called from
@@ -563,6 +563,8 @@ function Connection:execute(--[[optional mode string]] mode)
             query[i] = j:gsub("[\v\r\n\t]", " ")
             query[i] = " "..query[i]:match("^%s*(.-)%s*$").." "
             local cleaned = j:match("^%s*(.-)%s*$")
+            -- allow for comments as last item of lines
+            query[i] = query[i]..'\n'
             if cleaned:match("^%-%-") or cleaned:match("^%#") then
             else
                 table.insert(final_query, query[i])
