@@ -632,6 +632,8 @@ function UI:refreshSidebar()
         string.format("%+" .. winwidth / 2 - (hl) .. "s%s", "", helptext),
         " a - add a file in the select dir",
         " d - delete the select file",
+        " o - fold the current node",
+        " O - fold to first collapsible parent",
         " "..self.options.keybinds.activate_db.." - set the active db",
         " <leader>st - toggle sidebar",
         " <leader>sf - focus sidebar",
