@@ -367,7 +367,6 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
     if type(query_data) ~= 'table' then
         query_data = {query_data}
     end
-    P(query_data)
 
     local uv = vim.uv
 

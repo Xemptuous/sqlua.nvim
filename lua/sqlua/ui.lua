@@ -344,6 +344,27 @@ local sidebarFind = {
         end
         return db, num
     end,
+    first_collapsible = function(num)
+        local line = nil
+        while true do
+            line = vim.api.nvim_buf_get_lines(
+                UI.buffers.sidebar, num - 1, num, false
+            )[1]
+            if not line then
+                return
+            elseif string.find(line, UI_ICONS.expanded) or string.find(line, UI_ICONS.collapsed) then
+                break
+            end
+            num = num - 1
+        end
+        num = num - 1
+        if line then
+            if line:find("%(") then
+                line = line:sub(1, line:find("%(") - 1)
+            end
+        end
+        return line, num
+    end
 }
 
 
@@ -767,6 +788,118 @@ local function getDatabaseAndSchema(cursorPos)
     return db, schema
 end
 
+
+local function toggleSelectionUnderCursor(num, val, sub_val)
+    if sub_val == "Buffers" then
+        UI.buffers_expanded = not UI.buffers_expanded
+        UI:refreshSidebar()
+        return
+    end
+    local is_folder, _ = string.find(val, UI_ICONS.folder)
+    local db, schema = getDatabaseAndSchema(num)
+
+    local con = UI.dbs[db]
+    local con_schema = {}
+    if sub_val == "Queries" then
+        con.files_expanded = not con.files_expanded
+    elseif con.dbms == "snowflake" and con.expanded then
+        if db ~= sub_val then
+            local sfdb = sidebarFind.snowflake_db(num)
+            if con.schema[sfdb] then
+                con_schema = con.schema[sfdb].schema[schema]
+            end
+        end
+    else
+        con_schema = con.schema[schema]
+    end
+    if db and db ~= schema and db == sub_val then
+        if not con.loaded then
+            con:connect()
+        end
+        toggleExpanded(UI.dbs, sub_val)
+    elseif string.find(val, UI_ICONS.db2) then
+        db = sidebarFind.snowflake_db(num)
+        local s = con.schema[db]
+            if not s.expanded and not s.loaded then
+                local queries = require("sqlua.queries."..con.dbms)
+            con:executeUv("refresh", {
+                "USE DATABASE " .. db .. ";",
+                queries.SchemataQuery(db)
+            }, db)
+            con.schema[db].loaded = true
+        end
+        con.schema[db].expanded = not
+        con.schema[db].expanded
+    elseif string.find(val, UI_ICONS.tables) then
+        con_schema.tables_expanded = not con_schema.tables_expanded
+    elseif string.find(val, UI_ICONS.views) then
+        con_schema.views_expanded = not con_schema.views_expanded
+    elseif string.find(val, UI_ICONS.functions) then
+        con_schema.functions_expanded = not con_schema.functions_expanded
+    elseif string.find(val, UI_ICONS.procedures) then
+        con_schema.procedures_expanded = not con_schema.procedures_expanded
+    elseif sub_val == "Results" then
+        UI.results_expanded = not UI.results_expanded
+    elseif is_folder then
+        toggleExpanded(con.files, sub_val)
+    else
+        db = sidebarFind.database(num)
+        local s = con.schema
+        if con.dbms == "snowflake" then
+            db = sidebarFind.snowflake_db(num)
+            s = con.schema[db].schema
+        end
+        if string.find(val, UI_ICONS.schema) then
+            if con.dbms == "snowflake" then
+                local sfdb = con.schema[db].schema[sub_val]
+                if not sfdb.expanded and not sfdb.loaded then
+                    local queries = require("sqlua.queries."..con.dbms)
+                    con:executeUv("refresh", {
+                        "USE DATABASE " .. db .. ";",
+                        queries.SchemaQuery(db, sub_val)
+                    }, db)
+                    con.schema[db].loaded = true
+                end
+            end
+            toggleExpanded(s, sub_val)
+        elseif string.find(val, UI_ICONS.table) then
+            toggleExpanded(s[schema].tables, sub_val)
+        elseif string.find(val, UI_ICONS.view) then
+            toggleExpanded(s[schema].views, sub_val)
+        elseif string.find(val, UI_ICONS._function) then
+            toggleExpanded(s[schema].functions, sub_val)
+        elseif string.find(val, UI_ICONS.procedure) then
+            toggleExpanded(s[schema].procedures, sub_val)
+        end
+    end
+    UI:refreshSidebar()
+end
+
+
+---returns `nvim_win_get_cursor` and updates UI attributes
+---@return integer[]
+local function getCursorPos()
+    local cursorPos = vim.api.nvim_win_get_cursor(0)
+    UI.last_cursor_position.sidebar = cursorPos
+    return cursorPos
+end
+
+
+---returns raw value and value without icons
+---@return string, string
+local function getValueUnderCursor()
+    local val = vim.api.nvim_get_current_line()
+    val = val:gsub("%s+", "")
+    if val:find("%(") then
+        val = val:sub(1, val:find("%(") - 1)
+    end
+    if val == "" then
+        return
+    end
+    local sub_val = val:gsub(ICONS_SUB, "")
+    return val, sub_val
+end
+
 ---@return nil
 local function createSidebar()
 	local win = UI.windows.sidebar
@@ -956,13 +1089,44 @@ local function createSidebar()
 			vim.api.nvim_win_set_cursor(0, cursorPos)
 		end,
 	})
-	-- expand and collapse
+    -- toggle collapse/expand current tree
+    vim.api.nvim_buf_set_keymap(buf, "n", "o", "", {
+        callback = function()
+			local cursorPos = vim.api.nvim_win_get_cursor(0)
+			local num = cursorPos[1]
+
+            local val, sub_val = getValueUnderCursor()
+            if val == nil or sub_val == nil then
+                return
+            end
+
+			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
+			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
+			if is_collapsed or is_expanded then
+                toggleSelectionUnderCursor(num, val, sub_val)
+            else
+                local first_collapsible, line_num = sidebarFind.first_collapsible(num)
+                if first_collapsible == nil then
+                    return
+                end
+
+                first_collapsible = first_collapsible:gsub("%s+", "")
+                if first_collapsible:find("%(") then
+                    first_collapsible = first_collapsible:sub(1, first_collapsible:find("%(") - 1)
+                end
+                local subbed_first_collapsible = first_collapsible:gsub(ICONS_SUB, "")
+
+                toggleSelectionUnderCursor(line_num, first_collapsible, subbed_first_collapsible)
+                vim.api.nvim_win_set_cursor(UI.windows.sidebar, {line_num + 1, cursorPos[1]})
+            end
+        end
+    })
+	-- expand and collapse under cursor
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
 		callback = function()
-			local cursorPos = vim.api.nvim_win_get_cursor(0)
-            UI.last_cursor_position.sidebar = cursorPos
-			local num_lines = vim.api.nvim_buf_line_count(UI.buffers.sidebar)
+            local cursorPos = getCursorPos()
 			local num = cursorPos[1]
+			local num_lines = vim.api.nvim_buf_line_count(UI.buffers.sidebar)
 			-- if on last line, choose value above
 			if num == num_lines then
 				local cursorCol = cursorPos[2]
@@ -970,112 +1134,12 @@ local function createSidebar()
 				vim.api.nvim_win_set_cursor(UI.windows.sidebar, newpos)
 			end
 
-			local val = vim.api.nvim_get_current_line()
-			val = val:gsub("%s+", "")
-			if val:find("%(") then
-				val = val:sub(1, val:find("%(") - 1)
-			end
-			if val == "" then
-				return
-			end
-            local sub_val = val:gsub(ICONS_SUB, "")
-
+            local val, sub_val = getValueUnderCursor()
 
 			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
 			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
 			if is_collapsed or is_expanded then
-                if sub_val == "Buffers" then
-                    UI.buffers_expanded = not UI.buffers_expanded
-                    UI:refreshSidebar()
-                    vim.api.nvim_win_set_cursor(0, cursorPos)
-                    return
-                end
-                local is_folder, _ = string.find(val, UI_ICONS.folder)
-				local db, _ = sidebarFind.database(num)
-                local _, schema = pcall(function()
-                    local s = sidebarFind.schema(num)
-                    if s then
-                        s = s:gsub("%s+", "")
-                        s = s:gsub(ICONS_SUB, "")
-                        return s
-                    end
-                end)
-
-                local con = UI.dbs[db]
-                local con_schema = {}
-				if sub_val == "Queries" then
-					con.files_expanded = not con.files_expanded
-                elseif con.dbms == "snowflake" and con.expanded then
-                    if db ~= sub_val then
-                        local sfdb = sidebarFind.snowflake_db(num)
-                        if con.schema[sfdb] then
-                            con_schema = con.schema[sfdb].schema[schema]
-                        end
-                    end
-                else
-                    con_schema = con.schema[schema]
-                end
-                if db and db ~= schema and db == sub_val then
-                    if not con.loaded then
-                        con:connect()
-                    end
-					toggleExpanded(UI.dbs, sub_val)
-                elseif string.find(val, UI_ICONS.db2) then
-                    db = sidebarFind.snowflake_db(num)
-                    local s = con.schema[db]
-                        if not s.expanded and not s.loaded then
-                            local queries = require("sqlua.queries."..con.dbms)
-                        con:executeUv("refresh", {
-                            "USE DATABASE " .. db .. ";",
-                            queries.SchemataQuery(db)
-                        }, db)
-                        con.schema[db].loaded = true
-                    end
-                    con.schema[db].expanded = not
-                    con.schema[db].expanded
-                elseif string.find(val, UI_ICONS.tables) then
-                    con_schema.tables_expanded = not con_schema.tables_expanded
-                elseif string.find(val, UI_ICONS.views) then
-                    con_schema.views_expanded = not con_schema.views_expanded
-                elseif string.find(val, UI_ICONS.functions) then
-                    con_schema.functions_expanded = not con_schema.functions_expanded
-                elseif string.find(val, UI_ICONS.procedures) then
-                    con_schema.procedures_expanded = not con_schema.procedures_expanded
-                elseif sub_val == "Results" then
-                    UI.results_expanded = not UI.results_expanded
-                elseif is_folder then
-                    toggleExpanded(con.files, sub_val)
-				else
-                    db = sidebarFind.database(num)
-                    local s = con.schema
-                    if con.dbms == "snowflake" then
-                        db = sidebarFind.snowflake_db(num)
-                        s = con.schema[db].schema
-                    end
-                    if string.find(val, UI_ICONS.schema) then
-                        if con.dbms == "snowflake" then
-                            local sfdb = con.schema[db].schema[sub_val]
-                            if not sfdb.expanded and not sfdb.loaded then
-                                local queries = require("sqlua.queries."..con.dbms)
-                                con:executeUv("refresh", {
-                                    "USE DATABASE " .. db .. ";",
-                                    queries.SchemaQuery(db, sub_val)
-                                }, db)
-                                con.schema[db].loaded = true
-                            end
-                        end
-                        toggleExpanded(s, sub_val)
-                    elseif string.find(val, UI_ICONS.table) then
-                        toggleExpanded(s[schema].tables, sub_val)
-                    elseif string.find(val, UI_ICONS.view) then
-                        toggleExpanded(s[schema].views, sub_val)
-                    elseif string.find(val, UI_ICONS._function) then
-                        toggleExpanded(s[schema].functions, sub_val)
-                    elseif string.find(val, UI_ICONS.procedure) then
-                        toggleExpanded(s[schema].procedures, sub_val)
-                    end
-				end
-				UI:refreshSidebar()
+                toggleSelectionUnderCursor(num, val, sub_val)
 			else
                 local db, schema = getDatabaseAndSchema(num)
                 local queries = require("sqlua.queries."..UI.dbs[db].dbms)
