@@ -1056,7 +1056,6 @@ local function createSidebar()
             if not is_folder and not is_file and not is_dbout then
                 return
             end
-            P(UI.dbs[db].files)
             if is_folder or is_file then
                 text = text:gsub("%s+", "")
                 text = text:gsub(ICONS_SUB, "")
