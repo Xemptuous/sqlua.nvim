@@ -185,6 +185,7 @@ end
 ---@param text string
 ---@return integer
 local function printSidebarEmpty(buf, srow, text)
+    print(text)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { text })
 	return srow + 1
 end
@@ -739,7 +740,7 @@ function UI:refreshSidebar()
             table.insert(query_results, text.." ("..stmt..")")
         end
         for _, q in ipairs(Utils.reverse(query_results)) do
-            srow = printSidebarEmpty(buf, srow, q)
+            srow = printSidebarEmpty(buf, srow, q:gsub("[\n\r\t]", ' '))
         end
     else
         srow = printSidebarCollapsed(buf, srow, dbout_text, sep)
@@ -1209,6 +1210,7 @@ local function createSidebar()
 			end
 
             local val, sub_val = getValueUnderCursor()
+            print(sub_val)
 
 			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
 			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
