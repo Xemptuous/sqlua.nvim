@@ -33,7 +33,7 @@ Plug 'xemptuous/sqlua.nvim'
 use "xemptuous/sqlua.nvim"
 ```
 
-To launch SQLua quickly, consider adding an alias to your `.zshrc` or `.bashrc`
+To launch SQLua quickly, consider adding an alias to your shell config
 ```
 alias nvsql="nvim '+SQLua'"
 ```
@@ -47,7 +47,7 @@ After the first time running the setup() function, a folder for SQLua will be cr
 
 The `connections.json` file here will contain your DB URL's, as well as friendly names to call them by.
 
-`Note:` for SnowFlake, you will need the `snowsql` client. In the `connections.json` file, use `snowflake` for the name, and ensure all configuration is done in your snowsql config file.
+`Note:` for SnowFlake, you will need the `snowsql` client. In the `connections.json` file, use `snowflake` for both the name and url, and ensure all configuration is done in your snowsql config file.
 
 ## Default Config
 
