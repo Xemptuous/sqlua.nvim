@@ -1229,11 +1229,12 @@ local function createSidebar()
 			if is_collapsed or is_expanded then
                 toggleSelectionUnderCursor(num, val, sub_val)
 			else
-                local db, schema = getDatabaseAndSchema(num)
-                local queries = require("sqlua.queries."..UI.dbs[db].dbms)
-				if string.find(val, UI_ICONS.file) then
-					local file = val:gsub(ICONS_SUB, "")
-					openFileInEditor(db, file)
+                if string.find(val, UI_ICONS.new_query) then
+                    local buffer = createEditor(UI.windows.editors[1])
+                    UI:refreshSidebar()
+                    vim.api.nvim_set_current_win(UI.windows.editors[1])
+                    vim.api.nvim_set_current_buf(buffer)
+                    return
                 elseif string.find(val, UI_ICONS.buffers) then
 					local bufname = val:gsub(ICONS_SUB, "")
                     for _, ebuf in pairs(UI.buffers.editors) do
@@ -1245,11 +1246,13 @@ local function createSidebar()
                             vim.api.nvim_set_current_win(ewin)
                         end
                     end
-                elseif string.find(val, UI_ICONS.new_query) then
-                    local buffer = createEditor(UI.windows.editors[1])
-                    UI:refreshSidebar()
-                    vim.api.nvim_set_current_win(UI.windows.editors[1])
-                    vim.api.nvim_set_current_buf(buffer)
+                    return
+                end
+                local db, schema = getDatabaseAndSchema(num)
+                local queries = require("sqlua.queries."..UI.dbs[db].dbms)
+				if string.find(val, UI_ICONS.file) then
+					local file = val:gsub(ICONS_SUB, "")
+					openFileInEditor(db, file)
                 elseif string.find(val, UI_ICONS.dbout) then
                     local rbuf= UI.buffers.results
                     if rbuf == nil then
