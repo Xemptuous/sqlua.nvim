@@ -1445,6 +1445,8 @@ function UI:setup(config)
 		callback = function(ev)
             if ev.file == tostring(UI.windows.results) then
                 UI.windows.results = nil
+            elseif ev.file == tostring(UI.windows.sidebar) then
+                UI.windows.sidebar = nil
             end
 		end,
 	})
