@@ -185,7 +185,6 @@ end
 ---@param text string text to print
 ---@return integer
 local function printSidebarEmpty(buf, srow, text)
-    print(text)
 	vim.api.nvim_buf_set_lines(buf, srow, srow, false, { text })
 	return srow + 1
 end
@@ -804,15 +803,24 @@ end
 
 
 ---@param data table
----@return nil
+---@return integer, integer result win and buf
 ---Takes query output and creates a 'Results' window & buffer
 function UI:createResultsPane(data)
 	vim.cmd("split")
-	local win = vim.api.nvim_get_current_win()
-	local buf = vim.api.nvim_create_buf(false, true)
+    local win = vim.api.nvim_get_current_win()
+    local buf = nil
+
+    local existing_buf = Utils.getBufferByName("ResultsBuf")
+    if existing_buf == nil then
+        buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_name(buf, "ResultsBuf")
+    else
+        buf = existing_buf
+        vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+    end
+
     self.buffers.results = buf
 	self.windows.results = win
-	vim.api.nvim_buf_set_name(buf, "ResultsBuf")
 	vim.api.nvim_win_set_buf(win, buf)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, data)
     vim.cmd(":wincmd J")
@@ -823,6 +831,8 @@ function UI:createResultsPane(data)
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
     vim.api.nvim_set_current_buf(self.last_active_buffer)
+    print(win, buf)
+    return win, buf
 end
 
 ---@param cursorPos integer
@@ -1222,7 +1232,6 @@ local function createSidebar()
 			end
 
             local val, sub_val = getValueUnderCursor()
-            print(sub_val)
 
 			local is_collapsed, _ = string.find(val, UI_ICONS.collapsed)
 			local is_expanded, _ = string.find(val, UI_ICONS.expanded)
@@ -1255,11 +1264,12 @@ local function createSidebar()
 					openFileInEditor(db, file)
                 elseif string.find(val, UI_ICONS.dbout) then
                     local rbuf= UI.buffers.results
-                    if rbuf == nil then
-                        return
-                    end
+                    print(rbuf)
                     local qnum = tonumber(string.match(val, "%d+"))
 					db, _ = sidebarFind.database(num)
+                    if UI.windows.results == nil then
+                        _, rbuf = UI:createResultsPane(UI.queries[qnum].results)
+                    end
                     setSidebarModifiable(rbuf, true)
                     vim.api.nvim_buf_set_lines(rbuf,
                         0, -1, false,
@@ -1428,6 +1438,13 @@ function UI:setup(config)
                 vim.api.nvim_win_set_cursor(0, {1, 0})
             else
                 vim.api.nvim_win_set_cursor(0, pos)
+            end
+		end,
+	})
+	vim.api.nvim_create_autocmd({ "WinClosed" }, {
+		callback = function(ev)
+            if ev.file == tostring(UI.windows.results) then
+                UI.windows.results = nil
             end
 		end,
 	})

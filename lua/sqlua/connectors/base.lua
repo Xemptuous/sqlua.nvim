@@ -336,7 +336,7 @@ function Connection:query(query, data)
     local ui = require("sqlua.ui")
     table.insert(ui.queries, q)
 
-    if ui.buffers.results ~= nil then
+    if ui.buffers.results ~= nil and ui.windows.results ~= nil then
         setSidebarModifiable(ui.buffers.results, true)
         vim.api.nvim_buf_set_lines(ui.buffers.results, 0, -1, false, data)
         vim.api.nvim_win_set_cursor(ui.windows.results, {1, 0})
@@ -428,21 +428,24 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
 
     uv.shutdown(stdin, vim.schedule_wrap(function()
         if query_type == "query" then
+            local win = nil;
             setSidebarModifiable(ui.buffers.results, true)
-            if ui.buffers.results ~= nil then
+            if ui.buffers.results ~= nil and ui.windows.results ~= nil then
+                win = ui.windows.results
                 vim.api.nvim_buf_set_lines(
                     ui.buffers.results, 0, -1, false, {})
             else
-                ui:createResultsPane({})
+                win, _ = ui:createResultsPane({})
             end
+            print(ui.windows.results, ui.buffers.results, win)
             if not ui.windows.query_float then
-                local w = vim.api.nvim_win_get_width(ui.windows.results)
-                local h = vim.api.nvim_win_get_height(ui.windows.results)
+                local w = vim.api.nvim_win_get_width(win)
+                local h = vim.api.nvim_win_get_height(win)
                 local b = vim.api.nvim_create_buf(false, true)
                 ui.buffers.query_float = b
                 local fwin = vim.api.nvim_open_win(b, false, {
                     relative='win',
-                    win=ui.windows.results,
+                    win=win,
                     row=h/2 - 1,
                     col=w/2 - math.floor(w/3) / 2,
                     width=math.floor(w/3), height=1,

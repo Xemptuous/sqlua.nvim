@@ -175,4 +175,16 @@ M.pairsByKeys = function(t, f)
 	return iter
 end
 
+---@param name string the buffer name to search for
+---@return integer | nil buf_id the buffer id
+M.getBufferByName = function(name)
+    local result = vim.api.nvim_list_bufs()
+    for _, buf in pairs(result) do
+        if vim.api.nvim_buf_get_name(buf):match(name) then
+            return buf
+        end
+    end
+    return nil
+end
+
 return M
