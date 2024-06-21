@@ -783,10 +783,11 @@ end
 
 local function openFileInEditor(db, filename)
     local path = UI.dbs[db].files:find(filename).path
+    local real_path = vim.uv.fs_realpath(path)
     local existing_buf = nil
     for _, buffer in pairs(UI.buffers.editors) do
         local name = vim.api.nvim_buf_get_name(buffer)
-        if name == path then
+        if name == real_path then
             existing_buf = buffer
         end
     end
