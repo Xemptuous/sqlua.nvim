@@ -437,7 +437,6 @@ function Connection:executeUv(query_type, query_data, --[[optional]] db)
             else
                 win, _ = ui:createResultsPane({})
             end
-            print(ui.windows.results, ui.buffers.results, win)
             if not ui.windows.query_float then
                 local w = vim.api.nvim_win_get_width(win)
                 local h = vim.api.nvim_win_get_height(win)
