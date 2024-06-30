@@ -12,33 +12,28 @@ local File = {
     files = {},
 }
 
-
-local function iterateFiles(dir, parent)
-    for _, file in Utils.pairsByKeys(dir) do
+local function iterateFiles(parent_path, parent_file)
+    local uv = vim.uv;
+    local fs_dir = uv.fs_opendir(parent_path, nil, 1000)
+    if fs_dir == nil then
+        return
+    end
+    local files = uv.fs_readdir(fs_dir)
+    for _, file in pairs(files) do
         local f = vim.deepcopy(File)
-        local fname = Utils.getFileName(file)
-        f.parents = vim.deepcopy(parent.parents)
-
-        table.insert(f.parents, parent.name)
-        if vim.fn.isdirectory(file) == 1 then
-            f.name = fname
+        local fp = Utils.concat({parent_path, file.name})
+        if file.type == "directory" then
+            f.name = file.name
             f.isdir = true
-            f.path = Utils.concat({
-                vim.fn.stdpath("data"), "sqlua", f.parents, f.name
-            })
-            parent.files[fname] = f
-            dir = vim.split(
-                vim.fn.glob(file .. "/*"), "\n", {
-                    trimempty = true
-                }
-            )
-            iterateFiles(dir, f)
+            f.expanded = false
+            f.path = fp
+            parent_file.files[file.name] = f
         else
-            f.name = fname
-            f.path = Utils.concat({
-                vim.fn.stdpath("data"), "sqlua", f.parents, f.name
-            })
-            parent.files[f.name] = f
+            f.name = file.name
+            f.isdir = false
+            f.expanded = false
+            f.path = fp
+            parent_file.files[file.name] = f
         end
     end
 end
@@ -57,13 +52,12 @@ local function recursiveRefresh(of, nf)
         end
     end
 end
+
 ---@param db_name string
 ---Populates the files in the given db's directory
 function Files:setup(db_name)
     local parent = Utils.concat({ vim.fn.stdpath("data"), "sqlua", db_name })
-    local content = vim.split(
-        vim.fn.glob(parent .. "/*"), "\n", { trimempty = true }
-    )
+
     local old_files = nil
     if next(self.files) ~= nil then
         old_files = vim.deepcopy(self.files)
@@ -71,34 +65,28 @@ function Files:setup(db_name)
     self.db_name = db_name
     self.files = {}
 
-    -- iterate through db directory files
-    for _, file in Utils.pairsByKeys(content) do
+    local uv = vim.uv;
+    local fs_dir = uv.fs_opendir(parent, nil, 1000)
+    local files = uv.fs_readdir(fs_dir)
+    for _, file in pairs(files) do
         local f = vim.deepcopy(File)
-        local fname = Utils.getFileName(file)
-
-        table.insert(f.parents, db_name)
-        if vim.fn.isdirectory(file) == 1 then
-            f.name = fname
+        local fp = Utils.concat({parent, file.name})
+        if file.type == "directory" then
+            f.name = file.name
             f.isdir = true
             f.expanded = false
-            f.path = Utils.concat({
-                vim.fn.stdpath("data"), "sqlua", f.parents, f.name
-            })
-            self.files[fname] = f
-            local dir = vim.split(
-                vim.fn.glob(file .. "/*"), "\n", { trimempty = true }
-            )
-            iterateFiles(dir, f)
+            f.path = fp
+            self.files[file.name] = f
+            iterateFiles(fp, f)
         else
-            f.name = fname
+            f.name = file.name
             f.isdir = false
             f.expanded = false
-            f.path = Utils.concat({
-                vim.fn.stdpath("data"), "sqlua", f.parents, f.name
-            })
-            self.files[fname] = f
+            f.path = fp
+            self.files[file.name] = f
         end
     end
+
     if old_files ~= nil then
         for fname, file in pairs(self.files) do
             if old_files[fname] ~= nil and self.files[fname] == nil then

@@ -783,10 +783,11 @@ end
 
 local function openFileInEditor(db, filename)
     local path = UI.dbs[db].files:find(filename).path
+    local real_path = vim.uv.fs_realpath(path)
     local existing_buf = nil
     for _, buffer in pairs(UI.buffers.editors) do
         local name = vim.api.nvim_buf_get_name(buffer)
-        if name == path then
+        if name == real_path then
             existing_buf = buffer
         end
     end
@@ -831,7 +832,6 @@ function UI:createResultsPane(data)
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.cmd("goto 1")
     vim.api.nvim_set_current_buf(self.last_active_buffer)
-    print(win, buf)
     return win, buf
 end
 
@@ -1264,7 +1264,6 @@ local function createSidebar()
 					openFileInEditor(db, file)
                 elseif string.find(val, UI_ICONS.dbout) then
                     local rbuf= UI.buffers.results
-                    print(rbuf)
                     local qnum = tonumber(string.match(val, "%d+"))
 					db, _ = sidebarFind.database(num)
                     if UI.windows.results == nil then
