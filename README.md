@@ -62,9 +62,9 @@ You can override the default settings by feeding the table as a table to the set
     -- the default limit attached to queries
     -- currently only works on "Data" command under a table
     default_limit = 200,
-    -- whether to introspect the database on load or when first expanded
+    -- whether to introspect the database on SQLua open or when first expanded
     -- through the sidebar
-    load_connections_on_start = true,
+    load_connections_on_start = false,
     keybinds = {
         execute_query = "<leader>r",
         activate_db = "<C-a>"
