@@ -1181,11 +1181,18 @@ local function createSidebar()
             local parent, line_num = sidebarFind.first_parent(num)
             if parent == nil then return end
 
-            parent = parent:gsub("%s+", "")
+            local icons = parent:gsub("[^"..ICONS_SUB_STRING.."]", "")
+            parent = parent:gsub("%(%d*%)", "")
+            parent = parent:gsub("%s+[^%w]+", "")
+            -- trim
+            parent = parent:gsub('^%s*(.-)%s*$', '%1')
             if parent:find("%(") then
                 parent = parent:sub(1, parent:find("%(") - 1)
             end
             local subbed_parent = parent:gsub(ICONS_SUB_REGEX, "")
+            if icons ~= nil then
+                parent = icons..parent
+            end
 
             -- already top-level
             if line_num == 1 then
