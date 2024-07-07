@@ -94,9 +94,10 @@ UI_ICONS.icons_sub = function()
             table.insert(final, icon)
         end
     end
-    return "["..table.concat(final, "").."]"
+    return table.concat(final, "")
 end
-local ICONS_SUB = UI_ICONS.icons_sub()
+local ICONS_SUB_STRING = UI_ICONS.icons_sub()
+local ICONS_SUB_REGEX = "["..ICONS_SUB_STRING.."]"
 local EDITOR_NUM = 1
 
 ---@param buf buffer
@@ -309,8 +310,11 @@ local sidebarFind = {
             )[1]
             if not db then return nil end
             if string.find(db, UI_ICONS.db) then
-                db = db:gsub("%s+", "")
-                db = db:gsub(ICONS_SUB, "")
+                db = db:gsub("%(%d*%)", "")
+                db = db:gsub("%s+[^%w]+", "")
+                db = db:gsub(ICONS_SUB_REGEX, "")
+                -- trim
+                db = db:gsub('^%s*(.-)%s*$', '%1')
                 break
             end
             num = num - 1
@@ -329,6 +333,7 @@ local sidebarFind = {
             schema = vim.api.nvim_buf_get_lines(
                 UI.buffers.sidebar, num - 1, num, false
             )[1]
+            if schema == nil then break end
             if string.find(schema, UI_ICONS.schema) then
                 break
             end
@@ -349,8 +354,8 @@ local sidebarFind = {
                 UI.buffers.sidebar, num - 1, num, false
             )[1]
             if string.find(db, UI_ICONS.db2) then
-                db = db:gsub("%s+", "")
-                db = db:gsub(ICONS_SUB, "")
+                db = db:gsub("%s+[^%w]+", "")
+                db = db:gsub(ICONS_SUB_REGEX, "")
                 break
             end
             num = num - 1
@@ -843,7 +848,7 @@ local function getDatabaseAndSchema(cursorPos)
         local s = sidebarFind.schema(cursorPos)
         if s then
             s = s:gsub("%s+", "")
-            s = s:gsub(ICONS_SUB, "")
+            s = s:gsub(ICONS_SUB_REGEX, "")
             return s
         end
     end)
@@ -955,14 +960,21 @@ end
 ---@return string, string
 local function getValueUnderCursor()
     local val = vim.api.nvim_get_current_line()
-    val = val:gsub("%s+", "")
+    local icons = val:gsub("[^"..ICONS_SUB_STRING.."]", "")
+    val = val:gsub("%(%d*%)", "")
+    val = val:gsub("%s+[^%w]+", "")
+    -- trim
+    val = val:gsub('^%s*(.-)%s*$', '%1')
     if val:find("%(") then
         val = val:sub(1, val:find("%(") - 1)
     end
     if val == "" then
         return
     end
-    local sub_val = val:gsub(ICONS_SUB, "")
+    local sub_val = val:gsub(ICONS_SUB_REGEX, "")
+    if icons ~= nil then
+        val = icons..val
+    end
     return val, sub_val
 end
 
@@ -1086,7 +1098,7 @@ local function createSidebar()
             end
             local db, _ = sidebarFind.database(pos[1])
 			text = text:gsub("%s+", "")
-            text = text:gsub(ICONS_SUB, "")
+            text = text:gsub(ICONS_SUB_REGEX, "")
             local file = UI.dbs[db].files:find(text)
             local parent_path = ""
             local show_path = ""
@@ -1125,7 +1137,7 @@ local function createSidebar()
             end
             if is_folder or is_file then
                 text = text:gsub("%s+", "")
-                text = text:gsub(ICONS_SUB, "")
+                text = text:gsub(ICONS_SUB_REGEX, "")
                 if text == "Queries" then
                     return
                 end
@@ -1173,7 +1185,7 @@ local function createSidebar()
             if parent:find("%(") then
                 parent = parent:sub(1, parent:find("%(") - 1)
             end
-            local subbed_parent = parent:gsub(ICONS_SUB, "")
+            local subbed_parent = parent:gsub(ICONS_SUB_REGEX, "")
 
             -- already top-level
             if line_num == 1 then
@@ -1210,7 +1222,7 @@ local function createSidebar()
                 if first_collapsible:find("%(") then
                     first_collapsible = first_collapsible:sub(1, first_collapsible:find("%(") - 1)
                 end
-                local subbed_first_collapsible = first_collapsible:gsub(ICONS_SUB, "")
+                local subbed_first_collapsible = first_collapsible:gsub(ICONS_SUB_REGEX, "")
 
                 toggleSelectionUnderCursor(line_num, first_collapsible, subbed_first_collapsible)
                 vim.api.nvim_win_set_cursor(UI.windows.sidebar, {line_num + 1, cursorPos[1]})
@@ -1245,7 +1257,7 @@ local function createSidebar()
                     vim.api.nvim_set_current_buf(buffer)
                     return
                 elseif string.find(val, UI_ICONS.buffers) then
-					local bufname = val:gsub(ICONS_SUB, "")
+					local bufname = val:gsub(ICONS_SUB_REGEX, "")
                     for _, ebuf in pairs(UI.buffers.editors) do
                         local editor_name = vim.api.nvim_buf_get_name(ebuf)
                         local split = Utils.splitString(editor_name, Utils.sep)
@@ -1260,7 +1272,7 @@ local function createSidebar()
                 local db, schema = getDatabaseAndSchema(num)
                 local queries = require("sqlua.queries."..UI.dbs[db].dbms)
 				if string.find(val, UI_ICONS.file) then
-					local file = val:gsub(ICONS_SUB, "")
+					local file = val:gsub(ICONS_SUB_REGEX, "")
 					openFileInEditor(db, file)
                 elseif string.find(val, UI_ICONS.dbout) then
                     local rbuf= UI.buffers.results
@@ -1307,18 +1319,18 @@ local function createSidebar()
                         db = sidebarFind.snowflake_db(num)
                     end
                     if tbl then
-                        tbl = tbl:gsub(ICONS_SUB, "")
+                        tbl = tbl:gsub(ICONS_SUB_REGEX, "")
                         tbl = tbl:gsub("%s+", "")
                     end
                     if schema then
-                        schema = schema:gsub(ICONS_SUB, "")
+                        schema = schema:gsub(ICONS_SUB_REGEX, "")
                         schema = schema:gsub("%s+", "")
                     end
                     if db then
-                        db = db:gsub(ICONS_SUB, "")
+                        db = db:gsub(ICONS_SUB_REGEX, "")
                         db = db:gsub("%s+", "")
                     end
-					val = val:gsub(ICONS_SUB, "")
+					val = val:gsub(ICONS_SUB_REGEX, "")
 					if not tbl or not schema or not db then
 						return
 					end

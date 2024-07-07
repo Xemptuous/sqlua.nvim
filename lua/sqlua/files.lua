@@ -68,6 +68,7 @@ function Files:setup(db_name)
     local uv = vim.uv;
     local fs_dir = uv.fs_opendir(parent, nil, 1000)
     local files = uv.fs_readdir(fs_dir)
+    if files == nil then files = {} end
     for _, file in pairs(files) do
         local f = vim.deepcopy(File)
         local fp = Utils.concat({parent, file.name})
