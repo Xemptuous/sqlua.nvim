@@ -1494,7 +1494,9 @@ function UI:setup(config)
 
 	createEditor(editor_win)
 	createSidebar()
-    vim.api.nvim_buf_delete(1, {})
+    if vim.api.nvim_buf_is_valid(1) then
+        vim.api.nvim_buf_delete(1, {})
+    end
 end
 
 ---performs vim syntax highlighting on results pane
