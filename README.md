@@ -90,6 +90,8 @@ The url will be parsed to be used with the appropriate CLI command through args 
 
 The name given will be shown in the sidebar, and will not be used to connect to the specified db.
 
+Alternatively, you can manually edit the `connections.json` file.
+
 
 The sidebar navigator can be used to explore the DB and its various schema and tables, as well as creating various template queries.
 
