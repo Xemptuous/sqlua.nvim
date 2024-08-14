@@ -39,6 +39,7 @@ alias nvsql="nvim '+SQLua'"
 ```
 
 ## Setup
+### Note: sqlua.nvim required Neovim 0.10.0+
 
 To use, require the setup:
 `:lua require('sqlua').setup(opts)`
