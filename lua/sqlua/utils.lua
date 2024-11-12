@@ -35,26 +35,26 @@ end)()
 ---@param tbl table
 ---@return table
 function M.reverse(tbl)
-    for i = 1, math.floor(#tbl/2), 1 do
-        tbl[i], tbl[#tbl-i+1] = tbl[#tbl-i+1], tbl[i]
-    end
-    return tbl
+	for i = 1, math.floor(#tbl / 2), 1 do
+		tbl[i], tbl[#tbl - i + 1] = tbl[#tbl - i + 1], tbl[i]
+	end
+	return tbl
 end
 
 ---@param ... table<string|string[]>
 ---@return string
 function M.concat(...)
-    local result = {}
-    for _, i in pairs(...) do
-        if type(i) == "table" then
-            for _, j in pairs(i) do
-                table.insert(result, j)
-            end
-        else
-            table.insert(result, i)
-        end
-    end
-    return table.concat(result, M.sep)
+	local result = {}
+	for _, i in pairs(...) do
+		if type(i) == "table" then
+			for _, j in pairs(i) do
+				table.insert(result, j)
+			end
+		else
+			table.insert(result, i)
+		end
+	end
+	return table.concat(result, M.sep)
 end
 
 ---@param orig table
@@ -147,9 +147,9 @@ end
 ---@return table content json table object
 M.getDatabases = function(file)
 	local content = vim.fn.readfile(file)
-    if next(content) == nil then
-        return {}
-    end
+	if next(content) == nil then
+		return {}
+	end
 	content = vim.fn.json_decode(vim.fn.join(content, "\n"))
 	return content
 end
@@ -178,13 +178,13 @@ end
 ---@param name string the buffer name to search for
 ---@return integer | nil buf_id the buffer id
 M.getBufferByName = function(name)
-    local result = vim.api.nvim_list_bufs()
-    for _, buf in pairs(result) do
-        if vim.api.nvim_buf_get_name(buf):match(name) then
-            return buf
-        end
-    end
-    return nil
+	local result = vim.api.nvim_list_bufs()
+	for _, buf in pairs(result) do
+		if vim.api.nvim_buf_get_name(buf):match(name) then
+			return buf
+		end
+	end
+	return nil
 end
 
 return M

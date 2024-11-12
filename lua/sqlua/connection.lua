@@ -4,27 +4,27 @@ local utils = require("sqlua.utils")
 local Connections = {}
 
 local Cons = {
-    snowflake = require("sqlua.connectors.snowflake"),
-    mariadb = require("sqlua.connectors.mariadb"),
-    mysql = require("sqlua.connectors.mysql"),
-    postgres = require("sqlua.connectors.postgres")
+	snowflake = require("sqlua.connectors.snowflake"),
+	mariadb = require("sqlua.connectors.mariadb"),
+	mysql = require("sqlua.connectors.mysql"),
+	postgres = require("sqlua.connectors.postgres"),
 }
 
 ---@param name string
 ---@param url string
 ---@return nil
 Connections.setup = function(name, url, options)
-    local s = url:find("://") or #url + 1
-    local dbms = url:sub(0, s - 1)
-    local con = Cons[dbms]
-    local connection = con:setup(name, url, options)
-    return connection
+	local s = url:find("://") or #url + 1
+	local dbms = url:sub(0, s - 1)
+	local con = Cons[dbms]
+	local connection = con:setup(name, url, options)
+	return connection
 end
 
 CONNECTIONS_FILE = utils.concat({
-    vim.fn.stdpath("data"),
-    "sqlua",
-    "connections.json"
+	vim.fn.stdpath("data"),
+	"sqlua",
+	"connections.json",
 })
 
 ---@return table<string, string>
