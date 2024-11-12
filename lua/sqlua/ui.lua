@@ -1260,8 +1260,10 @@ local function createSidebar()
 					vim.api.nvim_buf_set_lines(rbuf, 0, -1, false, UI.queries[qnum].results)
 					setSidebarModifiable(rbuf, false)
 				elseif string.find(val, UI_ICONS.view) then
+					local sf_db, _ = sidebarFind.snowflake_db(num)
 					local query = queries
 						.Views({
+							db = sf_db,
 							table = sub_val,
 							schema = schema,
 						})

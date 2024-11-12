@@ -175,6 +175,16 @@ M.pairsByKeys = function(t, f)
 	return iter
 end
 
+---@param sep string
+---@return string
+M.concat_ws = function(sep, ...)
+	local r = {}
+	for k, v in ipairs({ ... }) do
+		r[#r + 1] = tostring(v)
+	end
+	return table.concat(r, sep)
+end
+
 ---@param name string the buffer name to search for
 ---@return integer | nil buf_id the buffer id
 M.getBufferByName = function(name)

@@ -1,4 +1,5 @@
 local M = {}
+local utils = require("utils")
 
 M.SchemaQuery = function(db, schema)
 	return [[
@@ -75,20 +76,20 @@ M.ddl = {
 M.Data = function(args)
 	return [[
 SELECT *
-FROM ]] .. args.db .. "." .. args.schema .. "." .. args.table .. "\n" .. [[
+FROM ]] .. utils.concat_ws(".", args.db, args.schema, args.table) .. "\n" .. [[
 LIMIT ]] .. args.limit
 end
 
 M.Columns = function(args)
-	return "DESCRIBE TABLE " .. args.db .. "." .. args.schema .. "." .. args.table
+	return "DESCRIBE TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
 end
 
 M.PrimaryKeys = function(args)
-	return "SHOW PRIMARY KEYS IN TABLE " .. args.db .. "." .. args.schema .. "." .. args.table
+	return "SHOW PRIMARY KEYS IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
 end
 
 M.Indexes = function(args)
-	return "SHOW INDEXES IN TABLE " .. args.db .. "." .. args.schema .. "." .. args.table
+	return "SHOW INDEXES IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
 end
 
 M.References = function(args)
@@ -99,6 +100,11 @@ FROM TABLE(GET_OBJECT_REFERENCES(
     SCHEMA_NAME => ']] .. args.schema .. [[',
     OBJECT_NAME => ']] .. args.table .. [[')
 )]]
+end
+
+M.Views = function(args)
+	return [[
+SELECT GET_DDL('VIEW', ']] .. utils.concat_ws(".", args.db, args.schema, args.table) .. "')"
 end
 
 return M
