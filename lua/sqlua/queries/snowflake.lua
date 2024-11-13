@@ -1,5 +1,5 @@
 local M = {}
-local utils = require("utils")
+local utils = require("sqlua.utils")
 
 M.SchemaQuery = function(db, schema)
 	return [[
