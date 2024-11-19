@@ -220,6 +220,7 @@ local function createTableStatement(type, tbl, schema, database, db, dbms)
 	local queries = require("sqlua.queries." .. dbms)
 	local win = nil
 	local buf = nil
+	type = type:gsub("%s+", "")
 	for _, w in pairs(UI.windows.editors) do
 		for _, b in pairs(UI.buffers.editors) do
 			local name = vim.api.nvim_buf_get_name(b)

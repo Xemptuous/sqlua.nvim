@@ -94,8 +94,9 @@ end
 M.ForeignKeys = function(args)
 	return [[
 SHOW KEYS FROM `]] .. args.schema .. "`." .. args.table .. [[
+
 WHERE key_name <> 'PRIMARY'
-LIMIT ]] .. args.limit
+]]
 end
 
 M.Views = function(args)
