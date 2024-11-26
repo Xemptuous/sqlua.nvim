@@ -27,25 +27,23 @@ function Snowflake:cleanSchema(data)
 	local schema = utils.shallowcopy(data)
 	table.remove(schema, 1)
 	table.remove(schema)
-	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "|", "")
-		schema[i] = string.gsub(schema[i], "%s", "")
+	if #schema <= 6 then
+		return {}
 	end
-	return schema
-end
+	local result = {}
+	for i, _ in ipairs(schema) do
+		local row = self:baseCleanResults(schema[i])
+		local row_table = string.gsub(row[1], "%s", "")
+		local values = utils.splitString(row_table, "|")
 
-function Snowflake:cleanTables(data)
-	local schema = utils.shallowcopy(data)
-	table.remove(schema, 1)
-	table.remove(schema)
-	for i, _ in ipairs(schema) do
-		schema[i] = string.gsub(schema[i], "%s", "")
-		schema[i] = utils.splitString(schema[i], "|")
+		table.insert(result, {
+			type = string.lower(values[3]),
+			database = values[4],
+			schema = values[5],
+			table = values[2],
+		})
 	end
-	for _ = 1, 6 do
-		table.remove(schema, 1)
-	end
-	return schema
+	return result
 end
 
 ---@param data string
@@ -74,13 +72,26 @@ function Snowflake:dbmsCleanResults(data, query_type)
 	return data
 end
 
+function Snowflake:cleanTables(data)
+	local schema = utils.shallowcopy(data)
+	table.remove(schema, 1)
+	table.remove(schema)
+	for i, _ in ipairs(schema) do
+		schema[i] = string.gsub(schema[i], "%s", "")
+		schema[i] = utils.splitString(schema[i], "|")
+	end
+	for _ = 1, 6 do
+		table.remove(schema, 1)
+	end
+	return schema
+end
+
 ---@param data table
 ---@param db string
 ---@return nil
 --- Populates the Connection's schema based on the stdout
 --- from executing the DBMS' SchemaQuery
 function Snowflake:getSchema(data, db)
-	local schema = self:cleanSchema(data)
 	-- local old_schema = nil
 	-- if next(self.schema) ~= nil then
 	--     old_schema = vim.deepcopy(self.schema)
@@ -88,63 +99,66 @@ function Snowflake:getSchema(data, db)
 
 	-- on initial db connect
 	if not self.schema.databases_loaded then
+		local schema = self:cleanSchema(data)
 		self.num_databases = 0
-		for _, database in pairs(schema) do
-			if not self.schema[database] then
-				self.schema[database] = vim.deepcopy(Connection.Database)
-				self.schema[database].dbms = self.dbms
+		for _, row in pairs(schema) do
+			local d = row.database
+			local s = row.schema
+			local t = row.table
+
+			-- populate databases
+			if not self.schema[d] then
+				self.schema[d] = vim.deepcopy(Connection.Database)
+				self.schema[d].dbms = self.dbms
 			end
 			self.num_databases = self.num_databases + 1
-		end
-		self.schema.databases_loaded = true
-		return
-	end
-	for _ = 1, 6 do
-		table.remove(schema, 1)
-	end
-	if not self.schema[db].schemata_loaded then
-		for _, s in pairs(schema) do
-			if not self.schema[db][s] then
-				self.schema[db].num_schema = 0
-				self.schema[db].schema[s] = vim.deepcopy(Connection.Schema)
-				self.schema[db].schema[s].dbms = self.dbms
-				self.schema[db].num_schema = self.schema[db].num_schema + 1
-			end
-		end
-		self.schema[db].schemata_loaded = true
-		return
-	end
 
-	schema = self:cleanTables(data)
-	-- on db expand
-	for i, _ in ipairs(schema) do
-		local type = schema[i][1]
-		local d = schema[i][2] -- database
-		local s = schema[i][3] -- schema
-		local t = schema[i][4] -- table/view/proc/func
-		if not self.schema[d].schema[s] then
-			self.schema[d].schema[s] = vim.deepcopy(Connection.Schema)
-			self.num_schema = self.num_schema + 1
-			self.schema[d].schema[s].dbms = self.dbms
-		end
-		local cur = self.schema[d].schema[s]
-		if not cur.schemas_loaded then
-			cur.schemas_loaded = true
-		end
-		if t ~= "-" then
-			if type == "function" then
+			-- populate schema
+			if not self.schema[d].schema[s] then
+				self.schema[d].num_schema = 0
+				self.schema[d].schema[s] = vim.deepcopy(Connection.Schema)
+				self.schema[d].schema[s].dbms = self.dbms
+			end
+			self.schema[d].num_schema = self.schema[d].num_schema + 1
+
+			local cur = self.schema[d].schema[s]
+			-- populate tables/views/procs/funcs
+			if row.type == "function" then
 				cur.functions[t] = { expanded = false }
 				cur.num_functions = cur.num_functions + 1
-			elseif type == "table" then
+			elseif row.type == "table" then
 				cur.tables[t] = { expanded = false }
 				cur.num_tables = cur.num_tables + 1
-			elseif type == "view" then
+			elseif row.type == "view" then
 				cur.views[t] = { expanded = false }
 				cur.num_views = cur.num_views + 1
 			else
 				cur.procedures[t] = { expanded = false }
 				cur.num_procedures = cur.num_procedures + 1
 			end
+		end
+		self.schema.databases_loaded = true
+		return
+	elseif not self.schema.functions_loaded then
+		local schema = self:cleanTables(data)
+		for _, row in pairs(schema) do
+			local t = row[3]
+			local d = row[2]
+			local s = row[4]
+			local n = row[5]
+			local cur = self.schema[d].schema[s]
+			if t == "procedure" then
+				cur.procedures[n] = { expanded = false }
+				cur.num_procedures = cur.num_procedures + 1
+			elseif t == "function" then
+				cur.functions[n] = { expanded = false }
+				cur.num_functions = cur.num_functions + 1
+				-- base case for metadata
+				-- only check if only result
+			elseif #schema == 1 then
+				cur.is_empty = true
+			end
+			self.schema[d].schema[s].functions_loaded = true
 		end
 	end
 	-- if old_schema ~= nil then

@@ -562,11 +562,6 @@ function Connection:execute(--[[optional mode string]]mode)
 				table.insert(final_query, query[i])
 			end
 		end
-		-- local last_line = final_query[#final_query]
-		-- print(last_line)
-		-- if last_line[#last_line]:match("%s") then
-		--     string.sub(final_query[#final_query][#last_line], 1, #last_line - 1)
-		-- end
 		self:executeUv("query", final_query)
 	end
 end

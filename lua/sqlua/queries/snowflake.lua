@@ -1,31 +1,21 @@
 local M = {}
 local utils = require("sqlua.utils")
 
+M.DatabaseQuery = "SHOW TERSE OBJECTS IN ACCOUNT"
 M.SchemaQuery = function(db, schema)
 	return [[
+    -- base case incase empty
     SELECT
-        'table' AS type,
-        table_catalog,
-        table_schema,
-        COALESCE(table_name, '-')
-    FROM information_schema.tables
-    WHERE LOWER(table_type) LIKE '%table%'
-      AND table_catalog = ']] .. db .. [['
-      AND table_schema = ']] .. schema .. [['
+        NULL, 
+        ']] .. db .. [[' AS function_catalog,
+        'base' AS type,
+        ']] .. schema .. [[' AS function_schema,
+        '-' AS function_name
     UNION
     SELECT
-        'view' AS type,
-        table_catalog,
-        table_schema,
-        COALESCE(table_name, '-')
-    FROM information_schema.tables
-    WHERE LOWER(table_type) LIKE '%view%'
-      AND table_catalog = ']] .. db .. [['
-      AND table_schema = ']] .. schema .. [['
-    UNION
-    SELECT
-        'function' AS type,
+        NULL,
         function_catalog,
+        'function' AS type,
         function_schema,
         function_name
     FROM information_schema.functions
@@ -33,8 +23,9 @@ M.SchemaQuery = function(db, schema)
       AND function_schema = ']] .. schema .. [['
     UNION
     SELECT
-        'procedure' AS type,
+        NULL,
         procedure_catalog,
+        'procedure' AS type,
         procedure_schema,
         procedure_name
     FROM information_schema.procedures
@@ -44,10 +35,53 @@ M.SchemaQuery = function(db, schema)
 ]]
 end
 
-M.DatabaseQuery = [[
-    SELECT database_name
-    FROM information_schema.databases
-]]
+-- M.SchemaQuery = function(db, schema)
+-- 	return [[
+--     SELECT
+--         'table' AS type,
+--         table_catalog,
+--         table_schema,
+--         COALESCE(table_name, '-')
+--     FROM information_schema.tables
+--     WHERE LOWER(table_type) LIKE '%table%'
+--       AND table_catalog = ']] .. db .. [['
+--       AND table_schema = ']] .. schema .. [['
+--     UNION
+--     SELECT
+--         'view' AS type,
+--         table_catalog,
+--         table_schema,
+--         COALESCE(table_name, '-')
+--     FROM information_schema.tables
+--     WHERE LOWER(table_type) LIKE '%view%'
+--       AND table_catalog = ']] .. db .. [['
+--       AND table_schema = ']] .. schema .. [['
+--     UNION
+--     SELECT
+--         'function' AS type,
+--         function_catalog,
+--         function_schema,
+--         function_name
+--     FROM information_schema.functions
+--     WHERE function_catalog = ']] .. db .. [['
+--       AND function_schema = ']] .. schema .. [['
+--     UNION
+--     SELECT
+--         'procedure' AS type,
+--         procedure_catalog,
+--         procedure_schema,
+--         procedure_name
+--     FROM information_schema.procedures
+--     WHERE procedure_catalog = ']] .. db .. [['
+--       AND procedure_schema = ']] .. schema .. [['
+--     ORDER BY 1, 2, 3, 4
+-- ]]
+-- end
+
+-- M.DatabaseQuery = [[
+--     SELECT database_name
+--     FROM information_schema.databases
+-- ]]
 
 M.SchemataQuery = function(db)
 	return [[
@@ -72,6 +106,10 @@ M.ddl = {
 	"Indexes",
 	"References",
 }
+
+M.Procedures = function(args)
+	return "USE DATABASE " .. args.db .. "; DESC PROCEDURE " .. args.schema .. "." .. args.table
+end
 
 M.Data = function(args)
 	return [[

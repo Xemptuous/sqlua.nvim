@@ -557,20 +557,18 @@ function UI:refreshSidebar()
 					srow = printSidebarExpanded(buf, srow, sep, text)
 					local sep2 = sep .. "  "
 					local sf = self.dbs[db].schema[sfdb]
-					if not s[sfdb].schemata_loaded then
-						srow = printSidebarEmpty(buf, srow, sep .. "  󰑐 Loading Schemata...")
-					end
 					for schema, _ in Utils.pairsByKeys(sf.schema) do
 						local text2 = UI_ICONS.schema .. " " .. schema
 						if type(sf.schema[schema]) == "table" then
 							if sf.schema[schema].expanded then
 								srow = printSidebarExpanded(buf, srow, sep2, text2)
-								if not sf.schema[schema].schemas_loaded then
-									srow = printSidebarEmpty(buf, srow, sep .. "  󰑐 Loading Schema...")
-								end
 								local ns = sep2 .. "  "
 								srow = refreshTables(buf, srow, ns, sf.schema[schema])
 								srow = refreshViews(buf, srow, ns, sf.schema[schema])
+								P(sf.schema[schema])
+								if not sf.schema[schema].functions_loaded then
+									srow = printSidebarEmpty(buf, srow, sep .. "  󰑐 Loading Functions & Procedures")
+								end
 								srow = refreshFunctions(buf, srow, ns, sf.schema[schema])
 								srow = refreshProcedures(buf, srow, ns, sf.schema[schema])
 							else
@@ -859,15 +857,15 @@ local function toggleSelectionUnderCursor(num, val, sub_val)
 		toggleExpanded(UI.dbs, sub_val)
 	elseif string.find(val, UI_ICONS.db2) then
 		db = sidebarFind.snowflake_db(num)
-		local s = con.schema[db]
-		if not s.expanded and not s.loaded then
-			local queries = require("sqlua.queries." .. con.dbms)
-			con:executeUv("refresh", {
-				"USE DATABASE " .. db .. ";",
-				queries.SchemataQuery(db),
-			}, db)
-			con.schema[db].loaded = true
-		end
+		-- local s = con.schema[db]
+		-- if not s.expanded and not s.loaded then
+		-- 	local queries = require("sqlua.queries." .. con.dbms)
+		-- 	con:executeUv("refresh", {
+		-- 		"USE DATABASE " .. db .. ";",
+		-- 		queries.SchemataQuery(db),
+		-- 	}, db)
+		-- 	con.schema[db].loaded = true
+		-- end
 		con.schema[db].expanded = not con.schema[db].expanded
 	elseif string.find(val, UI_ICONS.tables) then
 		con_schema.tables_expanded = not con_schema.tables_expanded
@@ -891,13 +889,12 @@ local function toggleSelectionUnderCursor(num, val, sub_val)
 		if string.find(val, UI_ICONS.schema) then
 			if con.dbms == "snowflake" then
 				local sfdb = con.schema[db].schema[sub_val]
-				if not sfdb.expanded and not sfdb.loaded then
+				if not sfdb.expanded and not con.schema[db].schema[sub_val].functions_loaded then
 					local queries = require("sqlua.queries." .. con.dbms)
 					con:executeUv("refresh", {
 						"USE DATABASE " .. db .. ";",
 						queries.SchemaQuery(db, sub_val),
 					}, db)
-					con.schema[db].loaded = true
 				end
 			end
 			toggleExpanded(s, sub_val)
