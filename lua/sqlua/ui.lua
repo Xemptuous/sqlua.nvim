@@ -565,7 +565,6 @@ function UI:refreshSidebar()
 								local ns = sep2 .. "  "
 								srow = refreshTables(buf, srow, ns, sf.schema[schema])
 								srow = refreshViews(buf, srow, ns, sf.schema[schema])
-								P(sf.schema[schema])
 								if not sf.schema[schema].functions_loaded then
 									srow = printSidebarEmpty(buf, srow, sep .. "  󰑐 Loading Functions & Procedures")
 								end
