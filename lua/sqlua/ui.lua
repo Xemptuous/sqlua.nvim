@@ -911,13 +911,24 @@ local function createSidebar()
     vim.api.nvim_set_option_value("cursorline", true, { win = win })
     vim.api.nvim_set_option_value("cursorlineopt", "line", { win = win })
     vim.api.nvim_set_option_value("relativenumber", false, { win = win })
-    vim.cmd("syn match SQLuaTable /[פּ󰾇]/")
-    vim.cmd("syn match SQLuaSchema /[פּ󱁊]/")
-    vim.cmd("syn match SQLuaDDL /[]/")
-    vim.cmd("syn match SQLuaFunction /[󰊕󰡱]/")
-    vim.cmd("syn match SQLuaNewQuery /[󱇜]/")
-    vim.cmd("syn match SQLuaBuffer /[󰯂󰯃]/")
-    vim.cmd("syn match Comment /[]/")
+
+    vim.cmd(
+        "syn match SQLuaTable /["
+            .. UI_ICONS.db
+            .. UI_ICONS.db2
+            .. UI_ICONS.folder
+            .. UI_ICONS.table
+            .. UI_ICONS.tables
+            .. UI_ICONS.file
+            .. "]/"
+    )
+    vim.cmd("syn match SQLuaSchema /[" .. UI_ICONS.schema .. "]/")
+    vim.cmd("syn match SQLuaDDL /[" .. UI_ICONS.table_stmt .. "]/")
+    vim.cmd("syn match SQLuaFunction /[" .. UI_ICONS.functions .. UI_ICONS._function .. "]/")
+    vim.cmd("syn match SQLuaNewQuery /[" .. UI_ICONS.views .. UI_ICONS.view .. UI_ICONS.new_query .. "]/")
+    vim.cmd("syn match SQLuaBuffer /[" .. UI_ICONS.buffers .. UI_ICONS.procedure .. UI_ICONS.procedures .. "]/")
+    vim.cmd("syn match Comment /[" .. UI_ICONS.expanded .. UI_ICONS.collapsed .. "]/")
+
     UI.buffers.sidebar = buf
     vim.api.nvim_set_keymap("n", "<leader>st", "", {
         callback = function()
