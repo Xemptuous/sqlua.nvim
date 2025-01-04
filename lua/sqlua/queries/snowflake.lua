@@ -3,7 +3,7 @@ local utils = require("sqlua.utils")
 
 M.DatabaseQuery = "SHOW TERSE OBJECTS IN ACCOUNT"
 M.SchemaQuery = function(db, schema)
-	return [[
+    return [[
     -- base case incase empty
     SELECT
         NULL, 
@@ -84,14 +84,14 @@ end
 -- ]]
 
 M.SchemataQuery = function(db)
-	return [[
+    return [[
     SELECT schema_name
     FROM information_schema.schemata
     WHERE catalog_name = ']] .. db .. "'"
 end
 
 M.TableQuery = function(db, schema)
-	return [[
+    return [[
         SELECT table_name
         FROM information_schema.tables
         WHERE table_catalog = ']] .. db .. [['
@@ -100,38 +100,30 @@ M.TableQuery = function(db, schema)
 end
 
 M.ddl = {
-	"Data",
-	"Columns",
-	"Primary Keys",
-	"Indexes",
-	"References",
+    "Data",
+    "Columns",
+    "Primary Keys",
+    "Indexes",
+    "References",
 }
 
-M.Procedures = function(args)
-	return "USE DATABASE " .. args.db .. "; DESC PROCEDURE " .. args.schema .. "." .. args.table
-end
+M.Procedures = function(args) return "USE DATABASE " .. args.db .. "; DESC PROCEDURE " .. args.schema .. "." .. args.table end
 
 M.Data = function(args)
-	return [[
+    return [[
 SELECT *
 FROM ]] .. utils.concat_ws(".", args.db, args.schema, args.table) .. "\n" .. [[
 LIMIT ]] .. args.limit
 end
 
-M.Columns = function(args)
-	return "DESCRIBE TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
-end
+M.Columns = function(args) return "DESCRIBE TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table) end
 
-M.PrimaryKeys = function(args)
-	return "SHOW PRIMARY KEYS IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
-end
+M.PrimaryKeys = function(args) return "SHOW PRIMARY KEYS IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table) end
 
-M.Indexes = function(args)
-	return "SHOW INDEXES IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table)
-end
+M.Indexes = function(args) return "SHOW INDEXES IN TABLE " .. utils.concat_ws(".", args.db, args.schema, args.table) end
 
 M.References = function(args)
-	return [[
+    return [[
 SELECT *
 FROM TABLE(GET_OBJECT_REFERENCES(
     DATABASE_NAME => ']] .. args.db .. [[',
@@ -141,7 +133,7 @@ FROM TABLE(GET_OBJECT_REFERENCES(
 end
 
 M.Views = function(args)
-	return [[
+    return [[
 SELECT GET_DDL('VIEW', ']] .. utils.concat_ws(".", args.db, args.schema, args.table) .. "')"
 end
 

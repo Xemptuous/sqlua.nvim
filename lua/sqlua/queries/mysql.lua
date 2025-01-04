@@ -38,31 +38,27 @@ M.SchemaQuery = [[
 ]]
 
 M.ddl = {
-	"Data",
-	"Columns",
-	"Primary Keys",
-	"Indexes",
-	"References",
-	"Foreign Keys",
+    "Data",
+    "Columns",
+    "Primary Keys",
+    "Indexes",
+    "References",
+    "Foreign Keys",
 }
 
 M.Data = function(args)
-	return [[
+    return [[
 SELECT *
 FROM `]] .. args.schema .. "`." .. args.table .. "\n" .. [[
 LIMIT ]] .. args.limit
 end
 
-M.Columns = function(args)
-	return "DESCRIBE `" .. args.schema .. "`." .. args.table
-end
+M.Columns = function(args) return "DESCRIBE `" .. args.schema .. "`." .. args.table end
 
-M.Indexes = function(args)
-	return "SHOW INDEX FROM `" .. args.schema .. "`." .. args.table
-end
+M.Indexes = function(args) return "SHOW INDEX FROM `" .. args.schema .. "`." .. args.table end
 
 M.References = function(args)
-	return [[
+    return [[
 SELECT
     kc.constraint_name,
     kc.table_schema,
@@ -84,7 +80,7 @@ WHERE kc.constraint_name <> 'PRIMARY'
 end
 
 M.PrimaryKeys = function(args)
-	return [[
+    return [[
 SHOW KEYS FROM `]] .. args.schema .. "`." .. args.table .. [[
 
 WHERE key_name = 'PRIMARY'
@@ -92,7 +88,7 @@ WHERE key_name = 'PRIMARY'
 end
 
 M.ForeignKeys = function(args)
-	return [[
+    return [[
 SHOW KEYS FROM `]] .. args.schema .. "`." .. args.table .. [[
 
 WHERE key_name <> 'PRIMARY'
@@ -100,7 +96,7 @@ WHERE key_name <> 'PRIMARY'
 end
 
 M.Views = function(args)
-	return [[
+    return [[
 SELECT view_definition
 FROM information_schema.views
 WHERE table_schema = ']] .. args.schema .. [['
@@ -108,7 +104,7 @@ WHERE table_schema = ']] .. args.schema .. [['
 end
 
 M.Procedures = function(args)
-	return [[
+    return [[
 SELECT routine_definition
 FROM information_schema.routines
 WHERE routine_schema = ']] .. args.schema .. [['
@@ -118,7 +114,7 @@ WHERE routine_schema = ']] .. args.schema .. [['
 end
 
 M.Functions = function(args)
-	return [[
+    return [[
 SELECT routine_definition
 FROM information_schema.routines
 WHERE routine_schema = ']] .. args.schema .. [['

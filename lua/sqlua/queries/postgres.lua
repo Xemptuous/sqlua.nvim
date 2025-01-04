@@ -38,27 +38,25 @@ M.SchemaQuery = [[
 ]]
 
 M.ddl = {
-	"Data",
-	"Columns",
-	"Primary Keys",
-	"Indexes",
-	"References",
-	"Foreign Keys",
+    "Data",
+    "Columns",
+    "Primary Keys",
+    "Indexes",
+    "References",
+    "Foreign Keys",
 }
 
 M.Data = function(args)
-	return [[
+    return [[
 SELECT *
 FROM ]] .. args.schema .. "." .. args.table .. "\n" .. [[
 LIMIT ]] .. args.limit
 end
 
-M.Columns = function(args)
-	return "\\d+ " .. args.schema .. "." .. args.table
-end
+M.Columns = function(args) return "\\d+ " .. args.schema .. "." .. args.table end
 
 M.PrimaryKeys = function(args)
-	return [[
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -81,7 +79,7 @@ WHERE constraint_type = 'PRIMARY KEY'
 end
 
 M.Indexes = function(args)
-	return [[
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -97,7 +95,7 @@ WHERE tablename = ']] .. args.table .. [['
 end
 
 M.References = function(args)
-	return [[
+    return [[
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -120,7 +118,7 @@ WHERE constraint_type = 'FOREIGN KEY'
 end
 
 M.ForeignKeys = function(args)
-	return [[
+    return [[
 SELECT DISTINCT
     tc.constraint_name,
     tc.table_name,
@@ -142,16 +140,10 @@ WHERE constraint_type = 'FOREIGN KEY'
 ]]
 end
 
-M.Views = function(args)
-	return "\\d+ " .. args.schema .. "." .. args.table
-end
+M.Views = function(args) return "\\d+ " .. args.schema .. "." .. args.table end
 
-M.Proceduires = function(args)
-	return "\\df+ " .. args.schema .. "." .. args.table
-end
+M.Proceduires = function(args) return "\\df+ " .. args.schema .. "." .. args.table end
 
-M.Functions = function(args)
-	return "\\df+ " .. args.schema .. "." .. args.table
-end
+M.Functions = function(args) return "\\df+ " .. args.schema .. "." .. args.table end
 
 return M
