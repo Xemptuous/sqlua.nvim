@@ -14,25 +14,19 @@ local File = {
 
 local function iterateFiles(parent_path, parent_file)
     local uv = vim.uv
+
     local fs_dir = uv.fs_opendir(parent_path, nil, 1000)
     if fs_dir == nil then return end
+
     local files = uv.fs_readdir(fs_dir)
+
     for _, file in pairs(files) do
         local f = vim.deepcopy(File)
-        local fp = Utils.concat({ parent_path, file.name })
-        if file.type == "directory" then
-            f.name = file.name
-            f.isdir = true
-            f.expanded = false
-            f.path = fp
-            parent_file.files[file.name] = f
-        else
-            f.name = file.name
-            f.isdir = false
-            f.expanded = false
-            f.path = fp
-            parent_file.files[file.name] = f
-        end
+        f.name = file.name
+        f.path = Utils.concat({ parent_path, file.name })
+        f.expanded = false
+        f.isdir = file.type == "directory"
+        parent_file.files[file.name] = f
     end
 end
 
@@ -55,31 +49,11 @@ function Files:setup(db_name)
 
     local old_files = nil
     if next(self.files) ~= nil then old_files = vim.deepcopy(self.files) end
+
     self.db_name = db_name
     self.files = {}
 
-    local uv = vim.uv
-    local fs_dir = uv.fs_opendir(parent, nil, 1000)
-    local files = uv.fs_readdir(fs_dir)
-    if files == nil then files = {} end
-    for _, file in pairs(files) do
-        local f = vim.deepcopy(File)
-        local fp = Utils.concat({ parent, file.name })
-        if file.type == "directory" then
-            f.name = file.name
-            f.isdir = true
-            f.expanded = false
-            f.path = fp
-            self.files[file.name] = f
-            iterateFiles(fp, f)
-        else
-            f.name = file.name
-            f.isdir = false
-            f.expanded = false
-            f.path = fp
-            self.files[file.name] = f
-        end
-    end
+    iterateFiles(parent, self)
 
     if old_files ~= nil then
         for fname, file in pairs(self.files) do
