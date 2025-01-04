@@ -4,13 +4,14 @@ local UI = require("sqlua.ui")
 
 local M = {}
 
-ROOT_DIR = utils.concat({
+SQLUA_ROOT_DIR = utils.concat({
     vim.fn.stdpath("data"),
     "sqlua",
 })
+
 DEFAULT_CONFIG = {
-    db_save_location = utils.concat({ ROOT_DIR, "dbs" }),
-    connections_save_location = utils.concat({ ROOT_DIR, "connections.json" }),
+    db_save_location = utils.concat({ SQLUA_ROOT_DIR, "dbs" }),
+    connections_save_location = utils.concat({ SQLUA_ROOT_DIR, "connections.json" }),
     default_limit = 200,
     load_connections_on_start = false,
     syntax_highlighting = false,
@@ -24,7 +25,7 @@ M.setup = function(opts)
     local config = vim.tbl_deep_extend("force", DEFAULT_CONFIG, opts or {})
 
     -- creating root directory
-    vim.fn.mkdir(ROOT_DIR, "p")
+    vim.fn.mkdir(SQLUA_ROOT_DIR, "p")
 
     -- creating config json
     local connections_file = utils.concat({
@@ -42,7 +43,7 @@ M.setup = function(opts)
         local cons = Connection.read()
         for _, con in pairs(cons) do
             local name, url = con["name"], con["url"]
-            vim.fn.mkdir(ROOT_DIR .. "/" .. name, "p")
+            vim.fn.mkdir(SQLUA_ROOT_DIR .. "/" .. name, "p")
             local connection = Connection.setup(name, url, UI.options)
             if config.load_connections_on_start and connection then connection:connect() end
             UI.dbs[name] = connection
