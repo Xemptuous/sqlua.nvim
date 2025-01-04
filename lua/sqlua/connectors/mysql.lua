@@ -32,6 +32,7 @@ function Mysql:setup(name, url, options)
     return s
 end
 
+---@param data table raw information schema data
 function Mysql:cleanSchema(data)
     local schema = utils.shallowcopy(data)
     table.remove(schema, 1)
@@ -46,6 +47,8 @@ function Mysql:cleanSchema(data)
     return schema
 end
 
+---@param data table raw result data
+---@param query_type string
 function Mysql:dbmsCleanResults(data, query_type)
     if string.find(data[1], "mysql%: %[Warning%]") then table.remove(data, 1) end
     return data

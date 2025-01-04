@@ -23,6 +23,7 @@ function Snowflake:setup(name, url, options)
     return s
 end
 
+---@param data table raw information schema data
 function Snowflake:cleanSchema(data)
     local schema = utils.shallowcopy(data)
     table.remove(schema, 1)
@@ -44,22 +45,9 @@ function Snowflake:cleanSchema(data)
     return result
 end
 
----@param data string
----@return table
---- Takes string results and transforms them to a table of strings
-function Snowflake:baseCleanResults(data)
-    local result = {}
-    local i = 1
-    for c in data:gmatch(string.format("([^%s]+)", "\n")) do
-        result[i] = c
-        i = i + 1
-    end
-    return result
-end
-
+--- dbms specific cleaning
 ---@param data table
 ---@param query_type string
---- dbms specific cleaning
 function Snowflake:dbmsCleanResults(data, query_type)
     if query_type == "query" then
     else
@@ -84,12 +72,15 @@ function Snowflake:cleanTables(data)
     return schema
 end
 
+--[[
+Populates the Connection's schema based on the stdout from executing the DBMS' SchemaQuery.
+Custom overload required for Snowflake
+]]
 ---@param data table
 ---@param db string
 ---@return nil
---- Populates the Connection's schema based on the stdout
---- from executing the DBMS' SchemaQuery
 function Snowflake:getSchema(data, db)
+    -- TODO: handle updates
     -- local old_schema = nil
     -- if next(self.schema) ~= nil then
     --     old_schema = vim.deepcopy(self.schema)
@@ -159,6 +150,7 @@ function Snowflake:getSchema(data, db)
             self.schema[d].schema[s].functions_loaded = true
         end
     end
+    -- TODO: handle updates
     -- if old_schema ~= nil then
     --     for s, st in pairs(self.schema) do
     --         local old_s, new_s = old_schema[s], self.schema[s]

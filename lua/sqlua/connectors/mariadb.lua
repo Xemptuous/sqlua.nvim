@@ -34,6 +34,7 @@ function Mariadb:setup(name, url, options)
     return s
 end
 
+---@param data table raw information schema data
 function Mariadb:cleanSchema(data)
     local schema = utils.shallowcopy(data)
     table.remove(schema, 1)

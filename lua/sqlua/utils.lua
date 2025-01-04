@@ -39,6 +39,15 @@ function M.reverse(tbl)
     return tbl
 end
 
+--- Concatenate all objects passed in using OS fs separator
+--- Ex:
+--- `concat({
+---     vim.fn.stdpath('data'),
+---     'sqlua',
+---     'connections.json'
+--- })`
+--- Returns:
+--- `~/.local/share/nvim/sqlua/connections.json`
 ---@param ... table<string|string[]>
 ---@return string
 function M.concat(...)
@@ -55,9 +64,9 @@ function M.concat(...)
     return table.concat(result, M.sep)
 end
 
+---Creates a shallow copy of a given table
 ---@param orig table
 ---@return table
----Creates a shallow copy of a given table
 M.shallowcopy = function(orig)
     local orig_type = type(orig)
     local copy
@@ -72,10 +81,10 @@ M.shallowcopy = function(orig)
     return copy
 end
 
+---Splits string by given delimiter and returns an array
 ---@param str string string
 ---@param separator string delimiter
 ---@return string[]
----Splits string by given delimiter and returns an array
 M.splitString = function(str, separator)
     if separator == nil then separator = "%s" end
     local t = {}
@@ -85,10 +94,10 @@ M.splitString = function(str, separator)
     return t
 end
 
+---Checks whether the given element is in the top level of the array/table
 ---@param arr table
 ---@param element any
 ---@return boolean
----Checks whether the given element is in the top level of the array/table
 M.inArray = function(arr, element)
     for _, value in ipairs(arr) do
         if value == element then return true end
@@ -96,9 +105,9 @@ M.inArray = function(arr, element)
     return false
 end
 
+---Returns a new table with duplicate values removed (top level only)
 ---@param arr table
 ---@return table
----Returns a new table with duplicate values removed (top level only)
 M.removeDuplicates = function(arr)
     local newArray = {}
     for _, element in ipairs(arr) do
@@ -122,9 +131,9 @@ M.deepReplace = function(table, search_for, replacement)
     end
 end
 
+---Trims leading and trailing whitespace
 ---@param line string
 ---@return string
----Trims leading and trailing whitespace
 M.removeEndWhitespace = function(line) return line:gsub("^%s*(.-)%s*$", "%1")[1] end
 
 M.getFileName = function(path) return path:match("^.+/(.+)$") end
@@ -138,9 +147,9 @@ M.getDatabases = function(file)
     return content
 end
 
+---replaces pairs() by utilizing a sorted table
 ---@param t table
 ---@return iterator
----replaces pairs() by utilizing a sorted table
 M.pairsByKeys = function(t, f)
     local a = {}
     for n in pairs(t) do

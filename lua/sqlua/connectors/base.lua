@@ -18,6 +18,7 @@ local ConnectionInfo = {
     args = {},
 }
 
+---The primary object representing a single connection to a dbms by url
 ---@class Connection
 ---@field files_expanded boolean sidebar expansion flag
 ---@field num_schema integer number of schema in this db
@@ -28,7 +29,6 @@ local ConnectionInfo = {
 ---@field dbms string actual db name according to the url
 ---@field schema table nested schema design for this db
 ---@field files table all saved files in the local dir
----The primary object representing a single connection to a dbms by url
 local Connection = {
     expanded = false,
     loading = false,
@@ -65,14 +65,15 @@ end
 ---@overload fun(data: table<string>) : table<string>
 function Connection:cleanSchema(data) return data end
 
----@overload fun(table, string) : table
 --- dbms specific cleaning
+---@overload fun(table, string) : table
 function Connection:dbmsCleanResults(data, query_type) return data end
 
+--- Takes string results and transforms them to a table of strings.
+--- Base cleaning to be done for all
 ---@overload fun(data: string) : table
 ---@param data string
 ---@return table
---- Takes string results and transforms them to a table of strings
 function Connection:baseCleanResults(data)
     local result = {}
     local i = 1
@@ -134,9 +135,9 @@ Connection.Query = {
     results = {},
 }
 
----@returns ConnectionInfo
 --- Takes a url and returns a ConnectionInfo object
 --- representing connection attributes
+---@returns ConnectionInfo
 function Connection:parseUrl()
     local split = utils.splitString(self.url, ":/@")
     local con_info = vim.deepcopy(ConnectionInfo)
@@ -226,11 +227,11 @@ function Connection:parseUrl()
     return con_info
 end
 
+--- Populates the Connection's schema based on the stdout
+--- from executing the DBMS' SchemaQuery
 ---@param data table
 ---@param db? string
 ---@return nil
---- Populates the Connection's schema based on the stdout
---- from executing the DBMS' SchemaQuery
 function Connection:getSchema(data, db)
     local schema = self:cleanSchema(data)
     local old_schema = nil
@@ -300,6 +301,7 @@ local function setSidebarModifiable(buf, val) vim.api.nvim_set_option_value("mod
 ---@return nil
 Connection.setSidebarModifiable = function(buf, val) vim.api.nvim_set_option_value("modifiable", val, { buf = buf }) end
 
+--- Handles creating Results pane and setting query results and data in the UI
 ---@param data table
 ---@return nil
 function Connection:query(query, data)
@@ -328,14 +330,14 @@ function Connection:query(query, data)
     vim.api.nvim_win_set_cursor(win, pos)
 end
 
----@param query_type string
----@param query_data string|table<string>
----@param db string|nil
 ---The main query execution wrapper.
 ---Takes 3 types of arguments for `query_type`:
 ---  - connect
 ---  - refresh
 ---  - query
+---@param query_type string
+---@param query_data string|table<string>
+---@param db string|nil
 function Connection:executeUv(
     query_type,
     query_data, --[[optional]]
@@ -465,25 +467,27 @@ function Connection:executeUv(
     -- end, stdout, stderr, start_time, ui.buffers.results)
 end
 
+--[[
+Executes a query based on editor that this command was called from
+Optional `mode` determines what is executed:
+- 'n' - executes entire buffer
+- 'v' - executes visual selection
+- 'V' - executes visual line
+- '^V' - executes visual block
+]]
 ---@param mode string|nil
 ---@return nil
----Executes a query based on editor that this command was called from
----Optional `mode` determines what is executed:
----  - 'n' - executes entire buffer
----  - 'v' - executes visual selection
----  - 'V' - executes visual line
----  - '^V' - executes visual block
 function Connection:execute(--[[optional mode string]]mode)
     if self.name ~= require("sqlua.ui").active_db then return end
     if not mode then mode = vim.api.nvim_get_mode().mode end
 
     local query = nil
 
+    -- normal mode
     if mode == "n" then
-        -- normal mode
         query = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    -- visual line mode
     elseif mode == "V" then
-        -- visual line mode
         local esc_key = vim.api.nvim_replace_termcodes("<Esc>", false, true, true)
         vim.api.nvim_feedkeys(esc_key, "nx", false)
         local srow = vim.api.nvim_buf_get_mark(0, "<")[1]
@@ -493,8 +497,8 @@ function Connection:execute(--[[optional mode string]]mode)
         else
             query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
         end
+    -- visual mode
     elseif mode == "v" then
-        -- visual mode
         local srow, scol, erow, ecol = 0, 0, 0, 0
         local p1 = vim.fn.getpos(".")
         local p2 = vim.fn.getpos("v")
@@ -507,8 +511,8 @@ function Connection:execute(--[[optional mode string]]mode)
         else
             query = vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
         end
+    -- visual block mode
     elseif mode == "\22" then
-        -- visual block mode
         local srow, scol, erow, ecol = 0, 0, 0, 0
         local p1 = vim.fn.getpos(".")
         local p2 = vim.fn.getpos("v")
@@ -527,6 +531,7 @@ function Connection:execute(--[[optional mode string]]mode)
 
     local final_query = {}
     if query then
+        -- some final cleaning
         for i, j in ipairs(query) do
             query[i] = j:gsub("[\v\r\n\t]", " ")
             query[i] = " " .. query[i]:match("^%s*(.-)%s*$") .. " "
@@ -538,10 +543,12 @@ function Connection:execute(--[[optional mode string]]mode)
                 table.insert(final_query, query[i])
             end
         end
+        -- execute
         self:executeUv("query", final_query)
     end
 end
 
+--- Initial query connection execute
 function Connection:connect()
     self.loading = true
     self:executeUv("connect", self.schema_query)

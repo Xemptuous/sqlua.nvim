@@ -4,6 +4,7 @@ local UI = require("sqlua.ui")
 
 local M = {}
 
+-- ~/.local/share/nvim/sqlua
 SQLUA_ROOT_DIR = utils.concat({
     vim.fn.stdpath("data"),
     "sqlua",

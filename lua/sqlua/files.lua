@@ -1,8 +1,18 @@
 local Utils = require("sqlua.utils")
+
+--- Main wrapper for all filesystem files for specific connections
+---@class Files
 local Files = {
     files = {},
 }
 
+---@class File
+---@field name string full file name
+---@field path string absolute path to file
+---@field isdir boolean if is dir
+---@field expanded boolean if expanded in UI
+---@field parents table all parent files for this file
+---@field files table all current and children files for this file
 local File = {
     name = "",
     path = "",
@@ -12,6 +22,9 @@ local File = {
     files = {},
 }
 
+---@param parent_path string path to iterate
+---@param parent_file File parent File object to update
+---@return nil
 local function iterateFiles(parent_path, parent_file)
     local uv = vim.uv
 
@@ -30,6 +43,10 @@ local function iterateFiles(parent_path, parent_file)
     end
 end
 
+--- Helper to recursively refresh/update file objects
+---@param of table old file
+---@param nf table new file
+---@return nil
 local function recursiveRefresh(of, nf)
     for fname, file in pairs(nf.files) do
         if of.files[fname] ~= nil and nf.files[fname] == nil then
@@ -42,11 +59,12 @@ local function recursiveRefresh(of, nf)
     end
 end
 
+---Populates files in the given db's directory
 ---@param db_name string
----Populates the files in the given db's directory
 function Files:setup(db_name)
     local parent = Utils.concat({ vim.fn.stdpath("data"), "sqlua", db_name })
 
+    -- if we already have files, do an update after the initial finds
     local old_files = nil
     if next(self.files) ~= nil then old_files = vim.deepcopy(self.files) end
 
@@ -55,6 +73,7 @@ function Files:setup(db_name)
 
     iterateFiles(parent, self)
 
+    -- do updates if not first run
     if old_files ~= nil then
         for fname, file in pairs(self.files) do
             if old_files[fname] ~= nil and self.files[fname] == nil then
@@ -70,8 +89,9 @@ function Files:setup(db_name)
     return self
 end
 
-function Files:refresh() self:setup(self.db_name) end
-
+--- helper for Files:find()
+---@param table table
+---@param search string
 local function recurseFind(table, search)
     for name, file in pairs(table) do
         if name == search then
@@ -82,6 +102,10 @@ local function recurseFind(table, search)
         end
     end
 end
+
+--- Attempt to find and return the specific file in this db connection dir by name
+---@param search string the filename to search for
+---@return File | nil
 function Files:find(search)
     for name, file in pairs(self.files) do
         if name == search then
