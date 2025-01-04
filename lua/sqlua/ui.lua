@@ -71,8 +71,7 @@ local UI_ICONS = {
     db2 = "",
     buffers = "",
     folder = "",
-    schemas = "",
-    schema = "פּ",
+    schema = "󱏒",
     views = "󱇜",
     view = "",
     functions = "󰡱",
@@ -622,7 +621,7 @@ function UI:refreshSidebar()
     local new_query_text = UI_ICONS.new_query .. " " .. "New Editor"
     printSidebarEmpty(buf, srow - 1, sep .. new_query_text)
 
-    local buffers_text = UI_ICONS.schemas .. " " .. "Buffers"
+    local buffers_text = UI_ICONS.buffers .. " " .. "Buffers"
     buffers_text = buffers_text .. " (" .. #self.buffers.editors .. ")"
     if self.buffers_expanded then
         srow = printSidebarExpanded(buf, srow, sep, buffers_text)
