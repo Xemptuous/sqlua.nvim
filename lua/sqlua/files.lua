@@ -32,6 +32,7 @@ local function iterateFiles(parent_path, parent_file)
     if fs_dir == nil then return end
 
     local files = uv.fs_readdir(fs_dir)
+    if files == nil then return end
 
     for _, file in pairs(files) do
         local f = vim.deepcopy(File)
