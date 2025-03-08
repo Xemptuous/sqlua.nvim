@@ -90,6 +90,9 @@ function Files:setup(db_name)
     return self
 end
 
+--- helper for refreshing after filesystem modifications
+function Files:refresh() self:setup(self.db_name) end
+
 --- helper for Files:find()
 ---@param table table
 ---@param search string
