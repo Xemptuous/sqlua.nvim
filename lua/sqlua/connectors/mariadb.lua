@@ -4,6 +4,9 @@ local utils = require("sqlua.utils")
 ---@class Mariadb : Connection
 Mariadb = Connection:new()
 
+---@param name string
+---@param url string
+---@param options table
 function Mariadb:setup(name, url, options)
     ---@class Mariadb
     local s = Mariadb:new()

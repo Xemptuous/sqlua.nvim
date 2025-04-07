@@ -4,7 +4,9 @@ local utils = require("sqlua.utils")
 ---@class Mysql : Connection
 Mysql = Connection:new()
 
----@class Mysql
+---@param name string
+---@param url string
+---@param options table
 function Mysql:setup(name, url, options)
     local s = Mysql:new()
     s.name = name

@@ -4,6 +4,9 @@ local utils = require("sqlua.utils")
 ---@class Snowflake : Connection
 Snowflake = Connection:new()
 
+---@param name string
+---@param url string
+---@param options table
 function Snowflake:setup(name, url, options)
     ---@class Snowflake
     local s = Snowflake:new()
