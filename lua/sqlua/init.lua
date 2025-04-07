@@ -55,6 +55,8 @@ M.setup = function(opts)
         UI:refreshSidebar()
     end, { nargs = "?" })
 
+    vim.api.nvim_create_user_command("SQLuaEdit", function() vim.cmd("e " .. CONNECTIONS_FILE) end, {})
+
     vim.api.nvim_create_user_command("SQLuaAddConnection", function()
         -- TODO: add floating window to edit connections file on the spot
         local url = vim.fn.input("Enter the connection url: ")
