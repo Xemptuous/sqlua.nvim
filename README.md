@@ -75,24 +75,34 @@ You can override the default settings by feeding the table as a table to the set
 
 ## Usage:
 
-Current commands include:
-```
-:SQLua <dbname(s)> - launches the SQLua UI with the listed DB's
-:SQLuaExecute - (executed by keybind in buffer) executes the buffer (in normal mode) or selection (in a visual mode)
-:SQLuaAddConnection - prompts the user to add a connection to the connections file
-```
+Open SQLua with the command `:SQLua`
+
+Edit connections with `:SQLuaEdit`
 
 ### Adding a Database
-After using `:SQLuaAddConnection` you will be prompted to enter a database url and a name for the database.
+
+The `connections.json` file (usually in `~/.local/share/nvim/sqlua/connections.json`), or wherever your `vim.fn.stdpath("data")` is) houses all connection configs.
+
+Sample json:
+```json
+[
+  {
+    "url": "postgres://admin:admin@localhost:5432/mydb",
+    "name": "my db"
+  },
+  {
+    "url": "snowflake",
+    "name": "snowflake"
+  },
+]
+
+```
 
 The url should follow standard jdbc url format:
-`rdbms://[user][:password]@[host][:port][/db][?args*]`
+`dbms://[user][:password]@[host][:port][/db][?args*]`
 The url will be parsed to be used with the appropriate CLI command through args as necessary.
 
 The name given will be shown in the sidebar, and will not be used to connect to the specified db.
-
-Alternatively, you can manually edit the `connections.json` file.
-
 
 The sidebar navigator can be used to explore the DB and its various schema and tables, as well as creating various template queries.
 
