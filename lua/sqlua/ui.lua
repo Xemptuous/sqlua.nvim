@@ -221,6 +221,18 @@ local function createEditor(win)
     return buf
 end
 
+---Recreates the editor window when no editor windows exist
+local function recreateEditor()
+    local sidebar_win = vim.api.nvim_get_current_win()
+    UI.windows.sidebar = sidebar_win
+    vim.cmd("vsplit")
+    local editor_win = vim.api.nvim_get_current_win()
+    table.insert(UI.windows.editors, editor_win)
+
+    createEditor(editor_win)
+    vim.api.nvim_win_set_width(UI.windows.sidebar, 40)
+end
+
 ---Creates the specified statement to query the given table.
 ---Query is pulled based on active_db dbms, and fills the available buffer.
 ---@param type string the type of table statement
@@ -1197,12 +1209,14 @@ local function createSidebar()
 
             -- check icon contents of sidebar line and act accordingly
             if string.find(val, UI_ICONS.new_query) then
+                if #UI.windows.editors == 0 then recreateEditor() end
                 local buffer = createEditor(UI.windows.editors[1])
                 UI:refreshSidebar()
                 vim.api.nvim_set_current_win(UI.windows.editors[1])
                 vim.api.nvim_set_current_buf(buffer)
                 return
             elseif string.find(val, UI_ICONS.buffers) then
+                if #UI.windows.editors == 0 then recreateEditor() end
                 local bufname = val:gsub(ICONS_SUB_REGEX, "")
                 for _, ebuf in pairs(UI.buffers.editors) do
                     local editor_name = vim.api.nvim_buf_get_name(ebuf)
@@ -1407,6 +1421,10 @@ function UI:setup(config)
                 UI.windows.results = nil
             elseif ev.file == tostring(UI.windows.sidebar) then
                 UI.windows.sidebar = nil
+            else
+                for i, w in pairs(UI.windows.editors) do
+                    if ev.file == tostring(w) then table.remove(UI.windows.editors, i) end
+                end
             end
         end,
     })
