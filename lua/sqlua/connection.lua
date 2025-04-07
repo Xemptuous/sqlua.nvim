@@ -10,6 +10,7 @@ local Cons = {
     mariadb = require("sqlua.connectors.mariadb"),
     mysql = require("sqlua.connectors.mysql"),
     postgres = require("sqlua.connectors.postgres"),
+    postgresql = require("sqlua.connectors.postgres"),
 }
 
 --- Base setup class for specific dbms
