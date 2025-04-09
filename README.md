@@ -18,7 +18,7 @@ Currently supported DBMS:
 {
     'xemptuous/sqlua.nvim',
     lazy = true,
-    cmd = 'SQLua',
+    cmd = { 'SQLua', 'SQLuaEdit' },
     config = function() require('sqlua').setup() end
 }
 ```
