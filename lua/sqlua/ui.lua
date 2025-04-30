@@ -834,6 +834,8 @@ local function toggleSelectionUnderCursor(num, val, sub_val)
     local con = UI.dbs[db]
     local con_schema = {}
 
+    if con == nil then return end
+
     if sub_val == "Queries" then
         con.files_expanded = not con.files_expanded
     elseif con.dbms == "snowflake" and con.expanded then
