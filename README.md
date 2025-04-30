@@ -1,4 +1,4 @@
-# SQLua.nvim
+# 🛢️ SQLua.nvim
 
 A Modern SQL UI for NeoVim written in Lua emphasizing speed and simplicity, turning NeoVim into a full-fledged SQL IDE.
 
@@ -93,7 +93,7 @@ Sample json:
   {
     "url": "snowflake",
     "name": "snowflake"
-  },
+  }
 ]
 
 ```
