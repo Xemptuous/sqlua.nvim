@@ -123,6 +123,16 @@ The DB used will be highlighted and set to the "active" DB. Using the `activate_
 Note, template DDL statements do not need to set the active DB; i.e., they will always
 be run based on the parent table, schema, and database.
 
+### Saved Files
+Each database will have a `Queries` folder which corresponds to the directory named after the connection, found in `~/.local/share/nvim/sqlua/`
+
+Files can be added and deleted using <kbd>a</kbd> and <kbd>d</kbd> inside this node of the sidebar tree.
+
+### Quicker Navigation
+<kbd>o</kbd> will toggle the fold for the current level, expanding the node under the cursor, or collapsing the direct parent.
+
+<kbd>O</kbd> will collapse the entire database connection in the sidebar.
+
 ## Roadmap
 
 This project is actively being developed, and will hopefully serve as NeoVim's full-fledged SQL IDE moving forward, eliminating the need for long load times and multiple vim extensions.
