@@ -81,6 +81,38 @@ M.shallowcopy = function(orig)
     return copy
 end
 
+M.parse_jdbc = function (jdbc_str)
+    -- Extract main components using pattern matching
+    local subprotocol, authority, path, query = jdbc_str:match("^(%w+)://([^/]+)/([^?]*)%??(.*)")
+    if not subprotocol then return nil, "Invalid JDBC format" end
+
+    -- Initialize result table
+    local result = {
+        subprotocol = subprotocol,
+        database = path,
+        properties = {}
+    }
+
+    -- Parse authority section (user:password@host:port)
+    local userinfo, hostport = authority:match("(.*)@(.*)")
+    if userinfo then
+        result.user, result.password = userinfo:match("([^:]*):?(.*)")
+    else
+        hostport = authority
+    end
+
+    -- Extract host and port
+    result.host, result.port = hostport:match("([^:]+):?(%d*)$")
+    result.port = result.port ~= "" and tonumber(result.port) or nil
+
+    -- Parse query parameters
+    for k, v in query:gmatch("([^&=]+)=([^&]*)") do
+        result.properties[k] = v
+    end
+
+    return result
+end
+
 ---Splits string by given delimiter and returns an array
 ---@param str string string
 ---@param separator string delimiter
