@@ -9,6 +9,7 @@ Currently supported DBMS:
 * PostgreSQL
 * MySQL
 * MariaDB
+* SQLite
 
 ## Installation
 
@@ -38,17 +39,77 @@ To launch SQLua quickly, consider adding an alias to your shell config
 alias nvsql="nvim '+SQLua'"
 ```
 
+## Requirements
+
+Neovim 0.10.0+
+
+Based on the DBMS' used, different cli tools will be required. 
+
+* `PostgreSQL`: psql
+* `MariaDB`: mariadb
+* `MySQL`: mysql
+* `Snowflake`: snowsql
+* `SQLite`: sqlite3
+
 ## Setup
-### Note: sqlua.nvim required Neovim 0.10.0+
 
-To use, require the setup:
-`:lua require('sqlua').setup(opts)`
+The `connections.json` file is an array of json objects contains all connection information. The required keys are `name` and `url`.
 
-After the first time running the setup() function, a folder for SQLua will be created in the neovim data directory (~/.local/share/nvim/sqlua/)
+Specific formatting is required for certain databases. Here are some samples of entries for `connections.json` based on dbms:
 
-The `connections.json` file here will contain your DB URL's, as well as friendly names to call them by.
+<details>
+  <summary><strong>PostgreSQL</strong></summary>
 
-`Note:` for SnowFlake, you will need the `snowsql` client. In the `connections.json` file, use `snowflake` for both the name and url, and ensure all configuration is done in your snowsql config file.
+  ```json
+  {
+      "name": "mydb",
+      "url": "postgres://admin:pass@localhost:5432/mydb"
+  }
+  ```
+
+</details>
+<details>
+  <summary><strong>MariaDB</strong></summary>
+
+  ```json
+  {
+      "name": "mydb",
+      "url": "mariadb://admin:pass@localhost:5432/mydb"
+  }
+  ```
+</details>
+<details>
+  <summary><strong>MySQL</strong></summary>
+
+  ```json
+  {
+      "name": "mydb",
+      "url": "mysql://admin:pass@localhost:5432/mydb"
+  }
+  ```
+</details>
+<details>
+  <summary><strong>Snowflake</strong></summary>
+
+  >  snowsql client will handle all connections 
+
+  ```json
+  {
+      "name": "mydb",
+      "url": "snowflake"
+  }
+  ```
+</details>
+<details>
+  <summary><strong>SQLite</strong></summary>
+
+  ```json
+  {
+      "name": "mydb",
+      "url": "/path/to/database/file.db"
+  }
+  ```
+</details>
 
 ## Default Config
 
@@ -72,42 +133,16 @@ You can override the default settings by feeding the table as a table to the set
     }
 }
 ```
-
+---
 ## Usage:
 
 Open SQLua with the command `:SQLua`
 
 Edit connections with `:SQLuaEdit`
 
-### Adding a Database
-
-The `connections.json` file (usually in `~/.local/share/nvim/sqlua/connections.json`), or wherever your `vim.fn.stdpath("data")` is) houses all connection configs.
-
-Sample json:
-```json
-[
-  {
-    "url": "postgres://admin:admin@localhost:5432/mydb",
-    "name": "my db"
-  },
-  {
-    "url": "snowflake",
-    "name": "snowflake"
-  }
-]
-
-```
-
-The url should follow standard jdbc url format:
-`dbms://[user][:password]@[host][:port][/db][?args*]`
-The url will be parsed to be used with the appropriate CLI command through args as necessary.
-
-The name given will be shown in the sidebar, and will not be used to connect to the specified db.
-
-The sidebar navigator can be used to explore the DB and its various schema and tables, as well as creating various template queries.
-
 ### Executing Queries
-The editor buffer(s) are used to run queries.
+Queries run in the editor buffers will use the currently active db, which will be highlighted on the sidebar. The desired connection
+can be set to "active" using the `activate_db` keybind, normally <kbd>Ctrl</kbd>+<kbd>a</kbd>
 
 By default, the keymap to execute commands is set to `<leader>r`, acting differently based on mode:
 
@@ -118,9 +153,7 @@ By default, the keymap to execute commands is set to `<leader>r`, acting differe
 
 Upon executing a query, the results will be shown in a results buffer.
 
-The DB used will be highlighted and set to the "active" DB. Using the `activate_db` keybind will change which DB is considered the active one for each query.
-
-Note, template DDL statements do not need to set the active DB; i.e., they will always
+Note: template DDL statements do not need to set the active DB; i.e., they will always
 be run based on the parent table, schema, and database.
 
 ### Saved Files
@@ -145,10 +178,10 @@ This project is actively being developed, and will hopefully serve as NeoVim's f
 - [x] Implement queries, ddl, and other template queries into the sidebar tree.
 - [x] Create asynchronous jobs for queries and connections.
 - [x] Create db-specific sql files to be stored in sqlua/dbs/<dbname> folder
+- [x] Add default limit functionality
 - [ ] Implement Nvim-Tree QoL features into sidebar
 - [ ] Add DB Inspection + nvim-cmp completions
-- [ ] Implement active connection variables to be set for the connections' lifetimes
-- [ ] Add default limit functionality
+- [ ] Implement connection sessions and active connections
 - [ ] Add an option for "fancier" results pane output
 - [ ] Implement syntax highlighting for dbout similar to other SQL IDE's (datetime, numbers, strings, null, etc.)
 - [ ] Include fancy ui functionality to make SQLua sexy

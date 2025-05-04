@@ -186,7 +186,7 @@ function Connection:getSchema(data, db)
             elseif type == "view" then
                 self.schema[s].views[t] = { expanded = false }
                 self.schema[s].num_views = self.schema[s].num_views + 1
-            else
+            elseif type == "procedure" or type == "routine" then
                 self.schema[s].procedures[t] = { expanded = false }
                 self.schema[s].num_procedures = self.schema[s].num_procedures + 1
             end

@@ -8,6 +8,7 @@ Mysql = Connection:new()
 ---@param url string
 ---@param options table
 function Mysql:setup(name, url, options)
+    ---@class Mysql
     local s = Mysql:new()
     s.name = name
     s.url = url
