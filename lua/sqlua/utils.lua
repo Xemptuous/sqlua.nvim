@@ -81,7 +81,7 @@ M.shallowcopy = function(orig)
     return copy
 end
 
-M.parse_jdbc = function (jdbc_str)
+M.parse_jdbc = function(jdbc_str)
     -- Extract main components using pattern matching
     local subprotocol, authority, path, query = jdbc_str:match("^(%w+)://([^/]+)/([^?]*)%??(.*)")
     if not subprotocol then return nil, "Invalid JDBC format" end
@@ -89,28 +89,48 @@ M.parse_jdbc = function (jdbc_str)
     -- Initialize result table
     local result = {
         subprotocol = subprotocol,
-        database = path,
+        database = path ~= "" and path or nil,
         properties = {}
     }
 
     -- Parse authority section (user:password@host:port)
-    local userinfo, hostport = authority:match("(.*)@(.*)")
-    if userinfo then
-        result.user, result.password = userinfo:match("([^:]*):?(.*)")
-    else
+    local userinfo, hostport = authority:match("^(.-)@(.*)$")
+    if not userinfo then
         hostport = authority
+    else
+        result.user, result.password = userinfo:match("([^:]*):?(.*)")
+        if result.user == "" then result.user = nil end
+        if result.password == "" then result.password = nil end
     end
 
-    -- Extract host and port
-    result.host, result.port = hostport:match("([^:]+):?(%d*)$")
-    result.port = result.port ~= "" and tonumber(result.port) or nil
+    -- Handle IPv6: [address]:port or [address]
+    if hostport:match("^%[.+%]") then
+        result.host, result.port = hostport:match("^%[([^%]]+)%]:?(%d*)$")
+    else
+        result.host, result.port = hostport:match("^([^:]+):?(%d*)$")
+    end
+
+    if result.port == "" then result.port = nil else result.port = tonumber(result.port) end
 
     -- Parse query parameters
     for k, v in query:gmatch("([^&=]+)=([^&]*)") do
         result.properties[k] = v
     end
 
+    -- Default to query-based user/password if not in authority
+    if not result.user and result.properties.user then
+        result.user = result.properties.user
+    end
+    if not result.password and result.properties.password then
+        result.password = result.properties.password
+    end
+
+    -- Remove from args
+    result.properties.user = nil
+    result.properties.password = nil
+
     return result
+
 end
 
 ---Splits string by given delimiter and returns an array

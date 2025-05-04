@@ -148,26 +148,10 @@ function Connection:parseUrl()
     con_info.user = split.user
     con_info.password = split.password
     con_info.host = split.host
-    con_info.port = tostring(split.port)
+    con_info.port = split.port
     con_info.database = split.database
+    con_info.args = split.properties
 
-    -- extract query con_info from db name
-    if con_info.database ~= "" then
-        local args = utils.splitString(con_info.database, "?&")
-        con_info.database = args[1]
-        table.remove(args, 1)
-        for _, item in pairs(args) do
-            local user_args = item:match("user=(%w+)")
-            local password_args = item:match("password=([%w!-$'-~]+)")
-            if user_args then
-                con_info.user = user_args
-            elseif password_args then
-                con_info.password = password_args
-            else
-                table.insert(con_info.args, item)
-            end
-        end
-    end
     return con_info
 end
 
