@@ -139,74 +139,18 @@ Connection.Query = {
 --- representing connection attributes
 ---@returns ConnectionInfo
 function Connection:parseUrl()
-    local split = utils.splitString(self.url, ":/@")
+    local split = utils.parse_jdbc(self.url)
+
+    if split == nil then return nil end
+
     local con_info = vim.deepcopy(ConnectionInfo)
-    con_info.dbms = split[1]
-    if self.url:find("@") then
-        if #split == 3 then
-            -- dbms://user@host
-            con_info.user = split[2]
-            con_info.host = split[3]
-        elseif #split == 4 then
-            if tonumber(split[4]) then
-                -- dbms://user@host:port
-                con_info.user = split[2]
-                con_info.host = split[3]
-                con_info.port = split[4]
-            elseif split[4]:find("?") then
-                -- dbms://user@host/db?query
-                con_info.user = split[2]
-                con_info.host = split[3]
-                con_info.database = split[4]
-            else
-                -- dbms://user:pass@host
-                con_info.user = split[2]
-                con_info.password = split[3]
-                con_info.host = split[4]
-            end
-        elseif #split == 5 then
-            if tonumber(split[5]) then
-                -- dbms://user:pass@host:port
-                con_info.user = split[2]
-                con_info.password = split[3]
-                con_info.host = split[4]
-                con_info.port = split[5]
-            else
-                -- dbms://user:pass@host?db?query
-                con_info.user = split[2]
-                con_info.password = split[3]
-                con_info.host = split[4]
-                con_info.database = split[5]
-            end
-        else
-            -- dbms://user:pass@host:port/db?query
-            con_info.user = split[2]
-            con_info.password = split[3]
-            con_info.host = split[4]
-            con_info.port = split[5]
-            con_info.database = split[6]
-        end
-    else
-        if #split == 2 then
-            -- dbms://host
-            con_info.host = split[2]
-        elseif #split == 3 then
-            if tonumber(split[3]) then
-                -- dbms://host:port
-                con_info.host = split[2]
-                con_info.port = split[3]
-            else
-                -- dbms://host:db?query
-                con_info.host = split[2]
-                con_info.database = split[3]
-            end
-        elseif #split == 4 then
-            -- dbms://host:port/db?query
-            con_info.host = split[2]
-            con_info.port = split[3]
-            con_info.database = split[4]
-        end
-    end
+    con_info.dbms = split.subprotocol
+    con_info.user = split.user
+    con_info.password = split.password
+    con_info.host = split.host
+    con_info.port = tostring(split.port)
+    con_info.database = split.database
+
     -- extract query con_info from db name
     if con_info.database ~= "" then
         local args = utils.splitString(con_info.database, "?&")
