@@ -11,6 +11,7 @@ local Cons = {
     mysql = require("sqlua.connectors.mysql"),
     postgres = require("sqlua.connectors.postgres"),
     postgresql = require("sqlua.connectors.postgres"),
+    sqlite = require("sqlua.connectors.sqlite"),
 }
 
 --- Base setup class for specific dbms
@@ -21,6 +22,13 @@ Connections.setup = function(name, url, options)
     --- get dbms name from jdbc url
     local s = url:find("://") or #url + 1
     local dbms = url:sub(0, s - 1)
+    -- TODO: clean this up for future additions to be cleaner/simpler
+    if dbms == url then
+        if dbms ~= "snowflake" then
+            local con = Cons.sqlite
+            return con:setup(name, url, options)
+        end
+    end
     local con = Cons[dbms]
     return con:setup(name, url, options)
 end

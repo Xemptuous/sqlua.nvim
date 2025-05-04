@@ -27,7 +27,7 @@ function Mariadb:setup(name, url, options)
             table.insert(s.cli_args, "--" .. k .. "=" .. v)
         end
     end
-    table.insert(s.cli_args, "-t") -- table output
+    table.insert(s.cli_args, "-t")          -- table output
     table.insert(s.cli_args, "--ssl=FALSE") -- table output
     -- FIXME: causes issues with information schema
     -- table.insert(s.cli_args, "--safe-updates")

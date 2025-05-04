@@ -167,6 +167,7 @@ function Connection:getSchema(data, db)
     self.num_schema = 0
     self.schema = {}
 
+
     for i, _ in ipairs(schema) do
         local type = schema[i][1]
         local s = schema[i][2] -- schema
@@ -186,7 +187,7 @@ function Connection:getSchema(data, db)
             elseif type == "view" then
                 self.schema[s].views[t] = { expanded = false }
                 self.schema[s].num_views = self.schema[s].num_views + 1
-            else
+            elseif type == "procedure" or type == "routine" then
                 self.schema[s].procedures[t] = { expanded = false }
                 self.schema[s].num_procedures = self.schema[s].num_procedures + 1
             end
@@ -405,7 +406,7 @@ Optional `mode` determines what is executed:
 ]]
 ---@param mode string|nil
 ---@return nil
-function Connection:execute(--[[optional mode string]]mode)
+function Connection:execute( --[[optional mode string]] mode)
     if self.name ~= require("sqlua.ui").active_db then return end
     if not mode then mode = vim.api.nvim_get_mode().mode end
 
@@ -414,7 +415,7 @@ function Connection:execute(--[[optional mode string]]mode)
     -- normal mode
     if mode == "n" then
         query = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    -- visual line mode
+        -- visual line mode
     elseif mode == "V" then
         local esc_key = vim.api.nvim_replace_termcodes("<Esc>", false, true, true)
         vim.api.nvim_feedkeys(esc_key, "nx", false)
@@ -425,7 +426,7 @@ function Connection:execute(--[[optional mode string]]mode)
         else
             query = vim.api.nvim_buf_get_lines(0, erow - 1, srow - 1, false)
         end
-    -- visual mode
+        -- visual mode
     elseif mode == "v" then
         local srow, scol, erow, ecol = 0, 0, 0, 0
         local p1 = vim.fn.getpos(".")
@@ -439,7 +440,7 @@ function Connection:execute(--[[optional mode string]]mode)
         else
             query = vim.api.nvim_buf_get_text(0, erow - 1, ecol - 1, srow - 1, scol, {})
         end
-    -- visual block mode
+        -- visual block mode
     elseif mode == "\22" then
         local srow, scol, erow, ecol = 0, 0, 0, 0
         local p1 = vim.fn.getpos(".")
