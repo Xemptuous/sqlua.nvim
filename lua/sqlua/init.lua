@@ -19,6 +19,7 @@ DEFAULT_CONFIG = {
     keybinds = {
         execute_query = "<leader>r",
         activate_db = "<C-a>",
+        insert_execute_query = "<C-r>",
     },
 }
 
