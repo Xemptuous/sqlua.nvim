@@ -129,7 +129,10 @@ You can override the default settings by feeding the table as a table to the set
     load_connections_on_start = false,
     keybinds = {
         execute_query = "<leader>r",
-        activate_db = "<C-a>"
+        activate_db = "<C-a>",
+
+        -- Execute query (just like keybinds.execute_query) while in insert mode for query
+        insert_execute_query = "<C-r>",
     }
 }
 ```
@@ -150,6 +153,8 @@ By default, the keymap to execute commands is set to `<leader>r`, acting differe
     <kdb>&lt;leader>r</kbd> (normal mode): Runs the entire buffer as a query.
     <kdb>&lt;leader>r</kbd> (visual mode): Runs the selected lines as a query. (visual, visual block, and/or visual line)
 </pre>
+
+You can also execute a query while editing it (default: `<C-r>`).
 
 Upon executing a query, the results will be shown in a results buffer.
 

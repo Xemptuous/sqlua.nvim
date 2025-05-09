@@ -411,8 +411,8 @@ function Connection:execute(--[[optional mode string]]mode)
 
     local query = nil
 
-    -- normal mode
-    if mode == "n" then
+    -- normal mode or insert mode (generally comes to us as "ic" but capture other forms as well)
+    if mode == "n" or mode:sub(1, 1) == "i" then
         query = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     -- visual line mode
     elseif mode == "V" then

@@ -1339,29 +1339,37 @@ function UI:setup(config)
         vim.api.nvim_buf_delete(buf, { force = true, unload = false })
     end
 
+    local execute_callback = function()
+        -- return if in sidebar or results
+        local win = vim.api.nvim_get_current_win()
+        local tobreak = true
+        for _, w in pairs(self.windows.editors) do
+            if win == w then tobreak = false end
+        end
+
+        local buf = vim.api.nvim_get_current_buf()
+        for _, b in pairs(self.buffers.editors) do
+            if buf == b then tobreak = false end
+        end
+
+        if tobreak then return end
+
+        local mode = vim.api.nvim_get_mode().mode
+        local db = self.dbs[self.active_db]
+        db:execute(mode)
+        self:refreshSidebar()
+    end
+    
     -- execute query keybind
     vim.api.nvim_set_keymap("", config.keybinds.execute_query, "", {
-        callback = function()
-            -- return if in sidebar or results
-            local win = vim.api.nvim_get_current_win()
-            local tobreak = true
-            for _, w in pairs(self.windows.editors) do
-                if win == w then tobreak = false end
-            end
-
-            local buf = vim.api.nvim_get_current_buf()
-            for _, b in pairs(self.buffers.editors) do
-                if buf == b then tobreak = false end
-            end
-
-            if tobreak then return end
-
-            local mode = vim.api.nvim_get_mode().mode
-            local db = self.dbs[self.active_db]
-            db:execute(mode)
-            self:refreshSidebar()
-        end,
+        callback = execute_callback,
     })
+
+    if config.keybinds.insert_execute_query then
+        vim.api.nvim_set_keymap("i", config.keybinds.insert_execute_query, "", {
+            callback = execute_callback,
+        })
+    end
 
     -- things to do on various existing events
     vim.api.nvim_create_autocmd({ "BufDelete", "BufHidden" }, {
