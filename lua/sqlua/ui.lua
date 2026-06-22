@@ -91,6 +91,7 @@ local UI_ICONS = {
     dbout = "󰦨",
     new_query = "",
     table_stmt = "",
+    mat_view = "",
 }
 --- Create a string of all icons for substitution purposes
 UI_ICONS.icons_sub = function()
@@ -452,8 +453,13 @@ function UI:refreshSidebar()
         if not schema.views_expanded then return printSidebarCollapsed(buf, srow, sep, v_text) end
 
         srow = printSidebarExpanded(buf, srow, sep, v_text)
-        for view, _ in Utils.pairsByKeys(schema.views) do
-            local text = UI_ICONS.view .. " " .. view
+        for view, tbl in Utils.pairsByKeys(schema.views) do
+            local text = ""
+            if tbl.kind == "view" then
+                text = UI_ICONS.view .. " " .. view
+            elseif tbl.kind == "materialized" then
+                text = UI_ICONS.mat_view .. " " .. view
+            end
             srow = printSidebarEmpty(buf, srow, sep .. "    " .. text)
         end
         return srow
@@ -955,10 +961,11 @@ local function createSidebar()
             .. UI_ICONS.file
             .. "]/"
     )
+    vim.cmd("syn match SQLuaView /[" .. UI_ICONS.views .. UI_ICONS.view .. UI_ICONS.mat_view .. "]/")
     vim.cmd("syn match SQLuaSchema /[" .. UI_ICONS.schema .. "]/")
     vim.cmd("syn match SQLuaDDL /[" .. UI_ICONS.table_stmt .. "]/")
     vim.cmd("syn match SQLuaFunction /[" .. UI_ICONS.functions .. UI_ICONS._function .. "]/")
-    vim.cmd("syn match SQLuaNewQuery /[" .. UI_ICONS.views .. UI_ICONS.view .. UI_ICONS.new_query .. "]/")
+    -- vim.cmd("syn match SQLuaNewQuery /[" .. UI_ICONS.views .. UI_ICONS.view .. UI_ICONS.new_query .. "]/")
     vim.cmd("syn match SQLuaBuffer /[" .. UI_ICONS.buffers .. UI_ICONS.procedure .. UI_ICONS.procedures .. "]/")
     vim.cmd("syn match Comment /[" .. UI_ICONS.expanded .. UI_ICONS.collapsed .. "]/")
 
@@ -1359,7 +1366,7 @@ function UI:setup(config)
         db:execute(mode)
         self:refreshSidebar()
     end
-    
+
     -- execute query keybind
     vim.api.nvim_set_keymap("", config.keybinds.execute_query, "", {
         callback = execute_callback,
@@ -1444,11 +1451,12 @@ function UI:setup(config)
     local comment_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
     local str_hl = vim.api.nvim_get_hl(0, { name = "String" })
     local int_hl = vim.api.nvim_get_hl(0, { name = "Number" })
-    local keyword_hl = vim.api.nvim_get_hl(0, { name = "Keyword" })
+    local keyword_hl = vim.api.nvim_get_hl(0, { name = "Statement" })
     local function_hl = vim.api.nvim_get_hl(0, { name = "Function" })
     local error_hl = vim.api.nvim_get_hl(0, { name = "Error" })
     vim.api.nvim_set_hl(0, "SQLuaFunction", { fg = error_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaTable", { fg = function_hl.fg })
+    vim.api.nvim_set_hl(0, "SQLuaView", { fg = keyword_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaBuffer", { fg = int_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaNewQuery", { fg = keyword_hl.fg })
     vim.api.nvim_set_hl(0, "SQLuaDDL", { fg = int_hl.fg })

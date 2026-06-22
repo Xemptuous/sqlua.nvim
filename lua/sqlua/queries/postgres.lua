@@ -10,6 +10,12 @@ M.SchemaQuery = [[
             ON t.table_schema = s.schema_name
     UNION
     SELECT
+        'materialized_view' AS type,
+        schemaname AS schema_name,
+        COALESCE(matviewname, '-')
+    FROM pg_matviews
+    UNION
+    SELECT
         'view' AS type,
         s.schema_name,
         COALESCE(v.table_name, '-')

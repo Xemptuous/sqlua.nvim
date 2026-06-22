@@ -178,16 +178,19 @@ function Connection:getSchema(data, db)
         end
         if t ~= "-" then
             if type == "function" then
-                self.schema[s].functions[t] = { expanded = false }
+                self.schema[s].functions[t] = { expanded = false, kind = "function" }
                 self.schema[s].num_functions = self.schema[s].num_functions + 1
             elseif type == "table" then
-                self.schema[s].tables[t] = { expanded = false }
+                self.schema[s].tables[t] = { expanded = false, kind = "table" }
                 self.schema[s].num_tables = self.schema[s].num_tables + 1
             elseif type == "view" then
-                self.schema[s].views[t] = { expanded = false }
+                self.schema[s].views[t] = { expanded = false, kind = "view" }
+                self.schema[s].num_views = self.schema[s].num_views + 1
+            elseif type == "materialized_view" then
+                self.schema[s].views[t] = { expanded = false, kind = "materialized" }
                 self.schema[s].num_views = self.schema[s].num_views + 1
             elseif type == "procedure" or type == "routine" then
-                self.schema[s].procedures[t] = { expanded = false }
+                self.schema[s].procedures[t] = { expanded = false, kind = "procedure" }
                 self.schema[s].num_procedures = self.schema[s].num_procedures + 1
             end
         end
