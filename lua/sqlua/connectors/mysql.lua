@@ -12,7 +12,7 @@ function Mysql:setup(name, url, options)
     local s = Mysql:new()
     s.name = name
     s.url = url
-    s.dbms = "mariadb"
+    s.dbms = "mysql"
     s.cmd = "mariadb"
     s.cli_args = {}
     s.connection_info = s:parseUrl()

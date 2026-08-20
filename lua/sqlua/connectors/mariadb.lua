@@ -12,7 +12,7 @@ function Mariadb:setup(name, url, options)
     local s = Mariadb:new()
     s.name = name
     s.url = url
-    s.dbms = "mysql"
+    s.dbms = "mariadb"
     s.cmd = "mariadb"
     s.cli_args = {}
     s.connection_info = s:parseUrl()
